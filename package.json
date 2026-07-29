@@ -1,0 +1,13 @@
+{
+  "name": "rental-assistance-philadelphia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rental Assistance Services — Philadelphia back-rent / TFA intake site",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
