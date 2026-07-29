@@ -276,7 +276,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
         <!-- honeypot -->
-        <div class="hp" aria-hidden="true"><label for="company-hp">Company (leave blank)</label><input id="company-hp" name="company" type="text" tabindex="-1" autocomplete="off"></div>
+        <div class="hp" aria-hidden="true"><label for="hp-x7f2">Leave this field empty</label><input id="hp-x7f2" name="hp_x7f2" type="text" tabindex="-1" autocomplete="off"></div>
         <button class="btn" type="submit">Get my free case review <span aria-hidden="true">&rarr;</span></button>
         <p class="form-note">No upfront cost and no application fee. Our 33% success-based fee applies only if the City pays.</p>
         <div id="form-status" class="form-status" role="status" aria-live="polite"></div>
@@ -439,7 +439,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    if (form.querySelector('input[name="company"]').value) return; // honeypot tripped
+    if (form.querySelector('input[name="hp_x7f2"]').value) return; // honeypot tripped
     var firstBad = null, allOk = true;
     form.querySelectorAll('input[required],input[type=email],input[type=tel]').forEach(function(el){
       if (el.name === 'company') return;
@@ -457,22 +457,32 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     var ids = clickIds();
     var transaction_id = txId();
 
-    // Push the GTM-consumable conversion event BEFORE the network call so the
-    // tag fires even if the user navigates away during submit.
-    window.dataLayer.push({
-      event: 'lead_submit',
-      form_id: 'backrent-form',
-      lead_value: LEAD_VALUE,
-      currency: 'USD',
-      transaction_id: transaction_id,
-      gclid: ids.gclid || '', gbraid: ids.gbraid || '', wbraid: ids.wbraid || ''
-    });
+    // The conversion event is pushed by trackLead() AFTER the endpoint confirms the lead
+    // was saved — see the success handler below. It used to fire here, ahead of the
+    // network call, on the theory that the tag should survive the user navigating away;
+    // the cost of that was a $600 Google Ads conversion booked on every failed submit,
+    // which is exactly the signal Smart Bidding would have optimised against. This page is
+    // the planned $50/day landing target, so it is the one that would have been poisoned.
+    function trackLead(contactId){
+      // No CRM contact id means nothing was stored — a tripped honeypot answers
+      // {"ok":true} and saves nothing — so there is no conversion to book.
+      if (!contactId) { return; }
+      window.dataLayer.push({
+        event: 'lead_submit',
+        form_id: 'backrent-form',
+        lead_value: LEAD_VALUE,
+        currency: 'USD',
+        // The CRM contact id doubles as the Ads dedup key.
+        transaction_id: contactId,
+        gclid: ids.gclid || '', gbraid: ids.gbraid || '', wbraid: ids.wbraid || ''
+      });
+    }
 
     // Build the CRM payload — form_type 'intake' lands it as a segmented
     // back-rent lead (ra-intake), Slack-notified, in the Platform CRM.
     var obj = { form_type: 'intake', source_page: 'back-rent', transaction_id: transaction_id };
     form.querySelectorAll('input,select,textarea').forEach(function(el){
-      if (!el.name || el.name === 'company' || el.type === 'file') return;
+      if (!el.name || el.name === 'hp_x7f2' || el.type === 'file') return;
       if (el.value) obj[el.name] = el.value.trim();
     });
     CLICK_KEYS.forEach(function(k){ if (ids[k]) obj[k] = ids[k]; });
@@ -485,16 +495,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok: r.ok, data: d}; }); })
       .then(function(res){
         if (!res.ok || (res.data && res.data.ok === false) || (res.data && res.data.error)){
-          throw new Error((res.data && res.data.reply) || 'submit_failed');
+          var e = new Error((res.data && res.data.reply) || 'submit_failed');
+          // Only a `reply` the SERVER wrote is meant for a human to read.
+          e.userMessage = (res.data && res.data.reply) || '';
+          throw e;
         }
         if (status) status.classList.remove('show');
-        showConfirmation(transaction_id);
+        // Reference = the real CRM contact id, so someone who calls quoting it can
+        // actually be found. It used to be a client-side random string held nowhere else.
+        showConfirmation((res.data && res.data.contact_id) || transaction_id);
+        trackLead(res.data && res.data.contact_id);
       })
       .catch(function(err){
         if (btn) btn.disabled = false;
+        // Human sentence + phone number for the applicant; technical detail to the console.
+        try { console.error('[RAS] back-rent submit failed:', err); } catch(_e){}
         if (status){
-          status.textContent = (err && err.message && err.message !== 'submit_failed')
-            ? err.message
+          status.textContent = (err && err.userMessage)
+            ? err.userMessage
             : 'Something went wrong. Please try again, or call (215) 402-6882.';
           status.classList.add('bad','show');
         }
