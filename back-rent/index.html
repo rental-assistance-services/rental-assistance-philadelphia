@@ -667,6 +667,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   }
 
   document.querySelectorAll('[data-role-gate]').forEach(initRoleGate);
+
+  // A live Google Ads sitelink points at /back-rent/#backrent-form (recorded in the
+  // 2026-07-17 funnel audit as one of four sitelinks returning 200). That element is now
+  // `hidden` until the gate is answered, and a browser cannot scroll to an element with no
+  // layout box — so without this the paid click would land silently at the top of the page.
+  // Send it to the card that holds the gate instead, which is what the visitor needs to see.
+  if (location.hash === '#backrent-form') {
+    var card = document.getElementById('form-card');
+    if (card) { card.scrollIntoView({block: 'start'}); }
+  }
 })();
 </script>
 </body>

@@ -458,6 +458,24 @@ test.describe('the fee terms the consent checkbox points at', () => {
     await expect(page.locator('body')).toContainText('full Service Agreement');
   });
 
+  test('the live #backrent-form sitelink still lands on the form card', async ({ page }) => {
+    // A Google Ads sitelink points at /back-rent/#backrent-form. That element is now
+    // `hidden` until the gate is answered, and a browser cannot scroll to an element with
+    // no layout box — so a paid click would otherwise land silently at the top of the page.
+    //
+    // The assertion is `scrollY > 0`, not "the card is near the top". At desktop width the
+    // card sits in the hero grid and is near the top whether or not anything scrolled, so
+    // a position check passes either way and proves nothing. Landing on a hash and NOT
+    // moving is precisely the broken behaviour.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/back-rent/index.html#backrent-form');
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    const box = await page.locator('#form-card').boundingBox();
+    expect(box.y).toBeLessThan(200);   // and it is what we scrolled TO
+    await expect(page.locator('[data-role-gate][data-gate-for="backrent-form"]')).toBeVisible();
+  });
+
   test('/back-rent/ states the fee and now links the terms', async ({ page }) => {
     // The ads land here, and this page stated the 33% fee with no terms link at all.
     await page.goto('/back-rent/index.html');
