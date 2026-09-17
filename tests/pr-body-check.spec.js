@@ -1,0 +1,107 @@
+/**
+ * The PR checklist (.github/scripts/check-pr-body.js, AGENTS.md sections 6 and 7).
+ * No browser: the rules are called directly, then the script is run the way CI runs it.
+ */
+const { test, expect } = require('@playwright/test');
+const { spawnSync } = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { checkPrBody } = require('../.github/scripts/check-pr-body.js');
+
+const SCRIPT = path.join(__dirname, '..', '.github', 'scripts', 'check-pr-body.js');
+const TEMPLATE = fs.readFileSync(path.join(__dirname, '..', '.github', 'pull_request_template.md'), 'utf8');
+
+const TICKED = '- [x] I read AGENTS.md before changing anything';
+const UNTICKED = '- [ ] I read AGENTS.md before changing anything';
+const PICTURES = '## Before\n\n![before](https://example.com/before.png)\n\n' +
+  '## After\n\n<img width="390" alt="after" src="https://example.com/after.png">\n';
+const body = (...parts) => parts.join('\n\n');
+
+test.describe('PR description rules', () => {
+  test('an unticked AGENTS.md box fails', () => {
+    const result = checkPrBody(body('Tests only.', UNTICKED, 'No visible change: tests only'),
+      ['tests/intake-forms.spec.js']);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toContain('I read AGENTS.md before changing anything');
+    expect(checkPrBody('No visible change: tests only', ['README.md']).ok).toBe(false);
+  });
+
+  test('a capital X ticks the box too', () => {
+    expect(checkPrBody('- [X] I read AGENTS.md before changing anything', ['README.md']).ok).toBe(true);
+  });
+
+  test('an HTML change without pictures fails', () => {
+    const result = checkPrBody(body('Reworded the hero.', TICKED, '## Before', '## After', 'No visible change:'),
+      ['index.html']);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toContain('index.html');
+  });
+
+  test('a picture under only one of Before and After is not enough', () => {
+    const afterOnly = body(TICKED, '## Before', 'nothing yet', '## After', '![after](https://example.com/a.png)');
+    expect(checkPrBody(afterOnly, ['back-rent/index.html']).ok).toBe(false);
+    const aboveBefore = body(TICKED, '![stray](https://example.com/s.png)', '## Before', '## After',
+      '![after](https://example.com/a.png)');
+    expect(checkPrBody(aboveBefore, ['back-rent/index.html']).ok).toBe(false);
+  });
+
+  test('an HTML change with pictures under both Before and After passes', () => {
+    const result = checkPrBody(body('Reworded the hero.', TICKED, PICTURES), ['index.html', 'blog/index.html']);
+    expect(result).toEqual({ ok: true, errors: [] });
+  });
+
+  test('a "No visible change:" line with a reason passes', () => {
+    const result = checkPrBody(body(TICKED, 'No visible change: only the <head> meta description changed'),
+      ['index.html']);
+    expect(result.ok).toBe(true);
+    expect(checkPrBody(body(TICKED, '**No visible change:** structured data only'), ['back-rent/index.html']).ok)
+      .toBe(true);
+  });
+
+  test('a tests-only change passes without pictures', () => {
+    const result = checkPrBody(body('New regression test.', TICKED),
+      ['tests/intake-forms.spec.js', 'package.json', '.github/workflows/tests.yml', 'robots.txt']);
+    expect(result).toEqual({ ok: true, errors: [] });
+  });
+
+  test('CSS and images need pictures; Google verification files do not', () => {
+    expect(checkPrBody(TICKED, ['googleeed2c6ea94980975.html']).ok).toBe(true);
+    for (const file of ['assets/site.css', 'og-image.png', 'a.jpg', 'a.JPEG', 'a.webp', 'a.svg', 'a.gif']) {
+      expect(checkPrBody(TICKED, [file]).ok).toBe(false);
+    }
+  });
+
+  test('the blank template fails, even with the box ticked, because its hints are comments', () => {
+    expect(TEMPLATE).toContain(UNTICKED);
+    expect(checkPrBody(TEMPLATE, ['index.html']).ok).toBe(false);
+    expect(checkPrBody(TEMPLATE.replace(UNTICKED, TICKED), ['index.html']).ok).toBe(false);
+    expect(checkPrBody(TEMPLATE.replace(UNTICKED, TICKED), ['tests/x.spec.js']).ok).toBe(true);
+  });
+});
+
+test.describe('the script as CI runs it', () => {
+  let dir;
+  test.beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ras-pr-body-')); });
+  test.afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  const run = (prBody, files) => {
+    const list = path.join(dir, 'changed-files.txt');
+    fs.writeFileSync(list, files.join('\n') + '\n');
+    return spawnSync(process.execPath, [SCRIPT, list], {
+      env: { ...process.env, PR_BODY: prBody }, encoding: 'utf8',
+    });
+  };
+
+  test('exits 0 for a good description and 1 with an error annotation for a bad one', () => {
+    expect(run(body(TICKED, PICTURES), ['index.html']).status).toBe(0);
+    const bad = run(body(TICKED), ['index.html']);
+    expect(bad.status).toBe(1);
+    expect(bad.stdout).toContain('::error');
+    expect(bad.stdout).toContain('index.html');
+  });
+
+  test('an empty description fails', () => {
+    expect(run('', ['README.md']).status).toBe(1);
+  });
+});
