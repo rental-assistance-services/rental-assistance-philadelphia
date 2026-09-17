@@ -1,7 +1,8 @@
 <!--
 Write this in plain English (AGENTS.md section 7). Someone who is not an engineer should be able
 to follow the first paragraph: what changed for a visitor, then why.
-The PR checklist job reads this description, so fill in every section.
+The PR checklist job reads this description, so fill in every section, and delete any
+footer your AI tool added.
 -->
 
 ## What changed

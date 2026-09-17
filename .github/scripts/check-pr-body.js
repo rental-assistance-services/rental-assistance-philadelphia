@@ -6,7 +6,8 @@
  *
  * Fails when the "I read AGENTS.md" box is not ticked, or when a file a visitor can see changed
  * and the description has neither a picture under both "## Before" and "## After" nor a
- * non-empty "No visible change:" line. HTML comments (the template's hints) are ignored.
+ * non-empty "No visible change:" line, or when it carries an AI signature. HTML comments (the
+ * template's hints) are ignored.
  */
 'use strict';
 
@@ -16,6 +17,10 @@ const ACK = 'I read AGENTS.md before changing anything';
 const ACK_TICKED = /^\s*[-*]\s+\[[xX]\]\s+I read AGENTS\.md before changing anything/m;
 const NO_VISIBLE_CHANGE = /^\s*(?:[-*]\s+)?\**No visible change\**:\**[ \t]*(.*)$/gim;
 const IMAGE = /!\[|<img\b/i;
+const AI_TOOL = '(?:claude|anthropic|cursor|copilot|gemini|grok|chatgpt|openai|codex|windsurf)';
+const AI_SIGNATURE = new RegExp(
+  '(?:made|generated|created|written|built)\\s+(?:with|by|in|using)\\s+\\[?' + AI_TOOL +
+  '|co-authored-by:[^\\n]*' + AI_TOOL + '|\\u{1F916}', 'iu');
 
 function isVisibleFile(file) {
   const name = file.replace(/\\/g, '/').split('/').pop();
@@ -60,6 +65,11 @@ function checkPrBody(body, changedFiles) {
 
   if (!ACK_TICKED.test(text)) {
     errors.push('Tick the box "' + ACK + '" in the description (read AGENTS.md first if you have not).');
+  }
+
+  const signature = AI_SIGNATURE.exec(text);
+  if (signature) {
+    errors.push('Remove the AI signature "' + signature[0].trim() + '" from the description (AGENTS.md section 7).');
   }
 
   const visible = files.filter(isVisibleFile);
