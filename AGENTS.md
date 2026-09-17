@@ -19,10 +19,11 @@ the City's program. There is no build step. What is committed is what goes live.
 
 | Path | What it is |
 |---|---|
+| `global.css` | The site's style standard: brand colours, fonts, sizes, and shared classes (section 4) |
 | `index.html` | The homepage, with four forms: the `#apply` intake form, the license and tax forms, and the contact form |
 | `back-rent/index.html` | The paid-search landing page and its case-review form |
 | `blog/<topic>/index.html` | Plain-English guides for landlords |
-| `tests/` | The Playwright suite (`intake-forms.spec.js`), the local server it uses, and two browser-free checks for the tooling below |
+| `tests/` | The Playwright suite (`intake-forms.spec.js`), the local server it uses, and browser-free checks for the tooling and `global.css` |
 | `.github/` | CI (the Playwright suite and the pull-request checklist), the checklist script, and the pull-request template |
 | `CLAUDE.md`, `.claude/` | Claude Code only: loads this file and adds the hook that enforces section 2 |
 | `CNAME`, `robots.txt`, `sitemap.xml`, `google*.html` | Domain, search engine, and site-verification files |
@@ -92,13 +93,20 @@ version next to it, and do not copy a function just to change the copy.
 - **Read the file before you change it**, and read the part of the page around your change.
   Match how the neighbouring code is written: plain HTML, inline `<style>` and `<script>`, and
   plain `function` declarations with `var`, in the same style as `initIntakeForm`.
-- **Styles go in shared classes, never inline.** Each page keeps its CSS in the `<style>` block in
-  its `<head>`: that block is the page's global stylesheet. Change the existing class or CSS
-  variable so the fix lands everywhere it is used. Never add a `style="..."` attribute, and when
-  you change an element that already has one, move that style into a class and use the class.
-  Sizes that repeat (card widths and heights, padding, gaps, corner radius, font sizes) belong in
-  a CSS variable or a reusable class, so one edit changes every card. If the same class is on
-  several pages, keep it identical on all of them.
+- **Styles go in `global.css`, never inline.** `global.css` at the repo root is the site's style
+  standard: the brand colours, fonts, shadows, widths and corner radius as CSS variables, and the
+  classes that more than one page or section uses (cards, buttons, callouts, form fields). To
+  rebrand the site or reuse a look, change it there once.
+  - Never add a `style="..."` attribute. When you change an element that already has one, move
+    that style into a class and use the class.
+  - Sizes that repeat (card widths and heights, padding, gaps, corner radius, font sizes) belong
+    in a variable or a reusable class in `global.css`, so one edit changes every card.
+  - Use the variables (`var(--navy)`, `var(--rad)`) instead of typing a brand colour or size.
+  - A style that only one page uses may stay in that page's `<style>` block.
+  - **Moving the pages onto `global.css` is still in progress.** Today no page loads it, and each
+    page keeps a copy of the variables in its own `<style>` block. Until a page loads
+    `global.css`, keep that copy identical to it; `tests/global-css.spec.js` checks this. Moving a
+    page over changes what visitors load, so it needs before-and-after pictures (section 6).
 - **A change to shared page parts** (the header, footer, nav, "Are you a tenant?" link, legal
   text) usually has to land on **every** page: `index.html`, `back-rent/`, and all the blog pages.
   Check them all.
@@ -117,8 +125,9 @@ version next to it, and do not copy a function just to change the copy.
 This site has **no unit tests on purpose**. Every check drives a real browser against the real
 page, because the worst bug this site has had (a form that never sent anything) is invisible to
 anything that is not a browser. The only checks without a browser are for the repo's own tooling:
-`tests/agents-md-gate.spec.js` (the Claude hook) and `tests/pr-body-check.spec.js` (the
-pull-request checklist). They run in the same suite.
+`tests/agents-md-gate.spec.js` (the Claude hook), `tests/pr-body-check.spec.js` (the
+pull-request checklist) and `tests/global-css.spec.js` (the style standard). They run in the
+same suite.
 
 ```bash
 npm install
