@@ -1,0 +1,29 @@
+name: PR checklist
+
+# Reads the pull-request description and holds it to AGENTS.md section 7: the "I read AGENTS.md"
+# box is ticked, and a change a visitor can see has before-and-after pictures or a
+# "No visible change:" line. Re-runs when the description is edited.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  checklist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: List the changed files
+        run: git diff --name-only origin/${{ github.base_ref }}...HEAD > changed-files.txt
+      - name: Check the description
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node .github/scripts/check-pr-body.js changed-files.txt
