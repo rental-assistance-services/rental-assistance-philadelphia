@@ -394,8 +394,12 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    const anim = await cal(page).evaluate((el) => { const s = getComputedStyle(el); return [s.animationName, s.animationDuration, s.animationTimingFunction]; });
-    expect(anim).toEqual(['lc-down', '0.35s', 'ease-in']);
+    // it drops down below the box, or rises when it had to open above it — 350ms ease-in either way
+    const anim = await cal(page).evaluate((el) => {
+      const s = getComputedStyle(el);
+      return [s.animationName, s.animationDuration, s.animationTimingFunction, el.classList.contains('lc-cal-up')];
+    });
+    expect(anim.slice(0, 3)).toEqual([anim[3] ? 'lc-up' : 'lc-down', '0.35s', 'ease-in']);
     await cal(page).locator('[data-cal-year]').selectOption('2023');
     await cal(page).locator('[data-cal-month]').selectOption('2');       // March
     await cal(page).getByRole('button', { name: 'March 15, 2023' }).click();
@@ -430,6 +434,60 @@ test.describe('the move-in date and its calendar look like the site', () => {
     // and they still read as dropdowns: the brass chevron is showing
     const chevrons = await cal(page).locator('.lc-cal-sel').evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundImage));
     chevrons.forEach((bg) => expect(bg).toContain('svg'));
+  });
+
+  test('the calendar floats: opening it moves nothing, and it is compact', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    const help = page.locator('.field:has(#tenant-movein) .help');
+    const nextBtn = next(page);
+    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));   // step at rest
+    const [h0, n0] = [await help.boundingBox(), await nextBtn.boundingBox()];
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page)).toBeVisible();
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const [h1, n1] = [await help.boundingBox(), await nextBtn.boundingBox()];
+    expect(h1.y).toBeCloseTo(h0.y, 0);                          // nothing below was pushed down
+    expect(n1.y).toBeCloseTo(n0.y, 0);
+    expect(await cal(page).evaluate((el) => getComputedStyle(el).position)).toBe('absolute');
+    expect((await cal(page).boundingBox()).width).toBeLessThanOrEqual(280);
+    // only the weeks the month needs: February 2026 fits in exactly 4 rows, March 2026 needs 5
+    await cal(page).locator('[data-cal-year]').selectOption('2026');
+    await cal(page).locator('[data-cal-month]').selectOption('1');
+    await expect(cal(page).locator('tbody tr')).toHaveCount(4);
+    await cal(page).locator('[data-cal-month]').selectOption('2');
+    await expect(cal(page).locator('tbody tr')).toHaveCount(5);
+  });
+
+  test('with no room below, it opens ABOVE the date box, fully in view', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 620 });
+    await toStep(page, 'The tenant');
+    await shown(page).scrollIntoViewIfNeeded();
+    // put the date box near the bottom of the window
+    await page.locator('[data-landlord-check]').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page)).toBeVisible();
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const c = await cal(page).boundingBox(), row = await shown(page).boundingBox();
+    const vh = page.viewportSize().height;
+    expect(c.y + c.height).toBeLessThanOrEqual(vh);             // never cut off at the bottom
+    expect(c.y).toBeGreaterThanOrEqual(0);
+    if (await cal(page).evaluate((el) => el.classList.contains('lc-cal-up'))) {
+      expect(c.y + c.height).toBeLessThanOrEqual(row.y + 1);    // sits above the box
+    }
+  });
+
+  test('on a phone the calendar is compact and stays on screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await toStep(page, 'The tenant');
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page)).toBeVisible();
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const c = await cal(page).boundingBox();
+    expect(c.width).toBeLessThanOrEqual(264);
+    expect(c.x).toBeGreaterThanOrEqual(0);
+    expect(c.x + c.width).toBeLessThanOrEqual(390);
+    expect(c.y + c.height).toBeLessThanOrEqual(844);
+    expect(c.y).toBeGreaterThanOrEqual(0);
   });
 
   test('the calendar works by keyboard, and Escape closes it — not the popup', async ({ page }) => {

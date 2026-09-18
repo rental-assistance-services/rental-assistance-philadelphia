@@ -207,48 +207,53 @@
     + 'padding:6px 12px;font:inherit;font-size:.84rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
     + '.lc-drop-remove:hover{border-color:#B4432F;color:#9A3B33;}'
     + '.lc-drop-remove[hidden]{display:none;}'
-    // The date: a text box with a calendar button, and the site-styled calendar under it.
+    // The date: a text box with a calendar button, and the site-styled calendar floating by it.
     + '.lc-date-native{display:none !important;}'
     + '.lc-host .field.lc-datefield{position:relative;}'
-    + '.lc-date-row{position:relative;}'
+    + '.lc-date,.lc-date-row{position:relative;}'
     + '.lc-host .field .lc-date input{padding-right:48px;}'
     + '.lc-date-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:8px;'
     + 'background:transparent;color:var(--lc-brass-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}'
     + '.lc-date-btn:hover,.lc-date-btn[aria-expanded=true]{background:rgba(200,162,74,.13);}'
-    // In the flow (not floating): the date is near the bottom of its step, and a floating
-    // calendar hung off the dialog and out of view. It opens in place and pushes Next down.
-    + '.lc-cal{position:relative;margin-top:6px;width:344px;max-width:100%;padding:12px;background:#fff;'
-    + 'border-radius:12px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.16),0 2px 6px rgba(20,35,58,.06);}'
+    // FLOATING over the fields below — opening it moves nothing (Kyle, 2026-09-19: "it
+    // shouldn't create space at the bottom"). It opens below the date box when there is room,
+    // and flips ABOVE it when there isn't (placeCal), so it is never cut off at the bottom.
+    // Compact: 280px wide, 30px day cells.
+    + '.lc-cal{position:absolute;left:0;top:calc(100% + 6px);z-index:8;width:280px;max-width:100%;padding:10px;background:#fff;'
+    + 'border-radius:12px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.18),0 2px 6px rgba(20,35,58,.06);}'
+    + '.lc-cal.lc-cal-up{top:auto;bottom:calc(100% + 6px);}'
     + '.lc-cal[hidden]{display:none;}'
     + '.lc-cal.lc-drop-in{animation:lc-down .35s ease-in both;}'
-    + '.lc-cal-head{display:flex;align-items:center;gap:4px;margin-bottom:8px;}'
+    + '.lc-cal.lc-cal-up.lc-drop-in{animation-name:lc-up;}'
+    + '.lc-cal-head{display:flex;align-items:center;gap:4px;margin-bottom:6px;}'
     + '.lc-host .field .lc-cal-sel[data-cal-month]{flex:1.8;}'
     // The browser's own select arrow is wide and grey; a slim brass chevron takes its place,
-    // which also leaves room for "September" and the year at desktop width.
-    + '.lc-host .field .lc-cal-sel{flex:1;min-width:0;-webkit-appearance:none;appearance:none;padding:7px 24px 7px 10px;'
-    + 'border:1.5px solid var(--lc-hair);border-radius:8px;font:inherit;font-size:.88rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
-    + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%23A9853A\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 9px center;}'
+    // which also leaves room for "September" and the year in a compact header.
+    + '.lc-host .field .lc-cal-sel{flex:1;min-width:0;-webkit-appearance:none;appearance:none;padding:5px 20px 5px 8px;'
+    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.82rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
+    + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%23A9853A\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 7px center;}'
     + '.lc-host .field .lc-cal-sel:focus{outline:none;border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.24);}'
-    + '.lc-cal-nav{flex:none;width:28px;height:32px;border:none;border-radius:8px;background:transparent;font-size:1.3rem;line-height:1;'
+    + '.lc-cal-nav{flex:none;width:26px;height:28px;border:none;border-radius:7px;background:transparent;font-size:1.2rem;line-height:1;'
     + 'color:var(--lc-navy);cursor:pointer;}'
     + '.lc-cal-nav:hover:not([disabled]){background:rgba(200,162,74,.13);}'
     + '.lc-cal-nav[disabled]{opacity:.3;cursor:default;}'
     + '.lc-cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;}'
-    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;'
-    + 'color:var(--lc-muted-2);font-weight:600;padding:4px 0 6px;}'
+    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;'
+    + 'color:var(--lc-muted-2);font-weight:600;padding:2px 0 4px;}'
     + '.lc-cal-grid td{padding:1px;text-align:center;}'
-    + '.lc-day{width:100%;aspect-ratio:1;max-height:38px;border:none;border-radius:8px;background:transparent;font:inherit;'
-    + 'font-size:.88rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
+    + '.lc-day{width:100%;height:30px;border:none;border-radius:7px;background:transparent;font:inherit;'
+    + 'font-size:.82rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
     + '.lc-day:hover:not([disabled]){background:rgba(200,162,74,.13);}'
     + '.lc-day.lc-out{color:var(--lc-muted-2);opacity:.55;}'
     + '.lc-day.lc-today{box-shadow:inset 0 0 0 1.5px var(--lc-brass);font-weight:700;}'
     + '.lc-day[aria-selected=true]{background:var(--lc-brass);color:#241B06;font-weight:700;}'
     + '.lc-day[disabled]{opacity:.25;cursor:default;}'
     + '.lc-day:focus-visible{outline:2.5px solid var(--lc-brass);outline-offset:1px;}'
-    + '.lc-cal-foot{display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--lc-hair);}'
-    + '.lc-cal-link{background:none;border:none;padding:4px 6px;font:inherit;font-size:.86rem;font-weight:650;color:var(--lc-brass-2);cursor:pointer;border-radius:6px;}'
+    + '.lc-cal-foot{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--lc-hair);}'
+    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.8rem;font-weight:650;color:var(--lc-brass-2);cursor:pointer;border-radius:6px;}'
     + '.lc-cal-link:hover{background:rgba(200,162,74,.13);}'
-    + '@media (max-width:640px){.lc-cal{width:auto;}}'
+    // Smaller screens: a touch narrower and tighter still, and never wider than the field.
+    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.8rem;}}'
     // Once a field is filled in and passes, its asterisk turns into a green check (and a field
     // with no asterisk gets the check after its label). It fades up like everything else.
     // The icon is exactly 1em and sits on the text's own bottom edge (vertical-align:text-bottom),
@@ -778,7 +783,11 @@
         focusDay = fromIso(chosen);
         if (!focusDay || focusDay.getMonth() !== view.getMonth() || focusDay.getFullYear() !== view.getFullYear()) focusDay = first;
       }
-      for (var w = 0; w < 6; w++) {
+      // Only the weeks this month touches (usually 5, sometimes 4 or 6) — a fixed 6 rows made
+      // the calendar a row taller than it needed to be.
+      var daysIn = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+      var weeks = Math.ceil((first.getDay() + daysIn) / 7);
+      for (var w = 0; w < weeks; w++) {
         cells += '<tr>';
         for (var dI = 0; dI < 7; dI++) {
           var d = new Date(start); d.setDate(start.getDate() + w * 7 + dI);
@@ -809,11 +818,21 @@
       focusDay = picked || today();
       build();
       cal.hidden = false;
+      placeCal();
       cal.classList.remove('lc-drop-in'); void cal.offsetWidth; cal.classList.add('lc-drop-in');
       btn.setAttribute('aria-expanded', 'true');
       var f = cal.querySelector('.lc-day[tabindex="0"]'); if (f) f.focus({ preventScroll: true });
-      // Bring the whole calendar into view (the popup scrolls, not the page).
+      // If neither side has room (a very short window), scroll just enough to show it all.
       try { cal.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+    // Below the date box if it fits in the window, otherwise above it if there is more room
+    // there — a floating calendar must never open into the bottom edge and get cut off.
+    function placeCal() {
+      cal.classList.remove('lc-cal-up');
+      var row = box.querySelector('.lc-date-row').getBoundingClientRect();
+      var need = cal.offsetHeight + 12;
+      var below = window.innerHeight - row.bottom, above = row.top;
+      if (below < need && above > below) cal.classList.add('lc-cal-up');
     }
     function closeCal(back) {
       if (cal.hidden) return;
