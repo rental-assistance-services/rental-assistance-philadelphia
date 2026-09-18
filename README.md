@@ -30,22 +30,29 @@ landlord, and choosing "tenant" shows the resource panel instead. The tenant pat
 Every form also carries a hidden `visitor_role` field, which the intake API records on the
 CRM row so landlord leads can be filtered.
 
-### The first-visit popup (`landlord-check.js`)
+### The popup every lead form lives in (`landlord-check.js`)
 
-The inline gates only ask once a visitor scrolls to a form. `landlord-check.js` asks up
-front: on the first page a visitor lands on it opens a four-step popup with a progress bar
-(Who you are → Your rental → Your contact → Anything else) that uses the same questions as
-the homepage's "Request your free case review" form, and POSTs them as that form does
-(`form_type: contact`, `visitor_role: landlord`). A tenant gets a pointer to `/tenants/`
-and, as with the gates, nothing is sent. The answer (or a dismissal) is remembered in
-`localStorage` (`ras_role_check`), a landlord answer also opens the inline gates, and
-"Continue to the full application" pre-fills the long form.
+Forms are filled in a popup, never on the page. It asks "own or rent?" first, with a progress
+bar across the top, and then shows the page's **own** form — moved into the popup, not copied,
+so validation, uploads, the submit handler, the confirmation and conversion tracking are the
+code above, unchanged. The homepage application's seven sections become seven steps
+(Who you are → About you → The property → The tenant → The money owed → Your documents →
+Eviction-diversion status → Fee & finish); each step is checked with the form's own validation
+before Next. The case-review forms (`#contact-form`, `/back-rent/`'s `#backrent-form`) are one
+step. Closing the popup puts the form back where it was, hidden, keeping what was typed.
 
-Every link that jumps to a back-rent / case-review form (`#apply`, `#contact`, `#form-card`,
-`#backrent-form` — the header and footer Apply, "Apply to recover back rent", the back-rent
-page's "Start my free case review", …) opens the popup instead of scrolling down to the form,
-at any time. A visitor who already said landlord starts at "Your rental". Links to any other
-section scroll as normal.
+A tenant gets the free help lines and a link to `/tenants/`; as with the gates, nothing is
+sent. A landlord on a page with no form (the blog) is taken to the homepage application,
+which opens straight into the popup.
+
+What opens it:
+- **A first visit** to any landing page — once; the answer or a dismissal is remembered in
+  `localStorage` (`ras_role_check`).
+- **Any link to a lead form** (`#apply`, `#contact`, `#form-card`, `#backrent-form` — the header
+  and footer Apply, "Apply to recover back rent", "Start my free case review", …), at any time,
+  instead of scrolling down. A visitor who already said landlord skips straight to the form.
+- **Either answer on the landlord/tenant question** in front of each form, instead of
+  revealing the form on the page.
 
 It is one shared file, loaded with `<script src="/landlord-check.js" defer>` on every landing
 page — the homepage, `/back-rent/` and every `/blog/` page. **Add that line to any new landing
