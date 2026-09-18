@@ -46,9 +46,11 @@ a field that passes turns its asterisk into a green check. A wrong value (a digi
 letter in a phone) shows at once; an unfinished one (first name only, too few digits) only
 when the visitor leaves the field or presses Next.
 - **Names:** first and last, letters / spaces / hyphens / apostrophes / periods only, under 150
-  characters (150 is an error), no keyboard-mash repeats.
-- **Phones:** a real 10-digit US number (a leading 1 is fine, valid area code and exchange),
-  tidied to `(215) 555-0123` on leaving the field.
+  characters (150 is an error), no keyboard-mash repeats, no Caps Lock ("MARCUS REED" — mixed
+  case like "McDonald" and suffixes like "III" are fine).
+- **Phones:** formatted as typed — the visitor types digits and `(215) 555-0123` builds itself;
+  other characters never land, digits past ten are ignored. Must be a real 10-digit US number
+  (a leading 1 is fine, valid area code and exchange).
 - **Email:** typed twice. A "Retype email to confirm" card opens beneath it; the retype box
   refuses paste, drop and browser / password-manager autofill, so it is a genuine second
   typing. Next / submit stay held until the two match and the email shows "Verified".

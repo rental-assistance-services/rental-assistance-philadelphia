@@ -272,6 +272,21 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await name.fill('M. R.');
     await page.keyboard.press('Tab');
     await expect(msg).toContainText('not just initials');
+    // Caps Lock is refused as it is typed — whole name, one part, or after an apostrophe
+    for (const shouty of ['MARCUS REED', 'Marcus REED', 'Keana O’NEIL']) {
+      await name.fill('');
+      await name.pressSequentially(shouty);
+      await expect(msg).toHaveText('Please type your name normally, not in all capitals — e.g. Marcus Reed.');
+      await expect(field).not.toHaveClass(/lc-ok/);
+    }
+    // ...but capitals inside a normal name are fine, and so are suffixes and initials
+    for (const fine of ['Ronald McDonald', 'DeShawn Carter III', 'J. Marcus Reed']) {
+      await name.fill(fine);
+      await page.keyboard.press('Tab');
+      await expect(msg, fine).toBeHidden();
+      await expect(field, fine).toHaveClass(/lc-ok/);
+      await name.focus();
+    }
     // real names with accents, apostrophes and hyphens pass
     await name.fill('José O’Neil-Smith');
     await page.keyboard.press('Tab');
@@ -285,13 +300,35 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     const phone = page.locator('#owner-phone');
     const field = page.locator('.field:has(#owner-phone)');
     const msg = page.locator('.field:has(#owner-phone) > .errmsg');
-    // a letter: wrong at once
-    await phone.pressSequentially('215555012a');
-    await expect(msg).toHaveText('Phone numbers can only use digits, spaces, ( ) and -.');
-    // too many digits: wrong at once
+    // digits only: the brackets, space and dash appear by themselves AS they type
+    const steps = { 1: '(2', 3: '(215', 4: '(215) 5', 6: '(215) 555', 7: '(215) 555-0', 10: '(215) 555-0123' };
+    const digits = '2155550123';
+    for (let i = 1; i <= digits.length; i++) {
+      await phone.press(digits[i - 1]);
+      if (steps[i]) await expect(phone, `after ${i} digits`).toHaveValue(steps[i]);
+    }
+    await expect(phone).toBeFocused();
+    await expect(msg).toBeHidden();
+    await expect(field).toHaveClass(/lc-ok/);
+    // Backspace always removes a digit — it never gets stuck on a ")" or "-"
+    for (let i = 0; i < 4; i++) await phone.press('Backspace');   // 10 digits -> 6
+    await expect(phone).toHaveValue('(215) 555');
+    for (let i = 0; i < 2; i++) await phone.press('Backspace');   // -> 4
+    await expect(phone).toHaveValue('(215) 5');
+    await phone.press('Backspace');                               // -> 3
+    await expect(phone).toHaveValue('(215');
+    // letters and symbols never land; digits past ten are ignored
     await phone.fill('');
-    await phone.pressSequentially('215555012345');
-    await expect(msg).toContainText('too many digits');
+    await phone.pressSequentially('215abc555-!0123999');
+    await expect(phone).toHaveValue('(215) 555-0123');
+    await expect(msg).toBeHidden();
+    // editing in the middle keeps the caret where it was
+    await phone.fill('');
+    await phone.pressSequentially('2155550123');
+    await phone.evaluate((el) => el.setSelectionRange(1, 1));   // after "("
+    await phone.press('Delete');                               // remove the "2"
+    await phone.pressSequentially('3');
+    await expect(phone).toHaveValue('(315) 555-0123');
     // too few: fine while typing, an error on leaving
     await phone.fill('');
     await phone.pressSequentially('215555');
@@ -300,20 +337,15 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(msg).toContainText('Enter a 10-digit US phone number');
     // a complete number with an impossible area code
     await phone.fill('');
-    await phone.pressSequentially('1235550123');
+    await phone.pressSequentially('0215550123');
     await expect(msg).toContainText('area code');
-    // a real one: formatted and checked
+    // a leading 1 shows as a country code while typing, and is tidied away on leaving
     await phone.fill('');
-    await phone.pressSequentially('2155550123');
+    await phone.pressSequentially('12155550123');
+    await expect(phone).toHaveValue('1 (215) 555-0123');
     await page.keyboard.press('Tab');
     await expect(phone).toHaveValue('(215) 555-0123');
-    await expect(msg).toBeHidden();
     await expect(field).toHaveClass(/lc-ok/);
-    // a leading 1 is allowed
-    await phone.fill('');
-    await phone.pressSequentially('1 215 555 0123');
-    await page.keyboard.press('Tab');
-    await expect(phone).toHaveValue('(215) 555-0123');
   });
 
   test('the retype box can only be typed into — no paste, no drop, no autofill', async ({ page }) => {

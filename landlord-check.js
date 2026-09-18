@@ -489,12 +489,25 @@
     // digits) is only an error once the visitor leaves the field or presses Next — `strict` —
     // so nobody is told off halfway through typing their own name.
     var NAME_CHARS = /^[\p{L}\p{M}' ’.\-]+$/u;
+    // Caps Lock: any part of a name with 2+ letters that are ALL capitals ("MARCUS", "O'NEIL").
+    // Mixed case is fine ("McDonald", "DeShawn"), and so are generation suffixes (III, IV).
+    var CAPS_MSG = 'Please type your name normally, not in all capitals — e.g. Marcus Reed.';
+    var SUFFIX = /^(II|III|IV|VI{0,3}|IX)\.?$/;              // generation suffixes: Carter III
+    function shouting(v) {
+      return v.split(/[\s\-.'’,&]+/).some(function (w) {
+        var L = w.replace(/[^\p{L}]/gu, '');
+        return L.length >= 2 && L === L.toUpperCase() && L !== L.toLowerCase() && !SUFFIX.test(L);
+      });
+    }
     function nameProblem(v, strict) {
       if (v.length >= NAME_MAX)
         return 'Please keep your name under ' + NAME_MAX + ' characters (' + v.length + ' now).';
       if (!NAME_CHARS.test(v))
         return 'Names can only use letters, spaces, hyphens (-), apostrophes (’) and periods.';
-      if (/(\p{L})\1\1/iu.test(v)) return 'That doesn’t look like a real name.';
+      if (shouting(v)) return CAPS_MSG;
+      // three of the same letter in a row is keyboard-mash — except the suffix "III"
+      if (v.split(/\s+/).some(function (w) { return !SUFFIX.test(w) && /(\p{L})\1\1/iu.test(w); }))
+        return 'That doesn’t look like a real name.';
       var words = v.split(/\s+/).filter(function (w) { return /\p{L}/u.test(w); });
       if (strict && words.length < 2) return 'Please enter your first and last name.';
       if (strict && !words.some(function (w) { return w.replace(/[^\p{L}]/gu, '').length >= 2; }))
@@ -505,6 +518,7 @@
       if (v.length >= NAME_MAX) return 'Please keep this under ' + NAME_MAX + ' characters (' + v.length + ' now).';
       if (!/^[\p{L}\p{M}' ’.,&\-]+$/u.test(v))
         return 'Names can only use letters, spaces, commas, &, hyphens, apostrophes and periods.';
+      if (shouting(v)) return CAPS_MSG;
       return null;
     }
     // A US number: 10 digits (a leading 1 is allowed), a real area code and exchange.
@@ -519,6 +533,29 @@
       if (!/^[2-9]/.test(d.slice(3))) return 'That number isn’t valid — check the three digits after the area code.';
       if (/^(\d)\1{9}$/.test(d)) return 'That doesn’t look like a real phone number.';
       return null;
+    }
+    // As-you-type phone formatting: the visitor types digits only; the brackets, space and
+    // dash appear on their own — "2155550123" reads "(215) 555-0123". Anything that isn't a
+    // digit never lands, digits past ten are ignored, and a leading 1 is shown as "1 (215) …".
+    // Formatting characters are only ever placed BEFORE a digit, so the last character is
+    // always a digit and Backspace always removes a digit (never gets stuck on a ")" or "-").
+    // The caret keeps its place by counting the digits in front of it.
+    function liveFormatPhone(el) {
+      var v = el.value;
+      var caret = typeof el.selectionStart === 'number' ? el.selectionStart : v.length;
+      var before = v.slice(0, caret).replace(/\D/g, '').length;
+      var d = v.replace(/\D/g, ''), lead = '';
+      if (d[0] === '1') { lead = '1'; d = d.slice(1); }
+      d = d.slice(0, 10);
+      var out = !d.length ? '' : d.length <= 3 ? '(' + d
+        : d.length <= 6 ? '(' + d.slice(0, 3) + ') ' + d.slice(3)
+        : '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+      if (lead) out = '1' + (out ? ' ' + out : '');
+      if (out === v) return;
+      el.value = out;
+      var pos = 0, seen = 0, want = Math.min(before, (lead + d).length);
+      while (pos < out.length && seen < want) { if (/\d/.test(out[pos])) seen++; pos++; }
+      if (document.activeElement === el) { try { el.setSelectionRange(pos, pos); } catch (e) {} }
     }
     function formatPhone(el) {
       var d = phoneDigits(val(el));
@@ -663,6 +700,10 @@
       refreshTick(el);
       if (isOwnerEmail(el)) syncEmail(el, false);
     }
+    // Capture phase: the phone is reformatted before anything (the live check included) reads it.
+    host.addEventListener('input', function (e) {
+      if (e.target && e.target.type === 'tel' && isEntry(e.target)) liveFormatPhone(e.target);
+    }, true);
     host.addEventListener('input', liveCheck);
     host.addEventListener('change', liveCheck);
     // Tab out of a valid email: open the confirm box BEFORE the browser moves focus, so the
