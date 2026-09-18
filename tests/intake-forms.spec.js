@@ -70,10 +70,28 @@ async function stubEndpoint(page, body, { status = 200 } = {}) {
   return seen;
 }
 
-/** Answer the gate in front of `form`. Every gated form is unreachable until you do. */
+/**
+ * Answer the gate in front of `form`. Every gated form is unreachable until you do.
+ * Either answer opens the landlord-check popup (landlord-check.js): a landlord gets the
+ * form itself, moved into the popup; a tenant gets the help lines.
+ */
 async function chooseRole(page, form, role) {
   await page.click(`[data-role-gate][data-gate-for="${form.replace('#', '')}"] .rg-btn[data-role="${role}"]`);
 }
+
+/**
+ * Submit `form` the way a person does. In the popup the homepage application is shown one
+ * section per step, so its submit button only exists on screen at the last step: walk
+ * "Next" there first (each step validates), then click the real submit button.
+ */
+async function submitForm(page, form) {
+  const next = page.locator('[data-landlord-check] [data-lc-next]');
+  for (let i = 0; i < 12 && await next.isVisible(); i++) await next.click();
+  await page.click(`${form} button[type=submit]`);
+}
+
+/** The tenant screen inside the popup. */
+const tenantScreen = (page) => page.locator('[data-landlord-check] [data-lc-panel="tenant"]');
 
 /** Fill everything the intake form validates, without touching the honeypot. */
 async function fillApplyForm(page) {
@@ -90,6 +108,17 @@ async function fillApplyForm(page) {
       if (el.type === 'date') return set(el, '2026-01-01');
       if (el.required) set(el, 'Test Value');
     });
+    // The popup asks for the owner's email twice before it counts as verified: leave the
+    // field so the confirm box opens, then type it again.
+    const email = f.querySelector('#owner-email');
+    email.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    const confirm = document.querySelector('#owner-email-confirm');
+    // Typed, not set: the retype box refuses anything that isn't a typed InputEvent (paste,
+    // drop, autofill), so a bare value + plain Event would be refused like autofill.
+    if (confirm) {
+      confirm.value = email.value;
+      confirm.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: email.value }));
+    }
   });
 }
 
@@ -98,9 +127,24 @@ async function fillBackRentForm(page) {
   await page.fill('#owner-name', 'Marcus Reed');
   await page.fill('#owner-phone', '2155550123');
   await page.fill('#owner-email', 'landlord@example.com');
+  await page.fill('#owner-email-confirm', 'landlord@example.com');   // the popup's confirm box
   await page.fill('#prop-address', '1932 N 5th St, Philadelphia, PA 19122');
   await page.fill('#back-rent', '4200');
 }
+
+// This file drives the forms and their inline gates. The first-visit landlord-check popup
+// (landlord-check.js, covered by tests/landlord-check.spec.js) would sit on top of all of
+// them, so every test here starts as a visitor who already dismissed it — which leaves the
+// inline gates unanswered, exactly the state these tests assert against.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('ras_role_check', JSON.stringify({ v: 'dismissed', t: Date.now() }));
+  });
+  // The address box asks Photon for suggestions; tests never reach the real service.
+  await page.route('https://photon.komoot.io/**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+    body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
+});
 
 const dataLayerLeads = (page) =>
   page.evaluate(() => (window.dataLayer || []).filter((d) => d.event === 'lead_submit'));
@@ -118,7 +162,7 @@ test.describe('#apply form (the one that was dead)', () => {
     await page.goto('/index.html');
     await chooseRole(page, '#intake-form', 'landlord');
     await fillApplyForm(page);
-    await page.click('#intake-form button[type=submit]');
+    await submitForm(page, '#intake-form');
     await expect.poll(() => seen.length, { timeout: 10000 }).toBe(1);
     expect(seen[0].method).toBe('POST');
     // The browser must set the multipart boundary itself — which is only possible when
@@ -134,7 +178,7 @@ test.describe('#apply form (the one that was dead)', () => {
     await page.goto('/index.html');
     await chooseRole(page, '#intake-form', 'landlord');
     await fillApplyForm(page);
-    await page.click('#intake-form button[type=submit]');
+    await submitForm(page, '#intake-form');
     const panel = page.locator('.callout[role=status]');
     await expect(panel).toContainText(`reference ${CONTACT_ID}`, { timeout: 10000 });
     // The old code minted 'RAS-<date>-<random>', which existed in no system we own, so
@@ -158,7 +202,7 @@ test.describe('#apply form (the one that was dead)', () => {
       await fillApplyForm(page);
       await page.setInputFiles('#doc-lease', { name: 'lease.pdf', mimeType: 'application/pdf', buffer: PDF });
       await page.setInputFiles('#doc-ledger', { name: 'ledger.pdf', mimeType: 'application/pdf', buffer: PDF });
-      await page.click('#intake-form button[type=submit]');
+      await submitForm(page, '#intake-form');
 
       const panel = page.locator('.callout[role=status]');
       await expect(panel).toBeVisible({ timeout: 10000 });
@@ -177,7 +221,7 @@ test.describe('#apply form (the one that was dead)', () => {
       await page.goto('/index.html');
       await chooseRole(page, '#intake-form', 'landlord');
       await fillApplyForm(page);
-      await page.click('#intake-form button[type=submit]');
+      await submitForm(page, '#intake-form');
 
       const status = page.locator('#form-status');
       await expect(status).toContainText('(215) 402-6882', { timeout: 10000 });
@@ -194,7 +238,7 @@ test.describe('#apply form (the one that was dead)', () => {
       await page.goto('/index.html');
       await chooseRole(page, '#intake-form', 'landlord');
       await fillApplyForm(page);
-      await page.click('#intake-form button[type=submit]');
+      await submitForm(page, '#intake-form');
       await expect(page.locator('#form-status'))
         .toContainText('Please give your name and a phone or email.', { timeout: 10000 });
     });
@@ -208,7 +252,7 @@ test.describe('conversion tracking fires only on a confirmed save', () => {
       await page.goto('/index.html');
       await chooseRole(page, '#intake-form', 'landlord');
       await fillApplyForm(page);
-      await page.click('#intake-form button[type=submit]');
+      await submitForm(page, '#intake-form');
       await expect(page.locator('.callout[role=status]')).toBeVisible({ timeout: 10000 });
 
       const leads = await dataLayerLeads(page);
@@ -226,7 +270,8 @@ test.describe('conversion tracking fires only on a confirmed save', () => {
     const seen = await stubEndpoint(page, { ok: true, contact_id: CONTACT_ID });
     await page.goto('/index.html');
     await chooseRole(page, '#intake-form', 'landlord');
-    await page.click('#intake-form button[type=submit]');   // nothing filled in
+    // nothing filled in — submit the whole form directly, skipping the per-step checks
+    await page.locator('#intake-form').evaluate((f) => f.requestSubmit());
     await expect(page.locator('#form-status')).toContainText('Please fix', { timeout: 10000 });
     expect(await dataLayerLeads(page)).toHaveLength(0);
     expect(seen).toHaveLength(0);
@@ -237,7 +282,7 @@ test.describe('conversion tracking fires only on a confirmed save', () => {
     await page.goto('/index.html');
     await chooseRole(page, '#intake-form', 'landlord');
     await fillApplyForm(page);
-    await page.click('#intake-form button[type=submit]');
+    await submitForm(page, '#intake-form');
     await expect(page.locator('#form-status')).toContainText('(215) 402-6882', { timeout: 10000 });
     expect(await dataLayerLeads(page)).toHaveLength(0);
   });
@@ -249,7 +294,7 @@ test.describe('conversion tracking fires only on a confirmed save', () => {
     await page.goto('/index.html');
     await chooseRole(page, '#intake-form', 'landlord');
     await fillApplyForm(page);
-    await page.click('#intake-form button[type=submit]');
+    await submitForm(page, '#intake-form');
     await expect(page.locator('.callout[role=status]')).toBeVisible({ timeout: 10000 });
     expect(await dataLayerLeads(page)).toHaveLength(0);
   });
@@ -271,7 +316,7 @@ test.describe('conversion tracking fires only on a confirmed save', () => {
         document.querySelector('#intake-form input[name="visitor_role"]').value = 'tenant';
       });
       await fillApplyForm(page);
-      await page.click('#intake-form button[type=submit]');
+      await submitForm(page, '#intake-form');
       await expect(page.locator('.callout[role=status]')).toBeVisible({ timeout: 10000 });
 
       expect(seen).toHaveLength(1);                 // the lead WAS sent and saved
@@ -315,17 +360,23 @@ test.describe('landlord / tenant gate', () => {
       expect(await roleValue(page, form)).toBe('');
     });
 
-    test(`${url} ${form}: landlord reveals the form and stamps the role`, async ({ page }) => {
+    test(`${url} ${form}: landlord opens the form in the popup and stamps the role`, async ({ page }) => {
       await page.goto(url);
       await chooseRole(page, form, 'landlord');
-      await expect(page.locator(form)).toBeVisible();
+      // The form is filled in the popup, never on the page.
+      await expect(page.locator(`[data-landlord-check] ${form}`)).toBeVisible();
       expect(await roleValue(page, form)).toBe('landlord');
-      // The submit button must be clickable, not merely present. A `.reveal` form that is
-      // un-hidden without its `in` class sits at opacity 0 forever, because the
-      // IntersectionObserver that adds `in` never fires for an element with no layout box.
-      await expect(page.locator(`${form} button[type=submit]`)).toBeVisible();
+      // A `.reveal` form that is un-hidden without its `in` class sits at opacity 0
+      // forever, because the IntersectionObserver that adds `in` never fires for an
+      // element with no layout box.
       const opacity = await page.locator(form).evaluate((el) => getComputedStyle(el).opacity);
       expect(Number(opacity)).toBeGreaterThan(0.9);
+      // The submit button must be reachable and clickable, not merely present — for the
+      // stepped homepage application that means walking to its last step.
+      if (form === '#intake-form') await fillApplyForm(page);
+      const next = page.locator('[data-landlord-check] [data-lc-next]');
+      for (let i = 0; i < 12 && await next.isVisible(); i++) await next.click();
+      await expect(page.locator(`${form} button[type=submit]`)).toBeVisible();
     });
 
     test(`${url} ${form}: tenant gets the resources, no form, and POSTs nothing`,
@@ -335,11 +386,11 @@ test.describe('landlord / tenant gate', () => {
         await chooseRole(page, form, 'tenant');
 
         await expect(page.locator(form)).toBeHidden();
-        const panel = page.locator('[data-tenant-panel]');
+        const panel = tenantScreen(page);
         await expect(panel).toBeVisible();
         // It says what we are, and points at services that can actually help.
         await expect(panel).toContainText('hired by');
-        await expect(panel).toContainText('the landlord files it, not you');
+        await expect(panel).toContainText('the landlord has to apply');
         for (const line of TENANT_LINES) {
           await expect(panel.locator(`a[href="${line.tel}"]`)).toHaveText(line.label);
         }
@@ -351,14 +402,16 @@ test.describe('landlord / tenant gate', () => {
         expect(await dataLayerLeads(page)).toHaveLength(0);
       });
 
-    test(`${url} ${form}: "change this" puts the visitor back to an unanswered gate`,
+    test(`${url} ${form}: closing the popup puts the form back, hidden, behind an unanswered gate`,
       async ({ page }) => {
         await page.goto(url);
         await chooseRole(page, form, 'landlord');
-        await expect(page.locator(form)).toBeVisible();
-        await page.click(`[data-role-gate][data-gate-for="${form.replace('#', '')}"] .rg-change`);
+        await expect(page.locator(`[data-landlord-check] ${form}`)).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('[data-landlord-check]')).toHaveCount(0);
         await expect(page.locator(form)).toBeHidden();
-        expect(await roleValue(page, form)).toBe('');
+        await expect(page.locator(`[data-role-gate][data-gate-for="${form.replace('#', '')}"]`))
+          .not.toHaveClass(/chosen/);
       });
   }
 
@@ -388,14 +441,15 @@ test.describe('landlord / tenant gate', () => {
     // else's phone numbers, dialled by someone we cannot sell to.
     await page.goto('/index.html');
     await chooseRole(page, '#contact-form', 'tenant');
-    await expect(page.locator('[data-tenant-panel]')).toBeVisible();
+    await expect(tenantScreen(page)).toBeVisible();
     for (const line of TENANT_LINES) {
-      await expect(page.locator(`[data-tenant-panel] a[href="${line.tel}"]`))
+      await expect(tenantScreen(page).locator(`a[href="${line.tel}"]`))
         .toHaveAttribute('data-no-track', '');
     }
     await page.evaluate(() => {
-      document.querySelector('[data-tenant-panel] a[href^="tel:"]').click();
+      document.querySelector('[data-lc-panel="tenant"] a[href^="tel:"]').click();
     });
+    await page.keyboard.press('Escape');
     const calls = await page.evaluate(
       () => (window.dataLayer || []).filter((d) => d.event === 'phone_click'));
     expect(calls).toHaveLength(0);
@@ -419,6 +473,17 @@ test.describe('the tenant page and the panels agree', () => {
       await expect(page.locator(`a[href="${line.tel}"]`).first()).toHaveText(line.label);
     }
     await expect(page.locator('body')).toContainText('the landlord files it, not you');
+  });
+
+  test('the popup\'s tenant screen lists the same help lines', async ({ page }) => {
+    // A fourth copy: landlord-check.js carries them so the tenant screen also works on the
+    // blog, which has no inline panel to borrow from.
+    await page.goto('/index.html');
+    await page.locator('#nav-links a.cta').evaluate((a) => a.click());
+    await page.getByRole('button', { name: /I rent my home/ }).click();
+    for (const line of TENANT_LINES) {
+      await expect(tenantScreen(page).locator(`a[href="${line.tel}"]`)).toHaveText(line.label);
+    }
   });
 
   test('/tenants/ has no form and books no conversion', async ({ page }) => {
