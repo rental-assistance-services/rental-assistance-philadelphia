@@ -291,6 +291,136 @@ test.describe('address suggestions', () => {
   });
 });
 
+test.describe('answers are kept for an hour', () => {
+  const draft = (page, id = 'intake-form') =>
+    page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), 'ras_lc_draft:' + id);
+  const openApply = (page) => page.locator('#nav-links a.cta').evaluate((a) => a.click());
+  const note = (page) => page.locator('.lc-restored');
+
+  test('after a reload the answers — and the verified email — come back, on the step they reached', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await SECTION_FILL['About you (the owner)'](page);
+    await page.fill('#owner-entity', 'Reed Property Group LLC');
+    await next(page).click();
+    await page.fill('#prop-address', '1932 N 5th St');
+    await expect.poll(async () => (await draft(page))?.values?.property_address).toBe('1932 N 5th St');
+    await page.reload();
+    await openApply(page);
+    // picks up where they were
+    expect(await currentStep(page)).toBe('The property');
+    await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
+    await expect(note(page)).toContainText('we kept what you typed on this device for an hour');
+    await back(page).click();
+    await expect(page.locator('#owner-name')).toHaveValue('Marcus Reed');
+    await expect(page.locator('#owner-entity')).toHaveValue('Reed Property Group LLC');
+    await expect(page.locator('#owner-phone')).toHaveValue('(215) 555-0123');
+    await expect(page.locator('#owner-units')).toHaveValue('3');
+    // the email comes back verified, retype and all, with its check
+    await expect(page.locator('#owner-email')).toHaveValue('landlord@example.com');
+    await expect(page.locator('.field:has(#owner-email)')).toHaveClass(/lc-verified/);
+    await expect(page.locator('#owner-email-confirm')).toHaveValue('landlord@example.com');
+    await expect(page.locator('.field:has(#owner-name)')).toHaveClass(/lc-ok/);
+    // and Next goes straight through — nothing has to be retyped
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property');
+  });
+
+  test('the consent boxes are never kept — a legal authorisation is ticked fresh each time', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await fillApplication(page);                               // ends on the last step with both ticked
+    await expect(page.locator('#consent')).toBeChecked();
+    await expect.poll(async () => (await draft(page))?.step).toBe(6);
+    await page.waitForTimeout(600);                            // let the save after the ticks land
+    const saved = await draft(page);
+    expect(saved.values.consent).toBeUndefined();
+    expect(saved.values.agree_terms).toBeUndefined();
+    await page.reload();
+    await openApply(page);
+    expect(await currentStep(page)).toBe('Fee, authorization & finish');
+    await expect(page.locator('#consent')).not.toBeChecked();
+    await expect(page.locator('#agree-terms')).not.toBeChecked();
+  });
+
+  test('after an hour they are gone', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.fill('#owner-name', 'Marcus Reed');
+    await expect.poll(async () => (await draft(page))?.values?.owner_name).toBe('Marcus Reed');
+    await page.evaluate(() => {                                // pretend it was saved 61 minutes ago
+      const k = 'ras_lc_draft:intake-form', o = JSON.parse(localStorage.getItem(k));
+      o.t = Date.now() - 61 * 60 * 1000; localStorage.setItem(k, JSON.stringify(o));
+    });
+    await page.reload();
+    await openApply(page);
+    await expect(page.locator('#owner-name')).toHaveValue('');
+    await expect(note(page)).toBeHidden();
+    expect(await draft(page)).toBeNull();
+  });
+
+  test('reopening does not restart the hour — only an edit does', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.fill('#owner-name', 'Marcus Reed');
+    await expect.poll(async () => (await draft(page))?.values?.owner_name).toBe('Marcus Reed');
+    await page.evaluate(() => {
+      const k = 'ras_lc_draft:intake-form', o = JSON.parse(localStorage.getItem(k));
+      o.t = Date.now() - 50 * 60 * 1000; localStorage.setItem(k, JSON.stringify(o));
+    });
+    const before = (await draft(page)).t;
+    await page.reload();
+    await openApply(page);
+    await page.waitForTimeout(500);
+    expect((await draft(page)).t).toBe(before);                // looked at, not edited
+    await page.locator('#owner-name').pressSequentially('s');
+    await expect.poll(async () => (await draft(page)).t).toBeGreaterThan(before);
+  });
+
+  test('submitting deletes the saved answers', async ({ page }) => {
+    await stubEndpoint(page);
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await fillApplication(page);
+    await expect.poll(async () => await draft(page)).not.toBeNull();
+    await page.click('#intake-form button[type=submit]');
+    await expect(page.locator('[data-landlord-check] .callout[role=status]')).toBeVisible();
+    await expect.poll(async () => await draft(page)).toBeNull();
+  });
+
+  test('"Start over" empties the form and forgets the saved answers', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await SECTION_FILL['About you (the owner)'](page);
+    await next(page).click();
+    await expect.poll(async () => (await draft(page))?.step).toBe(1);
+    await page.reload();
+    await openApply(page);
+    await page.getByRole('button', { name: 'Start over' }).click();
+    expect(await currentStep(page)).toBe('About you (the owner)');
+    await expect(page.locator('#owner-name')).toHaveValue('');
+    await expect(page.locator('#owner-email')).toHaveValue('');
+    await expect(page.locator('.field:has(#owner-email)')).not.toHaveClass(/lc-verified/);
+    await expect(note(page)).toBeHidden();
+    expect(await draft(page)).toBeNull();
+  });
+
+  test('the case-review form is kept too', async ({ page }) => {
+    await as(page, 'dismissed');
+    await page.goto('/index.html');
+    await page.locator('footer a[href="#contact"]').evaluate((a) => a.click());
+    await landlord(page).click();
+    await page.fill('#c-name', 'Marcus Reed');
+    await page.fill('#c-message', 'Tenant is four months behind.');
+    await expect.poll(async () => (await draft(page, 'contact-form'))?.values?.name).toBe('Marcus Reed');
+    await page.reload();
+    await page.locator('footer a[href="#contact"]').evaluate((a) => a.click());
+    await landlord(page).click();
+    await expect(page.locator('#c-name')).toHaveValue('Marcus Reed');
+    await expect(page.locator('#c-message')).toHaveValue('Tenant is four months behind.');
+  });
+});
+
 test.describe('where it opens by itself', () => {
   for (const url of LANDING) {
     test(`${url}: opens on a first visit, asking own or rent`, async ({ page }) => {

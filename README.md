@@ -69,6 +69,14 @@ it in yourself." under the suggestions, and "We couldn't find a match — you ca
 full address yourself." on its own when nothing matches, Photon is down, or it hasn't answered
 within 2.5s. What the visitor types is sent to Photon as they type.
 
+**Answers kept for an hour.** What the visitor types is kept on their device (localStorage,
+`ras_lc_draft:<form id>`) for one hour after their last edit — reopening or moving between
+steps doesn't restart the hour. Coming back within it, the popup refills the form, returns to
+the step they reached, and brings a verified email back verified. A "Welcome back … Start over"
+line says so and lets them wipe it. Not kept: the two consent boxes (ticked fresh every time),
+uploaded files (browsers can't refill a file picker), the honeypot and the role. Submitting
+deletes the draft.
+
 A tenant gets the free help lines and a link to `/tenants/`; as with the gates, nothing is
 sent. A landlord on a page with no form (the blog) is taken to the homepage application,
 which opens straight into the popup.

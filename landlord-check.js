@@ -216,6 +216,13 @@
     + '.lc-host .lc-confirm-in{min-height:0;overflow:hidden;padding:0 10px;transition:padding .35s ease-in;}'
     // Address suggestions: a list that drops down over the fields below the address box
     // (it overlays rather than pushing them), fading down over 350ms ease-in.
+    // "Welcome back" line shown when a saved draft was put back.
+    + '.lc-restored{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 18px;'
+    + 'padding:10px 14px;border-radius:10px;background:rgba(200,162,74,.12);font-size:.86rem;color:var(--lc-muted);'
+    + 'animation:lc-up .35s ease-in both;}'
+    + '.lc-restored[hidden]{display:none;}'
+    + '.lc-startover{background:none;border:none;padding:0;font:inherit;font-weight:650;color:var(--lc-brass-2);'
+    + 'text-decoration:underline;cursor:pointer;}'
     + '.lc-host .field.lc-addr{position:relative;}'
     + '.lc-suggest{position:absolute;left:0;right:0;z-index:5;list-style:none;margin:6px 0 0;padding:6px;background:#fff;'
     + 'border-radius:10px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.14),0 2px 6px rgba(20,35,58,.06);}'
@@ -306,7 +313,7 @@
     + '@media (prefers-reduced-motion:reduce){.lc-backdrop,.lc-dialog,.lc-panel,.lc-host fieldset.lc-enter,'
     + '.lc-host .errmsg,.lc-host .errmsg.show,.lc-host .field.show-err .errmsg,.lc-host .field input,.lc-host .field select,'
     + '.lc-host .field textarea,.lc-host .lc-confirm,.lc-host .lc-confirm.show,.lc-host .lc-confirm-in{transition:none;}'
-    + '.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after,.lc-suggest{animation:none;}}';
+    + '.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after,.lc-suggest,.lc-restored{animation:none;}}';
 
   var HTML = ''
     + '<div class="lc-dialog" role="dialog" aria-modal="true" aria-labelledby="lc-title-role" tabindex="-1">'
@@ -339,6 +346,8 @@
     + '</div>'
     // the page's form is moved in here
     + '<div class="lc-panel" data-lc-panel="form" hidden>'
+    + '<p class="lc-restored" hidden><span>Welcome back — we kept what you typed on this device for an hour.</span>'
+    + '<button type="button" class="lc-startover" data-lc-startover>Start over</button></p>'
     + '<div class="lc-host" id="lc-title-form"></div>'
     + '<div class="lc-nav"><button type="button" class="lc-btn lc-btn-back" data-lc-back>&larr; Back</button>'
     + '<button type="button" class="lc-btn lc-btn-main" data-lc-next>Next &rarr;</button></div>'
@@ -647,8 +656,120 @@
       }
       panel('form');
       if (submitted(form)) { showDone(); return; }
+      // Back within the hour: put their answers back and pick up on the step they were on.
+      var start = 0, d = readDraft();
+      if (d) {
+        var filled = applyDraft(d);
+        start = Math.max(0, Math.min(d.step || 0, Math.max(sections.length - 1, 0)));
+        restoredNote.hidden = !filled;
+        if (filled) track('draft_restored', { form_id: form.id, fields: filled });
+      }
+      showStep(start);
+    }
+
+    /* --- the 1-hour draft ---
+       What the visitor has typed is kept on this device (localStorage) for one hour after
+       their last edit, so a closed tab, a reload or a phone call doesn't cost them the form.
+       That includes a verified email: it comes back verified, retype and all.
+       NOT kept: the two consent boxes (a legal authorisation is ticked fresh every time),
+       uploaded files (a browser can't refill a file picker), the honeypot, and the role
+       (that is stamped by the gate). A submitted application deletes its draft, and "Start
+       over" deletes it on demand — it is personal data on what may be a shared computer. */
+    var DRAFT_TTL = 60 * 60 * 1000;
+    var NOT_KEPT = { hp_x7f2: true, visitor_role: true, consent: true, agree_terms: true };
+    var draftTimer = null, restoring = false;
+    var restoredNote = root.querySelector('.lc-restored');
+    function draftKey() { return 'ras_lc_draft:' + form.id; }
+    function keepable(el) {
+      return !!el.name && !NOT_KEPT[el.name] && !/^(file|hidden|password|submit|button)$/.test(el.type);
+    }
+    function ownerEmail() { return form.querySelector('input[type="email"][required]'); }
+    function readDraft() {
+      try {
+        var o = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+        if (!o || !o.values) return null;
+        if (Date.now() - o.t > DRAFT_TTL) { localStorage.removeItem(draftKey()); return null; }
+        return o;
+      } catch (e) { return null; }
+    }
+    function clearDraft() { clearTimeout(draftTimer); try { localStorage.removeItem(draftKey()); } catch (e) {} }
+    function saveDraft() {
+      if (!form || restoring || submitted(form)) return;
+      var values = {}, any = false;
+      form.querySelectorAll('input,select,textarea').forEach(function (el) {
+        if (!keepable(el)) return;
+        if (el.type === 'checkbox') { if (el.checked) { values[el.name] = true; any = true; } return; }
+        if (el.type === 'radio') { if (el.checked) values[el.name] = el.value; if (el.checked && !el.defaultChecked) any = true; return; }
+        if (val(el)) { values[el.name] = el.value; any = true; }
+      });
+      var em = ownerEmail();
+      var ver = em && verified(em) ? val(em).toLowerCase() : '';
+      try {
+        if (!any) { localStorage.removeItem(draftKey()); return; }
+        // The hour runs from the last EDIT: re-saving unchanged answers (reopening the popup,
+        // moving between steps) keeps the original time, so a draft can't live on forever.
+        var old = readDraft(), same = old && JSON.stringify(old.values) === JSON.stringify(values) && old.verified === ver;
+        localStorage.setItem(draftKey(), JSON.stringify({ t: same ? old.t : Date.now(), step: Math.max(idx, 0),
+          values: values, verified: ver }));
+      } catch (e) {}
+    }
+    function scheduleSave() { if (restoring) return; clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 250); }
+    // Fill only EMPTY fields: never overwrite something typed since. Returns how many it filled.
+    function applyDraft(d) {
+      var filled = 0;
+      restoring = true;
+      try {
+        Object.keys(d.values).forEach(function (name) {
+          var v = d.values[name];
+          form.querySelectorAll('[name="' + name.replace(/"/g, '') + '"]').forEach(function (el) {
+            if (!keepable(el)) return;
+            if (el.type === 'radio') {
+              if (el.value === v && !el.checked) { el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); }
+            } else if (el.type === 'checkbox') {
+              if (v && !el.checked) { el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); filled++; }
+            } else if (!val(el) && v) {
+              el.value = v; filled++;
+            }
+          });
+        });
+        // Show them as checked fields, exactly as when they were typed.
+        form.querySelectorAll('input,select,textarea').forEach(function (el) {
+          if (isEntry(el) && val(el)) { el.setAttribute('data-lc-touched', ''); runPageCheck(el, true); refreshTick(el); }
+        });
+        // A verified email comes back verified — the retype included.
+        var em = ownerEmail();
+        if (em && d.verified && val(em).toLowerCase() === d.verified) {
+          var box = confirmBox(em, true), c = box.querySelector('input');
+          c.value = em.value;
+          em.setAttribute('data-lc-verified-for', d.verified);   // restored, not a fresh verification
+          box.classList.add('show');
+          checkConfirm(em, false);
+        }
+      } finally { restoring = false; }
+      return filled;
+    }
+    // "Start over": empty everything the draft kept, forget the draft, back to the first step.
+    function startOver() {
+      clearDraft();
+      form.querySelectorAll('input,select,textarea').forEach(function (el) {
+        if (!keepable(el)) return;
+        if (el.type === 'radio') { el.checked = el.defaultChecked; if (el.checked) el.dispatchEvent(new Event('change', { bubbles: true })); return; }
+        if (el.type === 'checkbox') { el.checked = false; return; }
+        el.value = '';
+        el.removeAttribute('data-lc-touched');
+        el.removeAttribute('data-lc-verified-for');
+        clearErr(el);
+        var f = el.closest('.field');
+        if (f) f.classList.remove('lc-ok', 'lc-emailok', 'lc-verified');
+      });
+      var em = ownerEmail(), box = em && confirmBox(em, false);
+      if (box) { var c = box.querySelector('input'); c.value = ''; c.classList.remove('err', 'lc-match'); box.querySelector('.errmsg').classList.remove('show'); box.classList.remove('show'); }
+      restoredNote.hidden = true;
+      track('draft_cleared', { form_id: form.id });
       showStep(0);
     }
+    host.addEventListener('input', function () { scheduleSave(); });
+    host.addEventListener('change', function () { scheduleSave(); });
 
     function showStep(i) {
       idx = i;
@@ -664,6 +785,7 @@
       root.scrollTop = 0;
       focusFirst(sections.length ? sections[i] : form);
       track('step', { lc_step: i + 2, form_id: form.id });
+      scheduleSave();                                     // remember which step they reached
     }
 
     function showDone() {
@@ -673,6 +795,8 @@
       nextBtn.hidden = true; backBtn.hidden = true;
       progress(labels.length + 1);
       track('submit', { form_id: form.id });
+      clearDraft();                                       // sent: nothing left to keep
+      restoredNote.hidden = true;
     }
 
     /* --- validation: the page's own rules, shown only once a field has been typed in ---
@@ -1065,6 +1189,7 @@
         if (role === 'landlord') mount(); else showTenant();
         return;
       }
+      if (t.hasAttribute('data-lc-startover')) { startOver(); return; }
       if (t.hasAttribute('data-lc-back')) { if (idx > 0) showStep(idx - 1); else showRole(); return; }
       if (t.hasAttribute('data-lc-next')) { if (sectionValid()) showStep(idx + 1); }
     });
