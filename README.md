@@ -12,11 +12,20 @@ gate). Do not copy it over `index.html`.
 
 | Path | What it is |
 |---|---|
-| `/` | The main landlord site — back rent, licensing, city-tax compliance, four intake forms |
+| `/` | Home: the hero, an overview of both services, the back-rent application (`#apply`) and the case review (`#contact`) |
+| `/services/back-rent/` | How getting the City to pay back rent works, and what you collect (`#rentassist`) |
+| `/services/licensing/` | Rental License and city-tax compliance, with their two intake forms (`#rentclear`) |
+| `/portal/` | The client portal preview (`#portal`) |
+| `/faq/` | Questions and answers, with the FAQPage structured data (`#faq`) |
 | `/back-rent/` | The paid-ads landing page (single form, `#backrent-form`) |
 | `/tenants/` | Where tenants get help. No form, no conversion — deliberately indexed |
 | `/terms.html` | Fee & service terms, linked from the consent checkbox |
 | `/blog/…` | Six landlord guides |
+
+The first five used to be one long homepage. They share `/site.css` and `/site.js`, each page
+carries its own markup (there is no build step), and every one ends with the `#contact` case
+review. An old link to a section that moved (`/#faq`, `/#portal`, `/#rentassist`, …) is sent
+to its page by a small script at the top of `index.html`'s `<head>`, query string kept.
 
 ## The landlord/tenant gate
 
@@ -25,7 +34,7 @@ search terms the site ranks for read as tenant-side. Each lead form therefore st
 `hidden` behind a two-button gate; the form only appears once the visitor says they are a
 landlord, and choosing "tenant" shows the resource panel instead. The tenant path issues
 **no network request**, so it creates no CRM row and no Google Ads conversion. See
-`initRoleGate()` in `index.html` and `back-rent/index.html`.
+`initRoleGate()` in `site.js` and `back-rent/index.html`.
 
 Every form also carries a hidden `visitor_role` field, which the intake API records on the
 CRM row so landlord leads can be filtered.
@@ -96,11 +105,13 @@ What opens it:
 - **Any link to a lead form** (`#apply`, `#contact`, `#form-card`, `#backrent-form` — the header
   and footer Apply, "Apply to recover back rent", "Start my free case review", …), at any time,
   instead of scrolling down. A visitor who already said landlord skips straight to the form.
+  From a page without the application, Apply links to `/#apply` and the popup hands a landlord
+  over to it.
 - **Either answer on the landlord/tenant question** in front of each form, instead of
   revealing the form on the page.
 
 It is one shared file, loaded with `<script src="/landlord-check.js" defer>` on every landing
-page — the homepage, `/back-rent/` and every `/blog/` page. **Add that line to any new landing
+page — the five main pages, `/back-rent/` and every `/blog/` page. **Add that line to any new landing
 page.** It is deliberately *not* on `/tenants/` or `/terms.html`. On phones it is a bottom
 sheet rather than a full-screen takeover, because Google penalises interstitials that hide
 the page a searcher just landed on.

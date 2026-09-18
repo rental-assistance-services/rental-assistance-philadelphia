@@ -49,6 +49,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   --serif:"Fraunces", Georgia, "Times New Roman", serif;
   --sans:"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono:"Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ease:cubic-bezier(.22,.61,.36,1);
 }
 *{box-sizing:border-box;}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;line-height:1.62;font-size:17px;}
@@ -97,7 +98,23 @@ footer .fbrand{display:flex;align-items:center;gap:11px;font-family:var(--serif)
 footer a{color:var(--brass-soft);}
 .foot-legal{border-top:1px solid rgba(255,255,255,.12);padding-top:20px;line-height:1.6;}
 .foot-legal strong{color:#C7D2E2;}
+
+/* The same entrance as every other page (site.css): the top block rises in as the page opens,
+   the rest as it scrolls into view. Only with JS on (html.js), so nothing is ever left hidden. */
+@keyframes rise{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
+.hero .eyebrow,.hero h1,.hero .lead{opacity:0;animation:rise .8s var(--ease) forwards;}
+.hero .eyebrow{animation-delay:.05s;}
+.hero h1{animation-delay:.14s;}
+.hero .lead{animation-delay:.26s;}
+.js .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease);}
+.js .reveal.in{opacity:1;transform:none;}
+.reveal[data-d="1"]{transition-delay:.08s;}
+.reveal[data-d="2"]{transition-delay:.16s;}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-delay:0ms !important;transition-duration:.001ms !important;}
+}
 </style>
+<script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
 <!-- Google Tag Manager (noscript) -->
@@ -130,16 +147,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <section class="band">
   <div class="wrap">
-    <h2>The one thing worth knowing first</h2>
-    <p>Philadelphia's <strong>Eviction Diversion Program</strong> can pay past-due rent directly to your landlord &mdash; up to $3,500, plus two months of future rent. It is real money and it is free to apply for.</p>
-    <div class="callout green">
+    <h2 class="reveal">The one thing worth knowing first</h2>
+    <p class="reveal" data-d="1">Philadelphia's <strong>Eviction Diversion Program</strong> can pay past-due rent directly to your landlord &mdash; up to $3,500, plus two months of future rent. It is real money and it is free to apply for.</p>
+    <div class="callout green reveal" data-d="2">
       <strong>But the landlord files it, not you.</strong> The City's Eviction Diversion Program application is submitted by the property owner. That is why we can't do it for you &mdash; and it is why the most useful thing you can do is get your landlord to apply. The tenant hotline below can explain the program to you and help you raise it with them.
     </div>
 
-    <h2 style="margin-top:38px;">Who to call</h2>
+    <h2 class="reveal" style="margin-top:38px;">Who to call</h2>
     <div class="res">
 
-      <div class="res-card">
+      <div class="res-card reveal">
         <span class="who">City of Philadelphia</span>
         <h3>Eviction Diversion Program &mdash; tenant hotline</h3>
         <p>For tenants who want to understand the Eviction Diversion Program, get connected to a housing counselor, or ask about Targeted Financial Assistance.</p>
@@ -150,7 +167,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p class="res-url" style="margin-top:10px;">Program site: <a href="https://eviction-diversion.phila.gov/" target="_blank" rel="noopener">eviction-diversion.phila.gov</a></p>
       </div>
 
-      <div class="res-card">
+      <div class="res-card reveal" data-d="1">
         <span class="who">Free legal help &amp; tenant advocacy</span>
         <h3>Philly Tenant Hotline</h3>
         <p>Run by a collaboration of Philadelphia legal-services and tenant-advocacy organizations. Call them about an eviction notice, repairs, your lease, rental assistance, or subsidized housing.</p>
@@ -160,7 +177,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p class="res-url" style="margin-top:10px;">More: <a href="https://phillytenant.org/" target="_blank" rel="noopener">phillytenant.org</a></p>
       </div>
 
-      <div class="res-card">
+      <div class="res-card reveal" data-d="2">
         <span class="who">Statewide referral line</span>
         <h3>PA 211</h3>
         <p>Free, confidential referrals for rent, utilities, food, and housing across Pennsylvania. Dial 211 from any phone, or search their directory online.</p>
@@ -172,7 +189,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     </div>
 
-    <div class="callout">
+    <div class="callout reveal">
       <strong>If you already have a court date or an eviction notice in hand</strong>, call the Philly Tenant Hotline first &mdash; (267) 443-2500. Free legal help is available to eligible Philadelphia tenants facing eviction, and the earlier you call, the more they can do.
     </div>
   </div>
@@ -180,19 +197,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <section class="band alt">
   <div class="wrap faq">
-    <h2>Questions we get from tenants</h2>
+    <h2 class="reveal">Questions we get from tenants</h2>
 
+    <div class="reveal">
     <h3>Can you apply for rental assistance for me?</h3>
     <p>No. We are hired by property owners to prepare and manage their filings. The Eviction Diversion Program application is filed by the landlord, so there is nothing we can file on your behalf.</p>
+    </div>
 
+    <div class="reveal">
     <h3>Can you talk to my landlord for me?</h3>
     <p>No &mdash; we only act for owners who have engaged us. The Eviction Diversion Program tenant hotline (215-523-9501) can explain the program to you so you can raise it with your landlord yourself.</p>
+    </div>
 
+    <div class="reveal">
     <h3>Does it cost anything to apply to the City's program?</h3>
     <p>No. The City's Eviction Diversion Program and Targeted Financial Assistance are free to apply for. Our fee is charged to owners who hire us to handle their paperwork &mdash; never to tenants.</p>
+    </div>
 
+    <div class="reveal">
     <h3>Is this website the City?</h3>
     <p>No. Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private company. We are not a government agency, not affiliated with the City of Philadelphia, and not a law firm.</p>
+    </div>
   </div>
 </section>
 </main>
@@ -215,5 +240,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   </div>
 </footer>
+<script>
+/* Scroll-reveal, the same as /site.js: each .reveal rises in the first time it comes into view. */
+(function(){
+  var els = document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window)){ els.forEach(function(el){ el.classList.add('in'); }); return; }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+    });
+  }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+  els.forEach(function(el){ io.observe(el); });
+})();
+</script>
 </body>
 </html>
