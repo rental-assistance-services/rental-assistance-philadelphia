@@ -102,6 +102,16 @@ async function fillBackRentForm(page) {
   await page.fill('#back-rent', '4200');
 }
 
+// This file drives the forms and their inline gates. The first-visit landlord-check popup
+// (landlord-check.js, covered by tests/landlord-check.spec.js) would sit on top of all of
+// them, so every test here starts as a visitor who already dismissed it — which leaves the
+// inline gates unanswered, exactly the state these tests assert against.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('ras_role_check', JSON.stringify({ v: 'dismissed', t: Date.now() }));
+  });
+});
+
 const dataLayerLeads = (page) =>
   page.evaluate(() => (window.dataLayer || []).filter((d) => d.event === 'lead_submit'));
 
