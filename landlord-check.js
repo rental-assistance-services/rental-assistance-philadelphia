@@ -227,7 +227,11 @@
     + '.lc-sg-pin{flex:none;color:var(--lc-brass-2);margin-top:2px;display:inline-flex;}'
     + '.lc-sg-1{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;line-height:1.3;}'
     + '.lc-sg-2{display:block;font-size:.82rem;color:var(--lc-muted-2);line-height:1.35;}'
-    + '.lc-suggest-note{font-size:.7rem;color:var(--lc-muted-2);padding:7px 10px 3px;margin-top:4px;border-top:1px solid var(--lc-hair);}'
+    + '.lc-suggest-manual{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;margin-top:4px;border-top:1px solid var(--lc-hair);'
+    + 'font-size:.86rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
+    + '.lc-suggest-manual svg{flex:none;color:var(--lc-brass-2);margin-top:1px;}'
+    + '.lc-suggest.lc-only-manual .lc-suggest-manual{margin-top:0;border-top:none;}'
+    + '.lc-suggest-note{font-size:.7rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
     + '@keyframes lc-down{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}'
     // On a phone the sheet ends at the screen's bottom edge, so a floating list would be cut
     // off there. It sits in the flow instead: the fields below move down, the sheet grows and
@@ -371,6 +375,7 @@
     Wisconsin: 'WI', Wyoming: 'WY', 'Puerto Rico': 'PR' };
   var PIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg>';
 
+  var PEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.8"/></svg>';
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   // One Photon result -> what the list shows and what the box is filled with.
   function describe(p) {
@@ -399,9 +404,10 @@
     input.setAttribute('aria-expanded', 'false');
     input.setAttribute('autocomplete', 'off');            // one list under the box, not two
 
-    var items = [], active = -1, timer = null, ctrl = null, cache = {}, filling = false;
+    var items = [], active = -1, timer = null, slowTimer = null, ctrl = null, cache = {}, filling = false;
 
     function close() {
+      clearTimeout(slowTimer);
       list.hidden = true; items = []; active = -1;
       input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant');
     }
@@ -412,25 +418,49 @@
       });
       if (i >= 0) input.setAttribute('aria-activedescendant', id + '-' + i); else input.removeAttribute('aria-activedescendant');
     }
-    function render(found) {
-      items = found;
-      if (!found.length) { close(); return; }
-      list.innerHTML = found.map(function (s, i) {
-        return '<li role="option" id="' + id + '-' + i + '" aria-selected="false" data-i="' + i + '">'
-          + '<span class="lc-sg-pin">' + PIN + '</span><span><span class="lc-sg-1">' + esc(s.line1) + '</span>'
-          + '<span class="lc-sg-2">' + esc(s.line2) + '</span></span></li>';
-      }).join('')
-        + '<li class="lc-suggest-note" role="presentation">Address search © OpenStreetMap contributors · Photon</li>';
+    // Photon is a free public service and can't be relied on completely, so the list always
+    // says plainly that typing the address by hand is fine: under the suggestions, or on its
+    // own when there are none, when Photon is down, or when it is too slow to answer. The line
+    // is information only — not an option, so the arrow keys skip it and a click does nothing.
+    var MANUAL = {
+      more: 'Don’t see your address? You can still type it in yourself.',
+      none: 'We couldn’t find a match — you can still type your full address yourself.'
+    };
+    function manualLine(text) {
+      return '<li class="lc-suggest-manual" role="presentation">' + PEN + '<span>' + text + '</span></li>';
+    }
+    function render(found, why) {
+      items = found || [];
+      var body;
+      if (items.length) {
+        body = items.map(function (s, i) {
+          return '<li role="option" id="' + id + '-' + i + '" aria-selected="false" data-i="' + i + '">'
+            + '<span class="lc-sg-pin">' + PIN + '</span><span><span class="lc-sg-1">' + esc(s.line1) + '</span>'
+            + '<span class="lc-sg-2">' + esc(s.line2) + '</span></span></li>';
+        }).join('')
+          + manualLine(MANUAL.more)
+          + '<li class="lc-suggest-note" role="presentation">Address search © OpenStreetMap contributors · Photon</li>';
+      } else if (why) {
+        body = manualLine(MANUAL.none);                      // nothing found, down, or too slow
+      } else { close(); return; }
+      list.innerHTML = body;
+      list.classList.toggle('lc-only-manual', !items.length);
       var wasHidden = list.hidden;
       list.hidden = false;
       if (wasHidden) { list.classList.remove('lc-drop'); void list.offsetWidth; list.classList.add('lc-drop'); }   // fade down
       input.setAttribute('aria-expanded', 'true');
       highlight(-1);
     }
+    var SLOW_MS = 2500;                                    // no answer by then: say so
     function lookup(q) {
-      if (cache[q]) { render(cache[q]); return; }
+      if (cache[q]) { render(cache[q], 'none'); return; }
       if (ctrl) ctrl.abort();
+      clearTimeout(slowTimer);
       ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      var mine = ctrl;
+      slowTimer = setTimeout(function () {
+        if (document.activeElement === input && val(input) === q && !items.length) render([], 'slow');
+      }, SLOW_MS);
       var url = PHOTON + '?q=' + encodeURIComponent(q) + '&limit=6&lang=en&lat=' + BIAS.lat + '&lon=' + BIAS.lon;
       fetch(url, ctrl ? { signal: ctrl.signal } : {})
         .then(function (r) { if (!r.ok) throw new Error('photon ' + r.status); return r.json(); })
@@ -442,9 +472,15 @@
           });
           found = found.slice(0, 5);
           cache[q] = found;
-          if (document.activeElement === input && val(input) === q) render(found);
+          clearTimeout(slowTimer);
+          if (document.activeElement === input && val(input) === q) render(found, 'none');
         })
-        .catch(function () { /* down, slow or rate-limited: it is just a text box */ });
+        .catch(function (err) {
+          // Replaced by a newer lookup: say nothing. Down or rate-limited: say typing is fine.
+          if ((err && err.name === 'AbortError') || mine !== ctrl) return;
+          clearTimeout(slowTimer);
+          if (document.activeElement === input && val(input) === q) render([], 'down');
+        });
     }
     function choose(i) {
       var s = items[i];
@@ -491,7 +527,12 @@
     // Called by the popup's keydown handler first; true = the list used the key.
     var api = {
       key: function (e) {
-        if (list.hidden || !items.length) return false;
+        if (list.hidden) return false;
+        // Only the "type it yourself" line showing: Escape still closes the LIST, not the popup.
+        if (!items.length) {
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return true; }
+          return false;
+        }
         if (e.key === 'ArrowDown') { e.preventDefault(); highlight(active < items.length - 1 ? active + 1 : 0); return true; }
         if (e.key === 'ArrowUp') { e.preventDefault(); highlight(active > 0 ? active - 1 : items.length - 1); return true; }
         if (e.key === 'Enter' && active >= 0) { e.preventDefault(); e.stopPropagation(); choose(active); return true; }

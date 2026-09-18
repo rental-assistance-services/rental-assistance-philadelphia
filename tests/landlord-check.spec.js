@@ -205,12 +205,62 @@ test.describe('address suggestions', () => {
     await expect(page.locator('#prop-address')).toHaveValue('1932 N');   // what they typed is untouched
   });
 
-  test('if Photon is down, the box is just a text box', async ({ page }) => {
+  const manual = (page) => page.locator('#prop-address-suggest .lc-suggest-manual');
+
+  test('under the suggestions it says typing the address yourself is fine — and that line is not an option', async ({ page }) => {
+    await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    await expect(manual(page)).toHaveText('Don’t see your address? You can still type it in yourself.');
+    // it sits after the last suggestion, above the credit line
+    const order = await list(page).evaluate((el) => Array.from(el.children).map((li) => li.className || li.getAttribute('role')));
+    expect(order).toEqual(['option', 'option', 'option', 'lc-suggest-manual', 'lc-suggest-note']);
+    // arrows wrap from the last suggestion to the first, never landing on the line
+    for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+    await expect(options(page).nth(0)).toHaveAttribute('aria-selected', 'true');
+    // clicking it changes nothing
+    await manual(page).click();
+    await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th');
+  });
+
+  test('no match: the list says so, and that they can type it themselves', async ({ page }) => {
+    await photonAnswers(page, []);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('Block 5 Lot 12 Sampaguita');
+    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(options(page)).toHaveCount(0);
+    await expect(list(page)).not.toContainText('OpenStreetMap');       // nothing of theirs is shown
+    // Escape closes the list, not the popup
+    await page.keyboard.press('Escape');
+    await expect(list(page)).toBeHidden();
+    await expect(dialog(page)).toBeVisible();
+  });
+
+  test('Photon too slow: after 2.5s the list says to type it; real suggestions still replace it', async ({ page }) => {
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    await page.route('https://photon.komoot.io/**', async (route) => {
+      await gate;
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify({ type: 'FeatureCollection', features: PHOTON_FEATURES }) });
+    });
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await page.waitForTimeout(1500);
+    await expect(list(page)).toBeHidden();                           // not straight away
+    await expect(manual(page)).toContainText('you can still type your full address yourself', { timeout: 3000 });
+    release();
+    await expect(options(page)).toHaveCount(3);
+    await expect(manual(page)).toHaveText('Don’t see your address? You can still type it in yourself.');
+  });
+
+  test('if Photon is down, the list says to type it, and the box still works as a text box', async ({ page }) => {
     await photonAnswers(page, [], { fail: true });
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th St');
-    await page.waitForTimeout(600);
-    await expect(list(page)).toBeHidden();
+    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(options(page)).toHaveCount(0);
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
     await page.fill('#prop-rent', '1150');
     await next(page).click();
