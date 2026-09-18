@@ -155,10 +155,12 @@ h3{font-size:1.22rem;margin:0 0 9px;font-weight:520;}
 .reveal[data-d="4"]{transition-delay:.32s;}
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);}
 .stat-row.on-ink{border-color:rgba(200,162,74,.3);}
-.stat-c{padding:30px 26px 30px 0;border-right:1px solid var(--hairline);}
+/* Room on both sides of every divider; only the row's outer edges sit flush with the text above. */
+.stat-c{padding:30px 26px;border-right:1px solid var(--hairline);}
+.stat-c:first-child{padding-left:0;}
 .stat-c:last-child{border-right:none;padding-right:0;}
 .stat-row.on-ink .stat-c{border-color:rgba(200,162,74,.22);}
-.stat-c .sv{font-family:var(--serif);font-size:clamp(2rem,4vw,2.9rem);font-weight:360;line-height:1;color:var(--navy);font-variation-settings:"opsz" 96;letter-spacing:-.02em;}
+.stat-c .sv{font-family:var(--serif);font-size:clamp(2rem,3vw,2.5rem);font-weight:360;line-height:1;color:var(--navy);font-variation-settings:"opsz" 96;letter-spacing:-.02em;}
 .stat-row.on-ink .stat-c .sv{color:#fff;}
 .stat-c .sv.green{color:var(--green-deep);}
 .stat-row.on-ink .stat-c .sv.brass{color:var(--brass);}
@@ -341,8 +343,9 @@ table.cases tr:hover td{background:rgba(200,162,74,.05);}
   .kpi-row{grid-template-columns:repeat(2,1fr);}
   .foot-grid{grid-template-columns:1fr 1fr;gap:30px;}
   .stat-row{grid-template-columns:repeat(2,1fr);}
-  .stat-c:nth-child(2){border-right:none;}
-  .stat-c{border-bottom:1px solid var(--hairline);padding-right:0;}
+  .stat-c{border-bottom:1px solid var(--hairline);padding-left:26px;padding-right:26px;}
+  .stat-c:nth-child(2n+1){padding-left:0;}
+  .stat-c:nth-child(2n){border-right:none;padding-right:0;}
   .stat-row.on-ink .stat-c{border-color:rgba(200,162,74,.22);}
 }
 @media (max-width:860px){
@@ -373,7 +376,7 @@ table.cases tr:hover td{background:rgba(200,162,74,.05);}
   .row{grid-template-columns:1fr;}
   .kpi-row{grid-template-columns:1fr;}
   .stat-row{grid-template-columns:1fr;}
-  .stat-c{border-right:none;padding-right:0;}
+  .stat-c{border-right:none;padding-left:0;padding-right:0;}
   .foot-grid{grid-template-columns:1fr;}
   .wrap{padding:0 20px;}
   .fs{padding:22px 20px 8px;}

@@ -43,3 +43,29 @@ for (const url of PAGES) {
     expect(unreadable).toEqual([]);
   });
 }
+
+// The stat rows' cells had padding on one side only, so every number after the first sat right
+// on the divider before it. Room on both sides now, and a big number that no longer fits its
+// cell would wrap — so each must stay on one line too.
+for (const url of ['/index.html', '/services/back-rent/index.html']) {
+  for (const width of [1920, 1280, 1001, 800]) {
+    test(`${url} at ${width}px: stat numbers keep clear of the dividers, on one line`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(url);
+      const cells = await page.evaluate(() => {
+        const row = document.querySelector('.stat-row').getBoundingClientRect();
+        return [...document.querySelectorAll('.stat-row .stat-c')].map((c) => {
+          const sv = c.querySelector('.sv'), rg = document.createRange();
+          rg.selectNodeContents(sv);
+          const cr = c.getBoundingClientRect(), tr = rg.getBoundingClientRect();
+          return { text: sv.textContent, startsRow: Math.abs(cr.left - row.left) < 2,
+            gap: Math.round(tr.left - cr.left), lines: rg.getClientRects().length };
+        });
+      });
+      for (const c of cells) {
+        expect(c.lines, `${c.text} wraps`).toBe(1);
+        if (!c.startsRow) expect(c.gap, `${c.text} sits on the divider`).toBeGreaterThanOrEqual(20);
+      }
+    });
+  }
+}
