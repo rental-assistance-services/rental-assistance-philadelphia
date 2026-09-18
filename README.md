@@ -47,6 +47,18 @@ page.** It is deliberately *not* on `/tenants/` or `/terms.html`. On phones it i
 sheet rather than a full-screen takeover, because Google penalises interstitials that hide
 the page a searcher just landed on.
 
+## Run it locally
+
+```
+npm run dev
+```
+
+Then open http://127.0.0.1:4173/. There is no build step: this serves the files as they are
+(`tests/static-server.js`, no dependencies), so edit and refresh. Note that the forms POST to
+the **live** CRM endpoint — submit only obviously fake details. The popup shows once per
+browser; to see it again use a private window, or run
+`localStorage.removeItem('ras_role_check')` in the console and refresh.
+
 ## Tests
 
 ```
