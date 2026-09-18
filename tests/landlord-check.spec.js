@@ -216,19 +216,20 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(page.locator('.field:has(#owner-email)')).not.toHaveClass(/lc-ok/);
   });
 
-  test('the full name is capped at 150 characters — one more and the error shows while typing', async ({ page }) => {
+  test('a name of 150 characters or more is an error — while typing, no check, and Next held', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     const name = page.locator('#owner-name');
+    const field = page.locator('.field:has(#owner-name)');
     const msg = page.locator('.field:has(#owner-name) > .errmsg');
-    await name.fill('A'.repeat(149));
-    await name.pressSequentially('A');                         // 150: fine
+    const long = ('Marcus ' + 'abcdefghij'.repeat(20)).slice(0, 149);   // a real-looking 149
+    await name.fill(long);
     await expect(msg).toBeHidden();
-    await expect(page.locator('.field:has(#owner-name)')).toHaveClass(/lc-ok/);
-    await name.pressSequentially('A');                         // 151: over
+    await expect(field).toHaveClass(/lc-ok/);
+    await name.pressSequentially('k');                         // 150: an error, not a check
     await expect(msg).toBeVisible();
-    await expect(msg).toContainText('150 characters or fewer');
-    await expect(page.locator('.field:has(#owner-name)')).not.toHaveClass(/lc-ok/);
+    await expect(msg).toContainText('under 150 characters (150 now)');
+    await expect(field).not.toHaveClass(/lc-ok/);
     // and it holds Next, even with everything else filled in
     await page.fill('#owner-email', 'landlord@example.com');
     await page.fill('#owner-email-confirm', 'landlord@example.com');
@@ -236,11 +237,118 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.fill('#owner-units', '3');
     await next(page).click();
     expect(await currentStep(page)).toBe('About you (the owner)');
-    await name.press('Backspace');                             // back to 150
+    await name.press('Backspace');                             // back to 149
     await expect(msg).toBeHidden();
     // the page's own message comes back for the page's own rule
     await name.fill('');
     await expect(msg).toHaveText('Please enter your full name.');
+  });
+
+  test('a name must be a real first and last name', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    const name = page.locator('#owner-name');
+    const field = page.locator('.field:has(#owner-name)');
+    const msg = page.locator('.field:has(#owner-name) > .errmsg');
+    // a digit or symbol is wrong the moment it's typed
+    await name.pressSequentially('Marcus 3');
+    await expect(name).toBeFocused();
+    await expect(msg).toHaveText('Names can only use letters, spaces, hyphens (-), apostrophes (’) and periods.');
+    await name.fill('');
+    await name.pressSequentially('Mar$us');
+    await expect(msg).toContainText('Names can only use letters');
+    // one word is fine WHILE typing (they haven't got to the surname yet) — but no check...
+    await name.fill('');
+    await name.pressSequentially('Marcus');
+    await expect(msg).toBeHidden();
+    await expect(field).not.toHaveClass(/lc-ok/);
+    // ...and an error once they leave the field
+    await page.keyboard.press('Tab');
+    await expect(msg).toHaveText('Please enter your first and last name.');
+    // keyboard-mash repeats
+    await name.fill('Maaarcus Reed');
+    await expect(msg).toHaveText('That doesn’t look like a real name.');
+    // initials only
+    await name.fill('M. R.');
+    await page.keyboard.press('Tab');
+    await expect(msg).toContainText('not just initials');
+    // real names with accents, apostrophes and hyphens pass
+    await name.fill('José O’Neil-Smith');
+    await page.keyboard.press('Tab');
+    await expect(msg).toBeHidden();
+    await expect(field).toHaveClass(/lc-ok/);
+  });
+
+  test('a phone must be a real 10-digit US number, and is tidied when you leave it', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    const phone = page.locator('#owner-phone');
+    const field = page.locator('.field:has(#owner-phone)');
+    const msg = page.locator('.field:has(#owner-phone) > .errmsg');
+    // a letter: wrong at once
+    await phone.pressSequentially('215555012a');
+    await expect(msg).toHaveText('Phone numbers can only use digits, spaces, ( ) and -.');
+    // too many digits: wrong at once
+    await phone.fill('');
+    await phone.pressSequentially('215555012345');
+    await expect(msg).toContainText('too many digits');
+    // too few: fine while typing, an error on leaving
+    await phone.fill('');
+    await phone.pressSequentially('215555');
+    await expect(msg).toBeHidden();
+    await page.keyboard.press('Tab');
+    await expect(msg).toContainText('Enter a 10-digit US phone number');
+    // a complete number with an impossible area code
+    await phone.fill('');
+    await phone.pressSequentially('1235550123');
+    await expect(msg).toContainText('area code');
+    // a real one: formatted and checked
+    await phone.fill('');
+    await phone.pressSequentially('2155550123');
+    await page.keyboard.press('Tab');
+    await expect(phone).toHaveValue('(215) 555-0123');
+    await expect(msg).toBeHidden();
+    await expect(field).toHaveClass(/lc-ok/);
+    // a leading 1 is allowed
+    await phone.fill('');
+    await phone.pressSequentially('1 215 555 0123');
+    await page.keyboard.press('Tab');
+    await expect(phone).toHaveValue('(215) 555-0123');
+  });
+
+  test('the retype box can only be typed into — no paste, no drop, no autofill', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.locator('#owner-email').pressSequentially('landlord@example.com');
+    await page.keyboard.press('Tab');
+    const confirm = page.locator('#owner-email-confirm');
+    const cmsg = page.locator('.lc-confirm .errmsg');
+    const field = page.locator('.field:has(#owner-email)');
+    // nothing for a browser or password manager to recognise as an email field
+    await expect(confirm).toHaveAttribute('type', 'text');
+    await expect(confirm).toHaveAttribute('autocomplete', 'off');
+    expect(await confirm.getAttribute('name')).toBeNull();
+    // paste
+    const pasted = await confirm.evaluate((el) => {
+      const e = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertFromPaste', data: 'landlord@example.com' });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(pasted).toBe(true);
+    await expect(cmsg).toContainText('pasting and autofill are turned off');
+    // drop
+    const dropped = await confirm.evaluate((el) => {
+      const e = new Event('drop', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented;
+    });
+    expect(dropped).toBe(true);
+    // autofill: the value appears with no typed input event — it is cleared, not accepted
+    await confirm.evaluate((el) => { el.value = 'landlord@example.com'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await expect(confirm).toHaveValue('');
+    await expect(field).not.toHaveClass(/lc-verified/);
+    // typing it still works
+    await confirm.pressSequentially('landlord@example.com');
+    await expect(field).toHaveClass(/lc-verified/);
+    await expect(cmsg).toBeHidden();
   });
 
   test('a valid email asks to be typed again; a match marks it Verified', async ({ page }) => {

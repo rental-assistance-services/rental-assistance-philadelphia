@@ -42,9 +42,16 @@ before Next. The case-review forms (`#contact-form`, `/back-rent/`'s `#backrent-
 step. Closing the popup puts the form back where it was, hidden, keeping what was typed.
 
 Fields are checked live once someone types in them (never for a field merely tabbed past);
-a field that passes turns its asterisk into a green check. The owner's name is capped at 150
-characters. A required email must be typed twice: a "Retype email to confirm" card opens
-beneath it, and Next / submit stay held until the two match and the email shows "Verified".
+a field that passes turns its asterisk into a green check. A wrong value (a digit in a name, a
+letter in a phone) shows at once; an unfinished one (first name only, too few digits) only
+when the visitor leaves the field or presses Next.
+- **Names:** first and last, letters / spaces / hyphens / apostrophes / periods only, under 150
+  characters (150 is an error), no keyboard-mash repeats.
+- **Phones:** a real 10-digit US number (a leading 1 is fine, valid area code and exchange),
+  tidied to `(215) 555-0123` on leaving the field.
+- **Email:** typed twice. A "Retype email to confirm" card opens beneath it; the retype box
+  refuses paste, drop and browser / password-manager autofill, so it is a genuine second
+  typing. Next / submit stay held until the two match and the email shows "Verified".
 Inside the popup, inputs use the site's control style (white, 1.5px border, 10px corners,
 brass focus, red error) and error messages fade up over 350ms while opening their own space.
 

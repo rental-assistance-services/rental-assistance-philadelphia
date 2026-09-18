@@ -113,7 +113,12 @@ async function fillApplyForm(page) {
     const email = f.querySelector('#owner-email');
     email.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     const confirm = document.querySelector('#owner-email-confirm');
-    if (confirm) set(confirm, email.value);
+    // Typed, not set: the retype box refuses anything that isn't a typed InputEvent (paste,
+    // drop, autofill), so a bare value + plain Event would be refused like autofill.
+    if (confirm) {
+      confirm.value = email.value;
+      confirm.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: email.value }));
+    }
   });
 }
 

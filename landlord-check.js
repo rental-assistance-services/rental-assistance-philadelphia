@@ -211,6 +211,10 @@
     + 'border-color .35s ease-in,box-shadow .35s ease-in,visibility 0s;}'
     + '.lc-host .lc-confirm label{display:block;font-size:.8rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
     + '.lc-host .field .lc-confirm input{padding:11px 13px;}'
+    // Chrome gives an autofilled field :-webkit-autofill but fires no reliable event; a
+    // 1ms animation on that state is the event guardRetype() listens for.
+    + '.lc-host .lc-confirm input:-webkit-autofill{animation:lc-autofill 1ms;}'
+    + '@keyframes lc-autofill{from{opacity:1;}to{opacity:1;}}'
     // Verified: a green pill after the email's label (its asterisk has already become a check).
     + '.lc-host .field.lc-verified > label::after,.lc-host .field.lc-verified.lc-ok > label:not(:has(.req))::after{'
     + 'content:"Verified";display:inline-block;width:auto;height:auto;margin-left:8px;padding:2px 9px;'
@@ -480,16 +484,57 @@
       el.classList.add('err');
       m.classList.add('show');
     }
-    function popupProblem(el) {
-      var v = val(el);
-      if (NAME_FIELDS[el.name] && v.length > NAME_MAX)
-        return 'Please keep your name to ' + NAME_MAX + ' characters or fewer (' + v.length + ' now).';
-      if (el.required && !v) return 'This field is required.';
-      if (el.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address.';
-      if (el.type === 'tel' && v && v.replace(/\D/g, '').length < 10) return 'Enter a valid phone number (at least 10 digits).';
+    // Two kinds of problem. A WRONG value (a digit in a name, a letter in a phone, too long)
+    // is shown the moment it is typed. An UNFINISHED one (only a first name so far, too few
+    // digits) is only an error once the visitor leaves the field or presses Next — `strict` —
+    // so nobody is told off halfway through typing their own name.
+    var NAME_CHARS = /^[\p{L}\p{M}' ’.\-]+$/u;
+    function nameProblem(v, strict) {
+      if (v.length >= NAME_MAX)
+        return 'Please keep your name under ' + NAME_MAX + ' characters (' + v.length + ' now).';
+      if (!NAME_CHARS.test(v))
+        return 'Names can only use letters, spaces, hyphens (-), apostrophes (’) and periods.';
+      if (/(\p{L})\1\1/iu.test(v)) return 'That doesn’t look like a real name.';
+      var words = v.split(/\s+/).filter(function (w) { return /\p{L}/u.test(w); });
+      if (strict && words.length < 2) return 'Please enter your first and last name.';
+      if (strict && !words.some(function (w) { return w.replace(/[^\p{L}]/gu, '').length >= 2; }))
+        return 'Please enter your full first and last name, not just initials.';
       return null;
     }
-    function runPageCheck(el) {
+    function tenantNameProblem(v) {                          // "Tenant name(s)": may list several
+      if (v.length >= NAME_MAX) return 'Please keep this under ' + NAME_MAX + ' characters (' + v.length + ' now).';
+      if (!/^[\p{L}\p{M}' ’.,&\-]+$/u.test(v))
+        return 'Names can only use letters, spaces, commas, &, hyphens, apostrophes and periods.';
+      return null;
+    }
+    // A US number: 10 digits (a leading 1 is allowed), a real area code and exchange.
+    function phoneDigits(v) { var d = v.replace(/\D/g, ''); return d.length === 11 && d[0] === '1' ? d.slice(1) : d; }
+    function phoneProblem(v, strict) {
+      if (!/^[\d\s().+\-]+$/.test(v)) return 'Phone numbers can only use digits, spaces, ( ) and -.';
+      var raw = v.replace(/\D/g, ''), d = phoneDigits(v);
+      if (raw.length > 11 || (raw.length === 11 && raw[0] !== '1'))
+        return 'That’s too many digits — enter a 10-digit US number, e.g. (215) 555-0123.';
+      if (d.length < 10) return strict ? 'Enter a 10-digit US phone number, e.g. (215) 555-0123.' : null;
+      if (!/^[2-9]/.test(d)) return 'That area code isn’t valid — it can’t start with 0 or 1.';
+      if (!/^[2-9]/.test(d.slice(3))) return 'That number isn’t valid — check the three digits after the area code.';
+      if (/^(\d)\1{9}$/.test(d)) return 'That doesn’t look like a real phone number.';
+      return null;
+    }
+    function formatPhone(el) {
+      var d = phoneDigits(val(el));
+      if (d.length === 10 && !phoneProblem(val(el), true)) el.value = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+    }
+    function popupProblem(el, strict) {
+      var v = val(el);
+      if (el.required && !v) return 'This field is required.';
+      if (!v) return null;
+      if (NAME_FIELDS[el.name]) return nameProblem(v, strict);
+      if (el.name === 'tenant_name') return tenantNameProblem(v);
+      if (el.type === 'tel') return phoneProblem(v, strict);
+      if (el.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address.';
+      return null;
+    }
+    function runPageCheck(el, strict) {
       var f = el.closest('.field'), m = f && ownMsg(f);
       if (m && m.hasAttribute('data-lc-orig')) m.textContent = m.getAttribute('data-lc-orig');   // the page's own wording
       validating = true;
@@ -498,13 +543,20 @@
       if (!isEntry(el)) return;
       // The pages skip an EMPTY optional field, so an error from an earlier value would stay.
       if (!el.required && !val(el)) clearErr(el);
-      if (!hasErr(el)) { var p = popupProblem(el); if (p) showErr(el, p); }
+      // Names and phones: the popup's rules are stricter than the page's and decide on their
+      // own once there is a value (the page's phone check would flag an unfinished number
+      // mid-typing). An empty required field keeps the page's own wording.
+      if (ownsRules(el) && val(el)) { clearErr(el); var q = popupProblem(el, strict); if (q) showErr(el, q); return; }
+      if (!hasErr(el)) { var p = popupProblem(el, strict); if (p) showErr(el, p); }
     }
+    function ownsRules(el) { return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel'; }
     function verified(el) { return el.getAttribute('data-lc-verified-for') === val(el).toLowerCase() && !!val(el); }
     function refreshTick(el) {
       var f = el.closest('.field');
       if (!f || !isEntry(el)) return;
-      var ok = el.hasAttribute('data-lc-touched') && !!val(el) && !hasErr(el);
+      // A check means FINISHED and right, so it also needs the strict rules: "Marcus" alone is
+      // not flagged while typing, but it doesn't earn a check either.
+      var ok = el.hasAttribute('data-lc-touched') && !!val(el) && !hasErr(el) && !popupProblem(el, true);
       if (isOwnerEmail(el)) { f.classList.toggle('lc-emailok', ok); ok = ok && verified(el); f.classList.toggle('lc-verified', ok); }
       f.classList.toggle('lc-ok', ok);
     }
@@ -516,12 +568,45 @@
         var id = (el.id || 'lc-email') + '-confirm';
         box = document.createElement('div');
         box.className = 'lc-confirm';
+        // Not type="email" and no name: browsers and password managers offer saved addresses
+        // to email fields regardless of autocomplete="off", and an autofilled copy would
+        // "confirm" a typo. The ignore attributes are LastPass / 1Password / Bitwarden's.
         box.innerHTML = '<label for="' + id + '">Retype email to confirm</label>'
-          + '<input id="' + id + '" type="email" autocomplete="off" inputmode="email" placeholder="Retype your email" data-lc-confirm>'
+          + '<input id="' + id + '" type="text" inputmode="email" autocomplete="off" autocorrect="off" autocapitalize="off"'
+          + ' spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other"'
+          + ' placeholder="Retype your email" data-lc-confirm>'
           + '<p class="errmsg" aria-live="polite"></p>';
         f.appendChild(box);
+        guardRetype(box.querySelector('input'), el);
       }
       return box;
+    }
+    // The point of the retype is a second, independent typing — so it can't be pasted,
+    // dropped in, or filled by the browser. Any of those is refused with a line saying why.
+    var NO_FILL = 'Please type your email again — pasting and autofill are turned off here, so a typo can’t slip through.';
+    function guardRetype(c, email) {
+      function refuse(e) {
+        if (e) e.preventDefault();
+        c.value = '';
+        var m = c.parentNode.querySelector('.errmsg');
+        m.textContent = NO_FILL; m.classList.add('show'); c.classList.add('err');
+        email.removeAttribute('data-lc-verified-for'); refreshTick(email);
+        track('retype_refused', { form_id: form.id });
+      }
+      c.addEventListener('beforeinput', function (e) {
+        if (/^insertFrom|insertReplacementText/.test(e.inputType || '')) refuse(e);
+      });
+      c.addEventListener('paste', refuse);
+      c.addEventListener('drop', refuse);
+      // Browser autofill fills without a keystroke: its input event is not a typed InputEvent
+      // (or is a "replacement"), and Chrome also marks the field :-webkit-autofill, which the
+      // CSS turns into an animation we can hear.
+      c.addEventListener('input', function (e) {
+        if (!(e instanceof InputEvent) || !e.inputType || e.inputType === 'insertReplacementText') {
+          e.stopImmediatePropagation(); refuse();
+        }
+      }, true);
+      c.addEventListener('animationstart', function (e) { if (e.animationName === 'lc-autofill') refuse(); });
     }
     // strict: the visitor is trying to move on, so an empty or unfinished confirm is an error.
     function checkConfirm(el, strict) {
@@ -573,7 +658,8 @@
       }
       if (!isEntry(el)) return;
       el.setAttribute('data-lc-touched', '');
-      runPageCheck(el);
+      // A select or date picker "finishes" in one change, so it is checked strictly.
+      runPageCheck(el, e.type === 'change');
       refreshTick(el);
       if (isOwnerEmail(el)) syncEmail(el, false);
     }
@@ -585,7 +671,13 @@
       if (e.key === 'Tab' && !e.shiftKey && isOwnerEmail(e.target) && e.target.hasAttribute('data-lc-touched')) syncEmail(e.target, true);
     });
     host.addEventListener('focusout', function (e) {
-      if (isOwnerEmail(e.target) && e.target.hasAttribute('data-lc-touched')) syncEmail(e.target, true);
+      var el = e.target;
+      if (!isEntry(el) || !el.hasAttribute('data-lc-touched')) return;
+      // Leaving a field is when an unfinished value becomes an error ("Marcus" alone, 7 digits).
+      if (el.type === 'tel') formatPhone(el);             // 2155550123 -> (215) 555-0123
+      runPageCheck(el, true);
+      refreshTick(el);
+      if (isOwnerEmail(el)) syncEmail(el, true);
     });
     // Capture phase on the host runs before the field's own blur listener, so an untouched
     // field can be tabbed past without being marked wrong.
@@ -599,7 +691,10 @@
       var first = null;
       scope.querySelectorAll('input,select,textarea').forEach(function (el) {
         if (!isEntry(el)) return;
-        if (NAME_FIELDS[el.name] && val(el).length > NAME_MAX) { showErr(el, popupProblem(el)); first = first || el; }
+        // Only fields with a value: an empty required field is the page's to report, and
+        // holding its submit back here would hide the page's own "Please fix" message.
+        var p = val(el) && popupProblem(el, true);
+        if (p) { showErr(el, p); first = first || el; }
         if (isOwnerEmail(el) && val(el) && !hasErr(el) && !verified(el)) {
           confirmBox(el, true).classList.add('show');
           checkConfirm(el, true);
@@ -620,7 +715,8 @@
         if (el.hasAttribute('data-lc-confirm')) return;                    // checked with its email
         if (el.offsetParent === null && el.type !== 'file') return;          // inside a closed reveal block
         if (isEntry(el)) el.setAttribute('data-lc-touched', '');
-        runPageCheck(el);
+        if (el.type === 'tel') formatPhone(el);
+        runPageCheck(el, true);
         refreshTick(el);
         var bad = hasErr(el) || (el.required && (el.type === 'checkbox' ? !el.checked : !val(el)));
         if (bad) { ok = false; if (!first) first = el; }
