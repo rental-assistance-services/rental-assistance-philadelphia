@@ -11,6 +11,8 @@
    - A first visit to any landing page (once per browser; the answer or a dismissal is
      remembered in localStorage under STORE).
    - Every Apply / case-review link (FORM_ANCHORS) — at any time, instead of scrolling down.
+     That includes a link from another page to the homepage's form (/#apply, as the menus on
+     /services/…, /portal/ and /faq/ have), so it works without this script too.
    - Either answer on the landlord/tenant question in front of each form (initRoleGate() on
      the homepage and /back-rent/) — instead of revealing the form on the page.
 
@@ -23,8 +25,8 @@
      <fieldset class="fs">) is shown one section per step. The role is stamped by clicking
      the gate's own landlord button, so visitor_role is set by the page's initRoleGate().
      When the popup closes the form goes back where it came from, still hidden.
-   - A page with no form (the blog) hands a landlord to the homepage application, which
-     opens straight into the popup (HANDOFF).
+   - A page with no application (the blog, /services/…, /portal/, /faq/) hands a landlord to
+     the homepage application, which opens straight into the popup (HANDOFF).
 
    Loaded with <script src="/landlord-check.js" defer> on every landing page EXCEPT
    /tenants/ and /terms.html. Tested by tests/landlord-check.spec.js.
@@ -980,7 +982,7 @@
 
     function mount() {
       if (!form) {
-        // No form on this page (the blog): the application lives on the homepage.
+        // No application on this page (the blog, /services/…, /portal/, /faq/): it lives on the homepage.
         try { sessionStorage.setItem(HANDOFF, 'apply'); } catch (e) {}
         track('handoff', { page: location.pathname });
         location.href = '/#apply';
@@ -1583,7 +1585,10 @@
     if (!a) return;
     var url;
     try { url = new URL(a.getAttribute('href'), location.href); } catch (err) { return; }
-    if (url.origin !== location.origin || url.pathname !== location.pathname) return;
+    if (url.origin !== location.origin) return;
+    // This page's own form, or the homepage's from any page: a landlord is handed over from here.
+    var home = url.pathname === '/' || url.pathname === '/index.html';
+    if (url.pathname !== location.pathname && !home) return;
     var target = FORM_ANCHORS[url.hash];
     if (!target) return;
     e.preventDefault(); e.stopPropagation();
