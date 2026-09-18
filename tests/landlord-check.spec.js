@@ -72,6 +72,7 @@ const landlord = (page) => page.getByRole('button', { name: /I own or manage ren
 const SECTION_FILL = {
   'About you (the owner)': async (p) => {
     await p.fill('#owner-name', 'Marcus Reed'); await p.fill('#owner-email', 'landlord@example.com');
+    await p.fill('#owner-email-confirm', 'landlord@example.com');
     await p.fill('#owner-phone', '(215) 555-0123'); await p.fill('#owner-units', '3');
   },
   'The property': async (p) => { await p.fill('#prop-address', '1932 N 5th St'); await p.fill('#prop-rent', '1150'); },
@@ -185,6 +186,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await next(page).click();
     expect(await currentStep(page)).toBe('About you (the owner)');
     await page.fill('#owner-email', 'landlord@example.com');
+    await page.fill('#owner-email-confirm', 'landlord@example.com');
     await next(page).click();
     expect(await currentStep(page)).toBe('The property');
   });
@@ -209,17 +211,116 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(page.locator('.field:has(#owner-email)')).not.toHaveClass(/lc-ok/);
     await email.pressSequentially('mple.com');
     await expect(msg).toBeHidden();
-    await expect(page.locator('.field:has(#owner-email)')).toHaveClass(/lc-ok/);
+    // a valid email isn't "done" yet — it still has to be confirmed
+    await expect(page.locator('#owner-email-confirm')).toBeVisible();
+    await expect(page.locator('.field:has(#owner-email)')).not.toHaveClass(/lc-ok/);
   });
 
-  test('a field that passes shows a green tick; an optional field cleared loses its error', async ({ page }) => {
+  test('the full name is capped at 150 characters — one more and the error shows while typing', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await page.locator('#owner-name').pressSequentially('Marcus Reed');
-    const field = page.locator('.field:has(#owner-name)');
+    const name = page.locator('#owner-name');
+    const msg = page.locator('.field:has(#owner-name) > .errmsg');
+    await name.fill('A'.repeat(149));
+    await name.pressSequentially('A');                         // 150: fine
+    await expect(msg).toBeHidden();
+    await expect(page.locator('.field:has(#owner-name)')).toHaveClass(/lc-ok/);
+    await name.pressSequentially('A');                         // 151: over
+    await expect(msg).toBeVisible();
+    await expect(msg).toContainText('150 characters or fewer');
+    await expect(page.locator('.field:has(#owner-name)')).not.toHaveClass(/lc-ok/);
+    // and it holds Next, even with everything else filled in
+    await page.fill('#owner-email', 'landlord@example.com');
+    await page.fill('#owner-email-confirm', 'landlord@example.com');
+    await page.fill('#owner-phone', '2155550123');
+    await page.fill('#owner-units', '3');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('About you (the owner)');
+    await name.press('Backspace');                             // back to 150
+    await expect(msg).toBeHidden();
+    // the page's own message comes back for the page's own rule
+    await name.fill('');
+    await expect(msg).toHaveText('Please enter your full name.');
+  });
+
+  test('a valid email asks to be typed again; a match marks it Verified', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    const field = page.locator('.field:has(#owner-email)');
+    const confirm = page.locator('#owner-email-confirm');
+    const cmsg = page.locator('.lc-confirm .errmsg');
+    await page.locator('#owner-email').pressSequentially('landlord@example.com');
+    await page.keyboard.press('Tab');                          // leaving the field opens it at once
+    await expect(confirm).toBeVisible();
+    await expect(page.locator('label[for="owner-email-confirm"]')).toHaveText('Retype email to confirm');
+    await expect(confirm).toBeFocused();                       // Tab lands in it
+    // the card hugs its content: no blank band under the input (an inline input's text-line
+    // space and a hidden message's paragraph margin each used to leave one)
+    await page.locator('.lc-confirm').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const gap = await page.locator('.lc-confirm').evaluate((box) =>
+      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom);
+    expect(gap).toBeLessThanOrEqual(12);
+    // a typo is flagged as soon as it can no longer match
+    await confirm.pressSequentially('landlord@exampel');
+    await expect(cmsg).toBeVisible();
+    await expect(cmsg).toHaveText('The two emails don’t match.');
+    await confirm.fill('');
+    await confirm.pressSequentially('landlord@example.com');
+    await expect(cmsg).toBeHidden();
+    await expect(field).toHaveClass(/lc-verified/);
     await expect(field).toHaveClass(/lc-ok/);
-    const bg = await page.locator('#owner-name').evaluate((el) => getComputedStyle(el).backgroundImage);
-    expect(bg).toContain('svg');
+    const badge = await page.locator('label[for="owner-email"]').evaluate((el) => getComputedStyle(el, '::after').content);
+    expect(badge).toBe('"Verified"');
+    // changing the email afterwards un-verifies it and asks again
+    await page.locator('#owner-email').pressSequentially('m');
+    await expect(field).not.toHaveClass(/lc-verified/);
+    await expect(confirm).toHaveValue('');
+  });
+
+  test('Next is held until the email is verified', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.fill('#owner-name', 'Marcus Reed');
+    await page.fill('#owner-email', 'landlord@example.com');
+    await page.fill('#owner-phone', '2155550123');
+    await page.fill('#owner-units', '3');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('About you (the owner)');
+    await expect(page.locator('.lc-confirm .errmsg')).toHaveText('Please retype your email to confirm it.');
+    await expect(page.locator('#owner-email-confirm')).toBeFocused();
+    await page.fill('#owner-email-confirm', 'landlord@example.com');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property');
+  });
+
+  test('a field that passes turns its asterisk into a green check; an optional field cleared loses its error', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    const req = page.locator('.field:has(#owner-name) .req');
+    const label = page.locator('label[for="owner-name"]');
+    const look = (loc) => loc.evaluate((el) => {
+      const s = getComputedStyle(el); return { color: s.color, bg: s.backgroundImage };
+    });
+    const labelBox = () => label.evaluate((el) => { const b = el.getBoundingClientRect(); return { h: b.height }; });
+    // before typing: the asterisk, as visible text
+    expect((await look(req)).color).not.toBe('rgba(0, 0, 0, 0)');
+    expect((await look(req)).bg).toBe('none');
+    const before = await labelBox();
+    await page.locator('#owner-name').pressSequentially('Marcus Reed');
+    await expect(page.locator('.field:has(#owner-name)')).toHaveClass(/lc-ok/);
+    // after: the "*" is gone and a check icon stands in its place
+    expect(await look(req)).toEqual({ color: 'rgba(0, 0, 0, 0)', bg: expect.stringContaining('svg') });
+    // ...on the same line as the label text: the label does not grow, so the input below it
+    // does not jump (an earlier version dropped the check below the text and grew it ~11px)
+    expect((await labelBox()).h).toBeCloseTo(before.h, 1);
+    await req.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));   // measure at rest
+    const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
+    expect(rq.y + rq.height).toBeLessThanOrEqual(lb.y + lb.height + 0.5);
+    // an optional field has no asterisk, so its check appears after the label
+    await page.locator('#owner-entity').pressSequentially('Reed Property Group LLC');
+    const after = await page.locator('label[for="owner-entity"]')
+      .evaluate((el) => getComputedStyle(el, '::after').backgroundImage);
+    expect(after).toContain('svg');
     // an optional field: a bad value shows an error, emptying it takes the error away again
     await SECTION_FILL['About you (the owner)'](page);
     await next(page).click();
@@ -235,20 +336,84 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(page.locator('.field:has(#tenant-email)')).not.toHaveClass(/lc-ok/);
   });
 
-  test('each new section and each error message fades up over 350ms, ease-in', async ({ page }) => {
+  test('an error message fades up AND opens its space over 350ms — nothing below it jumps', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await next(page).click();                                  // empty: errors appear
-    const errAnim = await page.locator('.field:has(#owner-name) .errmsg').evaluate((el) => {
-      const s = getComputedStyle(el); return [s.animationName, s.animationDuration, s.animationTimingFunction];
+    // Press Next on the empty section and sample, every ~40ms, the phone error's height and
+    // opacity and where the field BELOW it sits. The old display:none -> block pushed that
+    // field down in a single frame; now it has to travel.
+    const samples = await page.evaluate(async () => {
+      // Let the step's own fade-up (a 10px slide) finish first, or the "before" reading is
+      // taken mid-slide and already looks like "after".
+      await Promise.all(document.getAnimations().map((a) => a.finished));
+      const msg = document.querySelector('.field:has(#owner-phone) > .errmsg');
+      const below = document.querySelector('#owner-units');
+      // y is measured inside the dialog: the dialog re-centres itself as it grows, so a
+      // viewport position mixes that in and says nothing about the field being pushed down.
+      const dlg = document.querySelector('.lc-dialog');
+      const read = () => ({ h: msg.getBoundingClientRect().height, op: Number(getComputedStyle(msg).opacity),
+        y: below.getBoundingClientRect().top - dlg.getBoundingClientRect().top });
+      const out = [read()];
+      document.querySelector('[data-landlord-check] [data-lc-next]').click();
+      const t0 = performance.now();
+      while (performance.now() - t0 < 520) {                   // every frame, so timing can't skip it
+        await new Promise((r) => requestAnimationFrame(r));
+        out.push(read());
+      }
+      // A busy machine can run late; the end state is read once the transitions really finish.
+      await Promise.all(document.getAnimations().map((a) => a.finished));
+      out.push(read());
+      const s = getComputedStyle(msg);
+      return { out, timing: s.transitionTimingFunction, duration: s.transitionDuration };
     });
-    expect(errAnim).toEqual(['lc-up', '0.35s', 'ease-in']);
+    const first = samples.out[0], last = samples.out[samples.out.length - 1];
+    expect(last.h, 'the message ends up open').toBeGreaterThan(0);
+    expect(last.op, 'and fully visible').toBe(1);
+    // some frame caught each of them part-way — none of them happened in a single frame
+    expect(samples.out.some((s) => s.h > first.h + 1 && s.h < last.h - 1), 'height opens gradually').toBe(true);
+    expect(samples.out.some((s) => s.op > 0.1 && s.op < 0.9), 'opacity fades gradually').toBe(true);
+    expect(last.y, 'the field below is pushed down').toBeGreaterThan(first.y + 10);
+    expect(samples.out.some((s) => s.y > first.y + 2 && s.y < last.y - 2), 'and travels there, not jumps').toBe(true);
+    expect(samples.duration).toContain('0.35s');
+    expect(samples.timing).toContain('ease-in');
+  });
+
+  test('each new section fades up over 350ms, ease-in', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
     await SECTION_FILL['About you (the owner)'](page);
     await next(page).click();
     const stepAnim = await page.locator('#intake-form fieldset:not([data-lc-off])').evaluate((el) => {
       const s = getComputedStyle(el); return [s.animationName, s.animationDuration, s.animationTimingFunction];
     });
     expect(stepAnim).toEqual(['lc-up', '0.35s', 'ease-in']);
+  });
+
+  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, brass focus, red error', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    const name = page.locator('#owner-name');
+    // Read at rest: border colours ease over 150ms, and a read at the start of that easing
+    // still shows the PREVIOUS colour — enough to pass a wrong colour.
+    const st = (loc) => loc.evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map((a) => a.finished));
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, bw: s.borderTopWidth, r: s.borderTopLeftRadius, bc: s.borderTopColor };
+    });
+    const idle = await st(name);
+    expect(idle).toMatchObject({ bg: 'rgb(255, 255, 255)', r: '10px' });
+    // the same border as the popup's own answer buttons (1.5px, which Chrome draws as whole
+    // device pixels — so compare against the real control, not a literal)
+    const ref = await st(page.locator('.lc-role').first());
+    expect(idle.bw).toBe(ref.bw);
+    expect(idle.r).toBe(ref.r);
+    await name.focus();
+    await expect.poll(async () => (await st(name)).bc).toBe('rgb(200, 162, 74)');   // brass
+    await page.locator('#owner-email').pressSequentially('nope');
+    await expect.poll(async () => (await st(page.locator('#owner-email'))).bc).toBe('rgb(180, 67, 47)'); // red, like its message
+    // ...and still red after leaving the field (the page's own rule would paint it gold)
+    await page.locator('#owner-units').focus();
+    await expect.poll(async () => (await st(page.locator('#owner-email'))).bc).toBe('rgb(180, 67, 47)');
   });
 
   test('Back walks the sections, and from the first one returns to "own or rent?"', async ({ page }) => {
@@ -324,8 +489,8 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.click('#intake-form button[type=submit]');
     await expect(page.locator('[data-landlord-check] .callout[role=status]')).toBeVisible();
     const actions = (await lcEvents(page)).map((e) => e.lc_action + (e.lc_step ? ':' + e.lc_step : ''));
-    expect(actions).toEqual(['open', 'role', 'step:2', 'step:3', 'step:4', 'step:5', 'step:6',
-      'step:7', 'step:8', 'submit']);
+    expect(actions).toEqual(['open', 'role', 'step:2', 'email_verified', 'step:3', 'step:4', 'step:5',
+      'step:6', 'step:7', 'step:8', 'submit']);
   });
 });
 
@@ -356,6 +521,7 @@ test.describe('the question in front of each form opens the popup', () => {
     await page.fill('#c-name', 'Marcus Reed');
     await page.fill('#c-phone', '2155550123');
     await page.fill('#c-email', 'landlord@example.com');
+    await page.fill('#c-email-confirm', 'landlord@example.com');
     await page.click('#contact-form button[type=submit]');
     await expect(page.locator('[data-landlord-check] .callout[role=status]')).toContainText('we’ve got it');
     expect(JSON.parse(seen[0].postData)).toMatchObject({ form_type: 'contact', visitor_role: 'landlord' });
@@ -366,7 +532,6 @@ test.describe('the question in front of each form opens the popup', () => {
   });
 
   test('/back-rent/: landlord gets the case-review form in the popup and books one $600 conversion', async ({ page }) => {
-    await stubEndpoint(page);
     await page.goto('/back-rent/index.html');
     await landlord(page).click();
     await expect(page.locator('[data-landlord-check] #backrent-form')).toBeVisible();
@@ -376,6 +541,13 @@ test.describe('the question in front of each form opens the popup', () => {
     await page.fill('#owner-email', 'landlord@example.com');
     await page.fill('#prop-address', '1932 N 5th St');
     await page.fill('#back-rent', '4200');
+    // not confirmed yet: the popup holds the page's own submit, and nothing is sent
+    const seen = await stubEndpoint(page);
+    await page.click('#backrent-form button[type=submit]');
+    await expect(page.locator('.lc-confirm .errmsg')).toHaveText('Please retype your email to confirm it.');
+    await page.waitForTimeout(300);
+    expect(seen).toHaveLength(0);
+    await page.fill('#owner-email-confirm', 'landlord@example.com');
     await page.click('#backrent-form button[type=submit]');
     await expect(page.locator('[data-landlord-check] .confirm')).toBeVisible();
     const booked = await leads(page);

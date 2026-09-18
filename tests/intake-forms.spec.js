@@ -108,6 +108,12 @@ async function fillApplyForm(page) {
       if (el.type === 'date') return set(el, '2026-01-01');
       if (el.required) set(el, 'Test Value');
     });
+    // The popup asks for the owner's email twice before it counts as verified: leave the
+    // field so the confirm box opens, then type it again.
+    const email = f.querySelector('#owner-email');
+    email.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    const confirm = document.querySelector('#owner-email-confirm');
+    if (confirm) set(confirm, email.value);
   });
 }
 
@@ -116,6 +122,7 @@ async function fillBackRentForm(page) {
   await page.fill('#owner-name', 'Marcus Reed');
   await page.fill('#owner-phone', '2155550123');
   await page.fill('#owner-email', 'landlord@example.com');
+  await page.fill('#owner-email-confirm', 'landlord@example.com');   // the popup's confirm box
   await page.fill('#prop-address', '1932 N 5th St, Philadelphia, PA 19122');
   await page.fill('#back-rent', '4200');
 }

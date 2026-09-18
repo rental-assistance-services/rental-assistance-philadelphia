@@ -52,6 +52,7 @@
     { name: 'PA 211', tel: '211', label: '211', meta: 'Rent, utilities, food and housing referrals' }
   ];
 
+  var NAME_MAX = 150;                      // the owner's full name, in characters
   var bypass = false;                      // true while WE click a gate button on purpose
 
   window.dataLayer = window.dataLayer || [];
@@ -109,6 +110,9 @@
   function submitted(form) { return form.style.display === 'none'; }   // both pages' success path
 
   /* ---------- styles ---------- */
+  var TICK = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\'%3E'
+    + '%3Ccircle cx=\'10\' cy=\'10\' r=\'10\' fill=\'%232F9E5E\'/%3E%3Cpath d=\'M5.6 10.4l2.9 2.9 5.9-6.3\' fill=\'none\' '
+    + 'stroke=\'%23fff\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")';
   var CSS = ''
     + '.lc-backdrop{--lc-navy:var(--navy,#14233A);--lc-ink:var(--ink,#11161C);--lc-brass:var(--brass,#C8A24A);'
     + '--lc-brass-2:var(--brass-2,#A9853A);--lc-paper:var(--paper-3,#FBF7EE);--lc-green:var(--green,#2F9E5E);'
@@ -147,13 +151,71 @@
     // fades up over 350ms, ease-in. One timing for all of it.
     + '.lc-panel{animation:lc-up .35s ease-in both;}'
     + '.lc-host fieldset.lc-enter{animation:lc-up .35s ease-in both;}'
-    + '.lc-host .errmsg.show,.lc-host .field.show-err .errmsg{animation:lc-up .35s ease-in both;}'
-    // A field that has been typed into and passes its check gets a green tick inside it.
-    + '.lc-host .field input,.lc-host .field select,.lc-host .field textarea{background-repeat:no-repeat;'
-    + 'background-position:right 14px center;background-size:0 0;transition:background-size .35s ease-in;}'
-    + '.lc-host .field.lc-ok input,.lc-host .field.lc-ok select,.lc-host .field.lc-ok textarea{padding-right:42px;background-size:18px 18px;'
-    + 'background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\'%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'10\' fill=\'%232F9E5E\'/%3E%3Cpath d=\'M5.6 10.4l2.9 2.9 5.9-6.3\' fill=\'none\' stroke=\'%23fff\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E");}'
-    + '.lc-host .field.lc-ok select{background-position:right 36px center;}'
+    // Error messages: the page shows them with display:none -> block, which drops the message
+    // in AND shoves every field below it down in the same frame — that jump is what reads as
+    // "no animation" even while the text itself fades. In the popup the message is always in
+    // the flow, collapsed, and opens its own space as it fades up, so nothing below jumps.
+    + '.lc-host .errmsg{display:block;max-height:0;margin-top:0;opacity:0;transform:translateY(8px);overflow:hidden;visibility:hidden;'
+    + 'transition:max-height .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,visibility 0s linear .35s;}'
+    // max-height is about two lines: the height has to finish opening WITH the fade, not in
+    // the first half of it, or the space pops open and the text fades into it afterwards.
+    + '.lc-host .errmsg.show,.lc-host .field.show-err .errmsg{max-height:2.9em;margin-top:6px;opacity:1;transform:none;visibility:visible;'
+    + 'transition:max-height .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,visibility 0s;}'
+    // Inputs, in the site's own control language — the same as the "own or rent?" buttons and
+    // the gates in front of each form: white fill, 1.5px hairline border, 10px corners, a
+    // brass focus ring. The page's inputs used a cream fill that vanished on the cream dialog,
+    // a green focus ring, and a GOLD outline for an error whose message is red.
+    // :where() keeps the type filter from adding specificity, so the state rules below
+    // (focus, valid, error) can each override the base look in the order they are written.
+    + '.lc-host .field :where(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){'
+    // display:block drops the empty text-line space an inline input leaves beneath itself.
+    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1rem;color:var(--lc-ink);'
+    + 'box-shadow:none;transition:border-color .15s,box-shadow .15s;}'
+    + '.lc-host .field input::placeholder,.lc-host .field textarea::placeholder{color:var(--lc-muted-2);opacity:.75;}'
+    + '.lc-host .field :where(input,select,textarea):hover{border-color:rgba(200,162,74,.6);}'
+    + '.lc-host .field :where(input,select,textarea):focus{outline:none;border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.24);}'
+    + '.lc-host .field.lc-ok > :where(input,select,textarea),.lc-host .field .lc-confirm input.lc-match{border-color:rgba(47,158,94,.6);}'
+    // An error is red — the same red as its message — and stays red while the field has focus.
+    // (.err/.bad stay OUTSIDE :where, or the page's own gold `.field input.err` would outrank it.)
+    + '.lc-host .field :where(input,select,textarea).err,.lc-host .field :where(input,select,textarea).bad,'
+    + '.lc-host .field :where(input,select,textarea).err:focus,.lc-host .field :where(input,select,textarea).bad:focus{'
+    + 'border-color:#B4432F;box-shadow:0 0 0 3px rgba(180,67,47,.13);}'
+    // No bottom margin: the site's paragraph margin would otherwise leave a blank band under
+    // every field even while its (collapsed) message is hidden.
+    + '.lc-host .errmsg{color:#9A3B33;font-size:.84rem;margin-bottom:0;}'
+    // A two-column row stacks on a phone; its row gap PLUS each field's own bottom margin
+    // doubled the space between those fields. The field margin alone spaces them evenly.
+    + '.lc-host .row,.lc-host .row2{row-gap:0;}'
+    + '.lc-host .file-field{background:#fff;border:1.5px dashed var(--lc-hair);border-radius:10px;}'
+    // Once a field is filled in and passes, its asterisk turns into a green check (and a field
+    // with no asterisk gets the check after its label). It fades up like everything else.
+    // The icon is exactly 1em and sits on the text's own bottom edge (vertical-align:text-bottom),
+    // so the label keeps its height and nothing below it moves. (Shrinking the "*" to font-size:0
+    // instead dropped the icon below the text and grew the label ~11px — a jump.)
+    + '.lc-host .field.lc-ok .req{display:inline-block;width:1em;height:1em;margin-left:2px;vertical-align:text-bottom;'
+    + 'color:transparent;overflow:hidden;background:' + TICK + ' center/contain no-repeat;animation:lc-up .35s ease-in both;}'
+    + '.lc-host .field.lc-ok > label:not(:has(.req))::after{content:"";display:inline-block;width:1em;height:1em;margin-left:6px;'
+    + 'vertical-align:text-bottom;background:' + TICK + ' center/contain no-repeat;animation:lc-up .35s ease-in both;}'
+    // A well-formed email is green straight away; its check + "Verified" wait for the retype.
+    + '.lc-host .field.lc-emailok > input{border-color:rgba(47,158,94,.6);}'
+    // The email confirm box: a small white card attached under the email (Kyle's mock-up,
+    // 2026-09-18) — green label, rounded input. It fades up and opens its own space like an
+    // error message, so nothing below jumps. Its padding leaves room for the input's focus ring.
+    + '.lc-host .lc-confirm{max-height:0;opacity:0;transform:translateY(8px);overflow:hidden;visibility:hidden;'
+    + 'margin:0;padding:0 10px;background:#fff;border:1px solid transparent;border-radius:10px;box-shadow:none;'
+    + 'transition:max-height .35s ease-in,margin .35s ease-in,padding .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
+    + 'border-color .35s ease-in,box-shadow .35s ease-in,visibility 0s linear .35s;}'
+    + '.lc-host .lc-confirm.show{max-height:10em;opacity:1;transform:none;visibility:visible;margin:6px 0 0;padding:11px 10px 10px;'
+    + 'border-color:var(--lc-hair);box-shadow:0 10px 24px rgba(20,35,58,.10),0 2px 6px rgba(20,35,58,.05);'
+    + 'transition:max-height .35s ease-in,margin .35s ease-in,padding .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
+    + 'border-color .35s ease-in,box-shadow .35s ease-in,visibility 0s;}'
+    + '.lc-host .lc-confirm label{display:block;font-size:.8rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
+    + '.lc-host .field .lc-confirm input{padding:11px 13px;}'
+    // Verified: a green pill after the email's label (its asterisk has already become a check).
+    + '.lc-host .field.lc-verified > label::after,.lc-host .field.lc-verified.lc-ok > label:not(:has(.req))::after{'
+    + 'content:"Verified";display:inline-block;width:auto;height:auto;margin-left:8px;padding:2px 9px;'
+    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.72rem;font-weight:700;'
+    + 'letter-spacing:.03em;vertical-align:1px;animation:lc-up .35s ease-in both;}'
     + '.lc-panel[hidden]{display:none;}'
     + '.lc-q{font-family:var(--lc-serif);font-size:1.45rem;font-weight:560;color:var(--lc-navy);line-height:1.2;margin:0 0 6px;}'
     + '.lc-sub{color:var(--lc-muted);font-size:.95rem;margin:0 0 18px;}'
@@ -209,8 +271,8 @@
     + '.lc-q{font-size:1.28rem;}}'
     + '@keyframes lc-sheet{from{transform:translateY(100%);}to{transform:none;}}'
     + '@media (prefers-reduced-motion:reduce){.lc-backdrop,.lc-dialog,.lc-panel,.lc-host fieldset.lc-enter,'
-    + '.lc-host .errmsg.show,.lc-host .field.show-err .errmsg{animation:none;}.lc-host .field input,.lc-host .field select,'
-    + '.lc-host .field textarea{transition:none;}}';
+    + '.lc-host .errmsg,.lc-host .errmsg.show,.lc-host .field.show-err .errmsg,.lc-host .field input,.lc-host .field select,'
+    + '.lc-host .field textarea{transition:none;}.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after{animation:none;}}';
 
   var HTML = ''
     + '<div class="lc-dialog" role="dialog" aria-modal="true" aria-labelledby="lc-title-role" tabindex="-1">'
@@ -344,6 +406,8 @@
         // the form. Watch for it, so the popup can mark the application done.
         observer = new MutationObserver(function () { if (submitted(form)) showDone(); });
         observer.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+        // Capture, so it runs before the page's own submit handler and can hold it back.
+        form.addEventListener('submit', guardSubmit, true);
       }
       panel('form');
       if (submitted(form)) { showDone(); return; }
@@ -382,57 +446,187 @@
        - while the visitor types in a field, it is checked live;
        - leaving a field that was never typed in shows no error (the blur is stopped here);
        - pressing Next checks the whole section, since the visitor is trying to move on.
-       A field that has been typed into and passes gets a green tick. */
+       A field that has been typed into and passes turns its asterisk into a green check.
+
+       On top of the page's rules the popup adds a few of its own (popupProblem): a length
+       cap on the owner's name, and — for a form the page never validates live, the case-review
+       form — required / email / phone checks. And a required email must be typed twice: a
+       confirm box fades up beneath it, and the email is only "Verified" once both match. */
     var validating = false;
+    var NAME_FIELDS = { owner_name: true, name: true };   // the owner's full name, on every form
+    function val(el) { return String(el.value || '').trim(); }
     function isEntry(el) {
       return el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && el.closest('.field')
-        && !/^(hidden|checkbox|radio|file)$/.test(el.type) && el.name !== 'hp_x7f2';
+        && !/^(hidden|checkbox|radio|file)$/.test(el.type) && el.name !== 'hp_x7f2' && !el.hasAttribute('data-lc-confirm');
     }
+    function isOwnerEmail(el) { return el.type === 'email' && el.required && !el.hasAttribute('data-lc-confirm'); }
     function hasErr(el) { return el.classList.contains('err') || el.classList.contains('bad'); }
+    function ownMsg(f) {
+      for (var i = 0; i < f.children.length; i++) if (f.children[i].classList.contains('errmsg')) return f.children[i];
+      var m = document.createElement('p');                     // the case-review form has none
+      m.className = 'errmsg';
+      f.appendChild(m);
+      return m;
+    }
     function clearErr(el) {
       el.classList.remove('err', 'bad');
       var f = el.closest('.field');
-      if (f) { f.classList.remove('show-err'); var m = f.querySelector('.errmsg'); if (m) m.classList.remove('show'); }
+      if (f) { f.classList.remove('show-err'); ownMsg(f).classList.remove('show'); }
+    }
+    function showErr(el, text) {
+      var m = ownMsg(el.closest('.field'));
+      if (!m.hasAttribute('data-lc-orig')) m.setAttribute('data-lc-orig', m.textContent);
+      m.textContent = text;
+      el.classList.add('err');
+      m.classList.add('show');
+    }
+    function popupProblem(el) {
+      var v = val(el);
+      if (NAME_FIELDS[el.name] && v.length > NAME_MAX)
+        return 'Please keep your name to ' + NAME_MAX + ' characters or fewer (' + v.length + ' now).';
+      if (el.required && !v) return 'This field is required.';
+      if (el.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address.';
+      if (el.type === 'tel' && v && v.replace(/\D/g, '').length < 10) return 'Enter a valid phone number (at least 10 digits).';
+      return null;
     }
     function runPageCheck(el) {
+      var f = el.closest('.field'), m = f && ownMsg(f);
+      if (m && m.hasAttribute('data-lc-orig')) m.textContent = m.getAttribute('data-lc-orig');   // the page's own wording
       validating = true;
       try { el.dispatchEvent(new Event(el.type === 'checkbox' || el.type === 'radio' ? 'change' : 'blur')); }
       finally { validating = false; }
+      if (!isEntry(el)) return;
       // The pages skip an EMPTY optional field, so an error from an earlier value would stay.
-      if (!el.required && !String(el.value || '').trim()) clearErr(el);
+      if (!el.required && !val(el)) clearErr(el);
+      if (!hasErr(el)) { var p = popupProblem(el); if (p) showErr(el, p); }
     }
+    function verified(el) { return el.getAttribute('data-lc-verified-for') === val(el).toLowerCase() && !!val(el); }
     function refreshTick(el) {
       var f = el.closest('.field');
       if (!f || !isEntry(el)) return;
-      f.classList.toggle('lc-ok', el.hasAttribute('data-lc-touched') && !!String(el.value || '').trim() && !hasErr(el));
+      var ok = el.hasAttribute('data-lc-touched') && !!val(el) && !hasErr(el);
+      if (isOwnerEmail(el)) { f.classList.toggle('lc-emailok', ok); ok = ok && verified(el); f.classList.toggle('lc-verified', ok); }
+      f.classList.toggle('lc-ok', ok);
     }
+
+    /* --- the email confirm box --- */
+    function confirmBox(el, create) {
+      var f = el.closest('.field'), box = f.querySelector('.lc-confirm');
+      if (!box && create) {
+        var id = (el.id || 'lc-email') + '-confirm';
+        box = document.createElement('div');
+        box.className = 'lc-confirm';
+        box.innerHTML = '<label for="' + id + '">Retype email to confirm</label>'
+          + '<input id="' + id + '" type="email" autocomplete="off" inputmode="email" placeholder="Retype your email" data-lc-confirm>'
+          + '<p class="errmsg" aria-live="polite"></p>';
+        f.appendChild(box);
+      }
+      return box;
+    }
+    // strict: the visitor is trying to move on, so an empty or unfinished confirm is an error.
+    function checkConfirm(el, strict) {
+      var box = confirmBox(el, true), c = box.querySelector('input'), m = box.querySelector('.errmsg');
+      var a = val(el).toLowerCase(), b = val(c).toLowerCase();
+      if (b && a === b) {
+        var was = verified(el);
+        el.setAttribute('data-lc-verified-for', a);
+        c.classList.remove('err'); c.classList.add('lc-match'); m.classList.remove('show');
+        refreshTick(el);
+        if (!was) track('email_verified', { form_id: form.id });
+        return true;
+      }
+      el.removeAttribute('data-lc-verified-for');
+      c.classList.remove('lc-match');
+      // While typing, only flag it once it can no longer turn into a match.
+      var wrong = !!b && (a.indexOf(b) !== 0 || b.length >= a.length);
+      var show = wrong || strict;
+      m.textContent = b ? 'The two emails don’t match.' : 'Please retype your email to confirm it.';
+      c.classList.toggle('err', show);
+      m.classList.toggle('show', show);
+      refreshTick(el);
+      return false;
+    }
+    // Show the confirm box once the email itself is valid; hide it (and un-verify) if not.
+    var emailTimer = null;
+    function syncEmail(el, now) {
+      clearTimeout(emailTimer);
+      var box = confirmBox(el, false);
+      if (el.hasAttribute('data-lc-verified-for') && !verified(el)) {
+        el.removeAttribute('data-lc-verified-for');          // the email changed after it was verified
+        if (box) { var c = box.querySelector('input'); c.value = ''; c.classList.remove('err', 'lc-match'); box.querySelector('.errmsg').classList.remove('show'); }
+      }
+      refreshTick(el);
+      var good = !!val(el) && !hasErr(el);
+      if (!good) { if (box) box.classList.remove('show'); return; }
+      if (box && box.classList.contains('show')) { if (val(box.querySelector('input'))) checkConfirm(el, false); return; }
+      // Don't pop it open mid-word: wait until they pause, or leave the field.
+      var open = function () { confirmBox(el, true).classList.add('show'); };
+      if (now) open(); else emailTimer = setTimeout(open, 700);
+    }
+
     function liveCheck(e) {
       var el = e.target;
+      if (el.hasAttribute && el.hasAttribute('data-lc-confirm')) {
+        var owner = el.closest('.field').querySelector('input[type="email"]:not([data-lc-confirm])');
+        if (owner) checkConfirm(owner, false);
+        return;
+      }
       if (!isEntry(el)) return;
       el.setAttribute('data-lc-touched', '');
       runPageCheck(el);
       refreshTick(el);
+      if (isOwnerEmail(el)) syncEmail(el, false);
     }
     host.addEventListener('input', liveCheck);
     host.addEventListener('change', liveCheck);
+    // Tab out of a valid email: open the confirm box BEFORE the browser moves focus, so the
+    // Tab lands in it rather than skipping past to the phone field.
+    host.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab' && !e.shiftKey && isOwnerEmail(e.target) && e.target.hasAttribute('data-lc-touched')) syncEmail(e.target, true);
+    });
+    host.addEventListener('focusout', function (e) {
+      if (isOwnerEmail(e.target) && e.target.hasAttribute('data-lc-touched')) syncEmail(e.target, true);
+    });
     // Capture phase on the host runs before the field's own blur listener, so an untouched
     // field can be tabbed past without being marked wrong.
     host.addEventListener('blur', function (e) {
       if (!validating && isEntry(e.target) && !e.target.hasAttribute('data-lc-touched')) e.stopPropagation();
     }, true);
 
+    // The checks only the popup knows about. A single-step form is submitted by the page's own
+    // button, so these also hold its submit back. Everything else the page checks itself.
+    function popupBlocks(scope) {
+      var first = null;
+      scope.querySelectorAll('input,select,textarea').forEach(function (el) {
+        if (!isEntry(el)) return;
+        if (NAME_FIELDS[el.name] && val(el).length > NAME_MAX) { showErr(el, popupProblem(el)); first = first || el; }
+        if (isOwnerEmail(el) && val(el) && !hasErr(el) && !verified(el)) {
+          confirmBox(el, true).classList.add('show');
+          checkConfirm(el, true);
+          first = first || confirmBox(el, false).querySelector('input');
+        }
+      });
+      return first;
+    }
+    function guardSubmit(e) {
+      var first = popupBlocks(form);
+      if (first) { e.preventDefault(); e.stopImmediatePropagation(); first.focus(); }
+    }
+
     function sectionValid() {
       var scope = sections[idx] || form, ok = true, first = null;
       scope.querySelectorAll('input,select,textarea').forEach(function (el) {
         if (el.type === 'hidden' || el.name === 'hp_x7f2' || el.tabIndex === -1 || el.closest('[aria-hidden="true"]')) return;
+        if (el.hasAttribute('data-lc-confirm')) return;                    // checked with its email
         if (el.offsetParent === null && el.type !== 'file') return;          // inside a closed reveal block
         if (isEntry(el)) el.setAttribute('data-lc-touched', '');
         runPageCheck(el);
         refreshTick(el);
-        var v = String(el.value || '').trim();
-        var bad = hasErr(el) || (el.required && (el.type === 'checkbox' ? !el.checked : !v));
+        var bad = hasErr(el) || (el.required && (el.type === 'checkbox' ? !el.checked : !val(el)));
         if (bad) { ok = false; if (!first) first = el; }
       });
+      var blocked = popupBlocks(scope);
+      if (blocked) { ok = false; first = first || blocked; }
       if (first) first.focus();
       return ok;
     }
@@ -442,6 +636,8 @@
       if (reason === 'dismiss' && !readChoice()) { saveChoice('dismissed'); }
       if (reason === 'dismiss') track('dismiss', { lc_screen: screen });
       if (observer) observer.disconnect();
+      clearTimeout(emailTimer);
+      if (form) form.removeEventListener('submit', guardSubmit, true);
       if (placeholder) {
         // Put the form (and a confirmation, if one was added) back where it came from.
         sections.forEach(function (fs) { fs.removeAttribute('data-lc-off'); fs.classList.remove('lc-enter'); });
