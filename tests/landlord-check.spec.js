@@ -291,6 +291,194 @@ test.describe('address suggestions', () => {
   });
 });
 
+/** Walk the homepage application to a named step, filling each section on the way. */
+async function toStep(page, name) {
+  await page.goto('/index.html');
+  await landlord(page).click();
+  for (const s of APPLY_STEPS) {
+    if (s === name) break;
+    await SECTION_FILL[s](page);
+    await next(page).click();
+  }
+  expect(await currentStep(page)).toBe(name);
+}
+
+test.describe('file uploads look like the site', () => {
+  const zone = (page, id) => page.locator(`.lc-drop:has(#${id})`);
+  const pdf = (name, bytes = 2048) => ({ name, mimeType: 'application/pdf', buffer: Buffer.alloc(bytes, 1) });
+
+  test('each upload is a drop box with the accepted types and the size limit', async ({ page }) => {
+    await toStep(page, 'Your documents');
+    await expect(page.locator('#intake-form .lc-drop')).toHaveCount(5);
+    await expect(zone(page, 'doc-lease')).toContainText('Drag a file here or browse');
+    await expect(zone(page, 'doc-lease')).toContainText('PDF, JPG, PNG or HEIC · up to 15MB');
+    await expect(zone(page, 'doc-ledger')).toContainText('PDF, JPG, PNG, HEIC, XLSX or CSV · up to 15MB');
+    // the real input is still there, covering the box, so a click anywhere opens the picker
+    const cover = await page.locator('#doc-lease').evaluate((el) => {
+      const a = el.getBoundingClientRect(), b = el.parentElement.getBoundingClientRect();
+      // inside the box's 1.5px border on each side, so up to ~3px smaller
+      return a.width > 0 && Math.abs(a.width - b.width) <= 4 && Math.abs(a.height - b.height) <= 4
+        && getComputedStyle(el).opacity === '0';
+    });
+    expect(cover).toBe(true);
+  });
+
+  test('a chosen file shows its name and size, a check, and Remove', async ({ page }) => {
+    await toStep(page, 'Your documents');
+    await page.setInputFiles('#doc-lease', pdf('signed-lease.pdf', 250 * 1024));
+    await expect(zone(page, 'doc-lease')).toHaveClass(/lc-has/);
+    await expect(zone(page, 'doc-lease')).toContainText('signed-lease.pdf');
+    await expect(zone(page, 'doc-lease')).toContainText('250 KB');
+    await expect(page.locator('.field:has(#doc-lease)')).toHaveClass(/lc-ok/);
+    await zone(page, 'doc-lease').getByRole('button', { name: 'Remove' }).click();
+    await expect(zone(page, 'doc-lease')).not.toHaveClass(/lc-has/);
+    await expect(zone(page, 'doc-lease')).toContainText('Drag a file here or browse');
+    expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
+  });
+
+  test('a wrong type or a file over 15MB is refused on the spot, with the reason', async ({ page }) => {
+    await toStep(page, 'Your documents');
+    const msg = page.locator('.field:has(#doc-lease) > .errmsg');
+    await page.setInputFiles('#doc-lease', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hi') });
+    await expect(msg).toContainText('“notes.txt” isn’t a file we can take — please use PDF, JPG, PNG or HEIC.');
+    expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
+    await page.setInputFiles('#doc-lease', pdf('huge-scan.pdf', 16 * 1024 * 1024));
+    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB — files must be under 15MB.');
+    expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
+    await page.setInputFiles('#doc-lease', pdf('lease.pdf'));
+    await expect(msg).toBeHidden();
+  });
+
+  test('an attached file is still what the form sends', async ({ page }) => {
+    await toStep(page, 'Your documents');
+    await page.setInputFiles('#doc-w9', pdf('w9.pdf'));
+    const sent = await page.locator('#intake-form').evaluate((f) => { const v = new FormData(f).get('doc_w9'); return v && v.name; });
+    expect(sent).toBe('w9.pdf');
+  });
+});
+
+test.describe('the move-in date and its calendar look like the site', () => {
+  const shown = (page) => page.locator('#tenant-movein-shown');
+  const native = (page) => page.locator('#tenant-movein');
+  const cal = (page) => page.locator('#tenant-movein-cal');
+  const msg = (page) => page.locator('.field:has(#tenant-movein) > .errmsg');
+  const sentDate = (page) => page.locator('#intake-form').evaluate((f) => new FormData(f).get('tenant_movein'));
+
+  test('typing digits builds MM/DD/YYYY, and the form still sends YYYY-MM-DD', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await expect(native(page)).toBeHidden();
+    await expect(page.locator('label[for="tenant-movein-shown"]')).toHaveText('Move-in date');
+    await shown(page).pressSequentially('03152024');
+    await expect(shown(page)).toHaveValue('03/15/2024');
+    expect(await sentDate(page)).toBe('2024-03-15');
+    await expect(page.locator('.field:has(#tenant-movein)')).toHaveClass(/lc-ok/);
+  });
+
+  test('not a real date, a future date, or half a date — each says why, and nothing is sent', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await shown(page).pressSequentially('02302024');
+    await expect(msg(page)).toContainText('That isn’t a real date');
+    expect(await sentDate(page)).toBe('');
+    await shown(page).fill('');
+    await shown(page).pressSequentially('01012999');
+    await expect(msg(page)).toHaveText('The move-in date can’t be in the future.');
+    expect(await sentDate(page)).toBe('');
+    await shown(page).fill('');
+    await shown(page).pressSequentially('0315');
+    await expect(msg(page)).toBeHidden();                      // still typing
+    await page.keyboard.press('Tab');
+    await expect(msg(page)).toHaveText('Enter the full date, e.g. 03/15/2024.');
+  });
+
+  test('the calendar: month and year dropdowns, pick a day, it fills the box and closes', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page)).toBeVisible();
+    const anim = await cal(page).evaluate((el) => { const s = getComputedStyle(el); return [s.animationName, s.animationDuration, s.animationTimingFunction]; });
+    expect(anim).toEqual(['lc-down', '0.35s', 'ease-in']);
+    await cal(page).locator('[data-cal-year]').selectOption('2023');
+    await cal(page).locator('[data-cal-month]').selectOption('2');       // March
+    await cal(page).getByRole('button', { name: 'March 15, 2023' }).click();
+    await expect(cal(page)).toBeHidden();
+    await expect(shown(page)).toHaveValue('03/15/2023');
+    expect(await sentDate(page)).toBe('2023-03-15');
+    await expect(shown(page)).toBeFocused();
+    // reopening shows the chosen day selected
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page).getByRole('button', { name: 'March 15, 2023' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('open calendar: the icon stays on the input, and "September" and the year fit their dropdowns', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page)).toBeVisible();
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const [b, i] = await Promise.all([page.getByRole('button', { name: 'Open calendar' }).boundingBox(), shown(page).boundingBox()]);
+    expect(Math.abs((b.y + b.height / 2) - (i.y + i.height / 2))).toBeLessThan(2);    // centred on the input
+    await cal(page).locator('[data-cal-month]').selectOption('8');                   // September, the longest
+    const fits = await cal(page).locator('.lc-cal-sel').evaluateAll((els) => els.map((el) => {
+      const probe = document.createElement('span');
+      const s = getComputedStyle(el);
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:' + s.font;
+      probe.textContent = el.options[el.selectedIndex].text;
+      document.body.appendChild(probe);
+      const need = probe.getBoundingClientRect().width + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight);
+      probe.remove();
+      return need <= el.clientWidth + 0.5;
+    }));
+    expect(fits).toEqual([true, true]);
+    // and they still read as dropdowns: the brass chevron is showing
+    const chevrons = await cal(page).locator('.lc-cal-sel').evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundImage));
+    chevrons.forEach((bg) => expect(bg).toContain('svg'));
+  });
+
+  test('the calendar works by keyboard, and Escape closes it — not the popup', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await shown(page).pressSequentially('03152023');
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page).getByRole('button', { name: 'March 15, 2023' })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    await expect(cal(page).getByRole('button', { name: 'March 23, 2023' })).toBeFocused();
+    await page.keyboard.press('PageUp');
+    await expect(cal(page).getByRole('button', { name: 'February 23, 2023' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(shown(page)).toHaveValue('02/23/2023');
+    expect(await currentStep(page)).toBe('The tenant');         // Enter picked, it didn't move on
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await page.keyboard.press('Escape');
+    await expect(cal(page)).toBeHidden();
+    await expect(dialog(page)).toBeVisible();
+  });
+
+  test('future days can\'t be picked, and Today / Clear work', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await expect(cal(page).getByRole('button', { name: 'Next month' })).toBeDisabled();
+    const t = new Date(); const tomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
+    if (tomorrow.getMonth() === t.getMonth()) {
+      const label = tomorrow.toLocaleString('en-US', { month: 'long' }) + ' ' + tomorrow.getDate() + ', ' + tomorrow.getFullYear();
+      await expect(cal(page).getByRole('button', { name: label })).toBeDisabled();
+    }
+    await cal(page).getByRole('button', { name: 'Today' }).click();
+    const pad = (n) => String(n).padStart(2, '0');
+    await expect(shown(page)).toHaveValue(`${pad(t.getMonth() + 1)}/${pad(t.getDate())}/${t.getFullYear()}`);
+    await page.getByRole('button', { name: 'Open calendar' }).click();
+    await cal(page).getByRole('button', { name: 'Clear' }).click();
+    await expect(shown(page)).toHaveValue('');
+    expect(await sentDate(page)).toBe('');
+  });
+
+  test('a saved move-in date comes back in the box', async ({ page }) => {
+    await toStep(page, 'The tenant');
+    await shown(page).pressSequentially('03152024');
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ras_lc_draft:intake-form') || '{}').values?.tenant_movein)).toBe('2024-03-15');
+    await page.reload();
+    await page.locator('#nav-links a.cta').evaluate((a) => a.click());
+    await expect(shown(page)).toHaveValue('03/15/2024');
+  });
+});
+
 test.describe('answers are kept for an hour', () => {
   const draft = (page, id = 'intake-form') =>
     page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), 'ras_lc_draft:' + id);

@@ -186,7 +186,69 @@
     // A two-column row stacks on a phone; its row gap PLUS each field's own bottom margin
     // doubled the space between those fields. The field margin alone spaces them evenly.
     + '.lc-host .row,.lc-host .row2{row-gap:0;}'
-    + '.lc-host .file-field{background:#fff;border:1.5px dashed var(--lc-hair);border-radius:10px;}'
+    // File uploads: the drop box is the card, so the page's own dashed wrapper steps back.
+    + '.lc-host .file-field{background:none;border:none;padding:0;}'
+    + '.lc-drop{position:relative;display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;'
+    + 'border:1.5px dashed rgba(200,162,74,.55);border-radius:10px;transition:border-color .15s,background .15s,box-shadow .15s;}'
+    + '.lc-drop:hover,.lc-drop.lc-over{border-color:var(--lc-brass);background:#FFFCF4;}'
+    + '.lc-drop.lc-over{box-shadow:0 0 0 3px rgba(200,162,74,.22);}'
+    + '.lc-drop:has(input:focus-visible){border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.3);}'
+    + '.lc-drop.lc-has{border-style:solid;border-color:rgba(47,158,94,.6);}'
+    + '.lc-drop.lc-bad{border-color:#B4432F;}'
+    + '.lc-drop input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;padding:0;margin:0;}'
+    + '.lc-drop-ico{flex:none;width:42px;height:42px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;'
+    + 'background:rgba(200,162,74,.13);color:var(--lc-brass-2);}'
+    + '.lc-drop.lc-has .lc-drop-ico{background:#DDEFE3;color:var(--green-deep,#207044);}'
+    + '.lc-drop-txt{min-width:0;flex:1;}'
+    + '.lc-drop-main{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+    + '.lc-drop-main u{color:var(--lc-brass-2);text-underline-offset:2px;}'
+    + '.lc-drop-sub{display:block;font-size:.8rem;color:var(--lc-muted-2);margin-top:2px;}'
+    + '.lc-drop-remove{position:relative;z-index:2;flex:none;background:none;border:1.5px solid var(--lc-hair);border-radius:8px;'
+    + 'padding:6px 12px;font:inherit;font-size:.84rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
+    + '.lc-drop-remove:hover{border-color:#B4432F;color:#9A3B33;}'
+    + '.lc-drop-remove[hidden]{display:none;}'
+    // The date: a text box with a calendar button, and the site-styled calendar under it.
+    + '.lc-date-native{display:none !important;}'
+    + '.lc-host .field.lc-datefield{position:relative;}'
+    + '.lc-date-row{position:relative;}'
+    + '.lc-host .field .lc-date input{padding-right:48px;}'
+    + '.lc-date-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:8px;'
+    + 'background:transparent;color:var(--lc-brass-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}'
+    + '.lc-date-btn:hover,.lc-date-btn[aria-expanded=true]{background:rgba(200,162,74,.13);}'
+    // In the flow (not floating): the date is near the bottom of its step, and a floating
+    // calendar hung off the dialog and out of view. It opens in place and pushes Next down.
+    + '.lc-cal{position:relative;margin-top:6px;width:344px;max-width:100%;padding:12px;background:#fff;'
+    + 'border-radius:12px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.16),0 2px 6px rgba(20,35,58,.06);}'
+    + '.lc-cal[hidden]{display:none;}'
+    + '.lc-cal.lc-drop-in{animation:lc-down .35s ease-in both;}'
+    + '.lc-cal-head{display:flex;align-items:center;gap:4px;margin-bottom:8px;}'
+    + '.lc-host .field .lc-cal-sel[data-cal-month]{flex:1.8;}'
+    // The browser's own select arrow is wide and grey; a slim brass chevron takes its place,
+    // which also leaves room for "September" and the year at desktop width.
+    + '.lc-host .field .lc-cal-sel{flex:1;min-width:0;-webkit-appearance:none;appearance:none;padding:7px 24px 7px 10px;'
+    + 'border:1.5px solid var(--lc-hair);border-radius:8px;font:inherit;font-size:.88rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
+    + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%23A9853A\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 9px center;}'
+    + '.lc-host .field .lc-cal-sel:focus{outline:none;border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.24);}'
+    + '.lc-cal-nav{flex:none;width:28px;height:32px;border:none;border-radius:8px;background:transparent;font-size:1.3rem;line-height:1;'
+    + 'color:var(--lc-navy);cursor:pointer;}'
+    + '.lc-cal-nav:hover:not([disabled]){background:rgba(200,162,74,.13);}'
+    + '.lc-cal-nav[disabled]{opacity:.3;cursor:default;}'
+    + '.lc-cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;}'
+    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;'
+    + 'color:var(--lc-muted-2);font-weight:600;padding:4px 0 6px;}'
+    + '.lc-cal-grid td{padding:1px;text-align:center;}'
+    + '.lc-day{width:100%;aspect-ratio:1;max-height:38px;border:none;border-radius:8px;background:transparent;font:inherit;'
+    + 'font-size:.88rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
+    + '.lc-day:hover:not([disabled]){background:rgba(200,162,74,.13);}'
+    + '.lc-day.lc-out{color:var(--lc-muted-2);opacity:.55;}'
+    + '.lc-day.lc-today{box-shadow:inset 0 0 0 1.5px var(--lc-brass);font-weight:700;}'
+    + '.lc-day[aria-selected=true]{background:var(--lc-brass);color:#241B06;font-weight:700;}'
+    + '.lc-day[disabled]{opacity:.25;cursor:default;}'
+    + '.lc-day:focus-visible{outline:2.5px solid var(--lc-brass);outline-offset:1px;}'
+    + '.lc-cal-foot{display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--lc-hair);}'
+    + '.lc-cal-link{background:none;border:none;padding:4px 6px;font:inherit;font-size:.86rem;font-weight:650;color:var(--lc-brass-2);cursor:pointer;border-radius:6px;}'
+    + '.lc-cal-link:hover{background:rgba(200,162,74,.13);}'
+    + '@media (max-width:640px){.lc-cal{width:auto;}}'
     // Once a field is filled in and passes, its asterisk turns into a green check (and a field
     // with no asterisk gets the check after its label). It fades up like everything else.
     // The icon is exactly 1em and sits on the text's own bottom edge (vertical-align:text-bottom),
@@ -313,7 +375,7 @@
     + '@media (prefers-reduced-motion:reduce){.lc-backdrop,.lc-dialog,.lc-panel,.lc-host fieldset.lc-enter,'
     + '.lc-host .errmsg,.lc-host .errmsg.show,.lc-host .field.show-err .errmsg,.lc-host .field input,.lc-host .field select,'
     + '.lc-host .field textarea,.lc-host .lc-confirm,.lc-host .lc-confirm.show,.lc-host .lc-confirm-in{transition:none;}'
-    + '.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after,.lc-suggest,.lc-restored{animation:none;}}';
+    + '.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after,.lc-suggest,.lc-restored,.lc-cal{animation:none;}}';
 
   var HTML = ''
     + '<div class="lc-dialog" role="dialog" aria-modal="true" aria-labelledby="lc-title-role" tabindex="-1">'
@@ -555,6 +617,274 @@
   }
   function val(el) { return String(el.value || '').trim(); }
 
+  // A field's own error line (made if the field has none), shown/hidden with the popup's
+  // fade-up + open-its-space styling.
+  function fieldMsg(field) {
+    for (var i = 0; i < field.children.length; i++) if (field.children[i].classList.contains('errmsg')) return field.children[i];
+    var m = document.createElement('p'); m.className = 'errmsg'; field.appendChild(m); return m;
+  }
+  function say(field, text) { var m = fieldMsg(field); m.textContent = text || ''; m.classList.toggle('show', !!text); }
+  // Reformat a masked input without losing the caret: count the digits in front of it.
+  function reformat(el, fmt) {
+    var v = el.value, caret = typeof el.selectionStart === 'number' ? el.selectionStart : v.length;
+    var before = v.slice(0, caret).replace(/\D/g, '').length;
+    var out = fmt(v.replace(/\D/g, ''));
+    if (out === v) return;
+    el.value = out;
+    var pos = 0, seen = 0;
+    while (pos < out.length && seen < before) { if (/\d/.test(out[pos])) seen++; pos++; }
+    if (document.activeElement === el) { try { el.setSelectionRange(pos, pos); } catch (e) {} }
+  }
+
+  /* ---------- file uploads ----------
+     The browser's own "Choose File / No file chosen" becomes a drop box in the site's style.
+     The real file input is kept — stretched invisibly over the box — so clicking anywhere
+     opens the picker, dropping a file onto it works natively, and the form submits exactly
+     as before. A chosen file shows its name and size with Remove; a wrong type or a file over
+     15MB (the server's limit, MAX_FILE_BYTES) is refused on the spot with a line saying why. */
+  var MAX_FILE_MB = 15;
+  var UPLOAD = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15V4m0 0l-4 4m4-4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  var DOC = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  function typesFrom(accept) {
+    var ext = String(accept || '').split(',').map(function (s) { return s.trim().replace(/^\./, '').toUpperCase(); })
+      .filter(function (s) { return s && s !== 'JPEG'; });
+    if (!ext.length) return '';
+    return ext.length === 1 ? ext[0] : ext.slice(0, -1).join(', ') + ' or ' + ext[ext.length - 1];
+  }
+  function sizeText(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+  function fileAssist(input) {
+    if (input._lcFile) return;
+    input._lcFile = true;
+    var field = input.closest('.field');
+    field.classList.add('lc-file');
+    var zone = document.createElement('div');
+    zone.className = 'lc-drop';
+    var types = typesFrom(input.getAttribute('accept'));
+    zone.innerHTML = '<span class="lc-drop-ico">' + UPLOAD + '</span>'
+      + '<span class="lc-drop-txt"><b class="lc-drop-main">Drag a file here or <u>browse</u></b>'
+      + '<small class="lc-drop-sub">' + (types ? types + ' · ' : '') + 'up to ' + MAX_FILE_MB + 'MB</small></span>'
+      + '<button type="button" class="lc-drop-remove" hidden>Remove</button>';
+    input.parentNode.insertBefore(zone, input);
+    zone.appendChild(input);
+    var main = zone.querySelector('.lc-drop-main'), sub = zone.querySelector('.lc-drop-sub');
+    var ico = zone.querySelector('.lc-drop-ico'), remove = zone.querySelector('.lc-drop-remove');
+    var emptySub = sub.textContent;
+    var allowed = String(input.getAttribute('accept') || '').toLowerCase().split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+    function show() {
+      var f = input.files && input.files[0];
+      zone.classList.toggle('lc-has', !!f);
+      field.classList.toggle('lc-ok', !!f);
+      remove.hidden = !f;
+      ico.innerHTML = f ? DOC : UPLOAD;
+      if (f) { main.textContent = f.name; sub.textContent = sizeText(f.size) + ' · click to replace'; }
+      else { main.innerHTML = 'Drag a file here or <u>browse</u>'; sub.textContent = emptySub; }
+    }
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      if (f) {
+        var ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
+        var problem = allowed.length && allowed.indexOf(ext) === -1
+          ? '“' + f.name + '” isn’t a file we can take — please use ' + types + '.'
+          : f.size > MAX_FILE_MB * 1048576
+            ? '“' + f.name + '” is ' + sizeText(f.size) + ' — files must be under ' + MAX_FILE_MB + 'MB.' : '';
+        if (problem) { input.value = ''; say(field, problem); zone.classList.add('lc-bad'); show(); return; }
+      }
+      say(field, ''); zone.classList.remove('lc-bad');
+      show();
+      if (f) track('file_added', { field: input.name });
+    });
+    remove.addEventListener('click', function () {
+      input.value = '';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.focus();
+    });
+    ['dragenter', 'dragover'].forEach(function (t) { input.addEventListener(t, function () { zone.classList.add('lc-over'); }); });
+    ['dragleave', 'drop'].forEach(function (t) { input.addEventListener(t, function () { zone.classList.remove('lc-over'); }); });
+    show();
+  }
+
+  /* ---------- the date field ----------
+     The browser's own calendar can't be styled, so the popup shows its own: a card in the
+     site's style with month and year dropdowns (a move-in date can be years back), Today and
+     Clear, the gold selection, full keyboard use and the 350ms fade-down. The date can also be
+     typed — digits only, "03152024" reads "03/15/2024".
+     The ORIGINAL <input type="date"> stays in the form, hidden, and is the one submitted: the
+     CRM keeps receiving exactly the YYYY-MM-DD it always has. A move-in date can't be in the
+     future. */
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+    'October', 'November', 'December'];
+  var CAL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function today() { var t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+  function fromIso(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+  function shown(d) { return pad(d.getMonth() + 1) + '/' + pad(d.getDate()) + '/' + d.getFullYear(); }
+  // "MM/DD/YYYY" -> a Date, or a reason it isn't one. unfinished => null (not wrong yet).
+  function readDate(v) {
+    var d = v.replace(/\D/g, '');
+    if (d.length < 8) return { unfinished: true };
+    var mm = +d.slice(0, 2), dd = +d.slice(2, 4), yy = +d.slice(4, 8);
+    var dt = new Date(yy, mm - 1, dd);
+    if (mm < 1 || mm > 12 || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return { problem: 'That isn’t a real date — use MM/DD/YYYY, e.g. 03/15/2024.' };
+    if (yy < 1900) return { problem: 'Please check the year.' };
+    if (dt > today()) return { problem: 'The move-in date can’t be in the future.' };
+    return { date: dt };
+  }
+  function dateProblem(v, strict) {
+    var r = readDate(v);
+    if (r.unfinished) return strict ? 'Enter the full date, e.g. 03/15/2024.' : null;
+    return r.problem || null;
+  }
+  function dateAssist(native) {
+    if (native._lcDate) return native._lcDate;
+    var field = native.closest('.field');
+    field.classList.add('lc-datefield');
+    var box = document.createElement('div');
+    box.className = 'lc-date';
+    var shownId = native.id + '-shown', calId = native.id + '-cal';
+    // The input and its button share a row of their own, so the button stays centred on the
+    // INPUT when the calendar opens underneath and the box grows.
+    box.innerHTML = '<div class="lc-date-row"><input id="' + shownId + '" type="text" inputmode="numeric" autocomplete="off" placeholder="MM/DD/YYYY"'
+      + ' maxlength="10" data-lc-date aria-haspopup="dialog" aria-controls="' + calId + '">'
+      + '<button type="button" class="lc-date-btn" aria-label="Open calendar" aria-controls="' + calId + '" aria-expanded="false">' + CAL + '</button></div>';
+    native.parentNode.insertBefore(box, native);
+    native.classList.add('lc-date-native');
+    native.tabIndex = -1;
+    var lab = field.querySelector('label[for="' + native.id + '"]');
+    if (lab) lab.setAttribute('for', shownId);
+    var text = box.querySelector('input'), btn = box.querySelector('button');
+    var cal = document.createElement('div');
+    cal.className = 'lc-cal'; cal.id = calId; cal.hidden = true;
+    cal.setAttribute('role', 'dialog'); cal.setAttribute('aria-label', 'Choose a date');
+    box.appendChild(cal);
+    var view = today(), focusDay = null;
+
+    function commit(dt, via) {                        // put a date in both boxes
+      native.value = dt ? iso(dt) : '';
+      text.value = dt ? shown(dt) : '';
+      text.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+      native.dispatchEvent(new Event('change', { bubbles: true }));
+      if (dt) track('date_picked', { field: native.name, via: via });
+    }
+    function build() {
+      var y0 = today().getFullYear(), years = '';
+      for (var y = y0; y >= y0 - 40; y--) years += '<option value="' + y + '"' + (y === view.getFullYear() ? ' selected' : '') + '>' + y + '</option>';
+      var months = MONTHS.map(function (m, i) { return '<option value="' + i + '"' + (i === view.getMonth() ? ' selected' : '') + '>' + m + '</option>'; }).join('');
+      var first = new Date(view.getFullYear(), view.getMonth(), 1), start = new Date(first);
+      start.setDate(1 - first.getDay());
+      var chosen = native.value, now = today(), cells = '';
+      if (!focusDay || focusDay.getMonth() !== view.getMonth() || focusDay.getFullYear() !== view.getFullYear()) {
+        focusDay = fromIso(chosen);
+        if (!focusDay || focusDay.getMonth() !== view.getMonth() || focusDay.getFullYear() !== view.getFullYear()) focusDay = first;
+      }
+      for (var w = 0; w < 6; w++) {
+        cells += '<tr>';
+        for (var dI = 0; dI < 7; dI++) {
+          var d = new Date(start); d.setDate(start.getDate() + w * 7 + dI);
+          var s = iso(d), out = d.getMonth() !== view.getMonth(), future = d > now;
+          cells += '<td><button type="button" class="lc-day' + (out ? ' lc-out' : '') + (s === iso(now) ? ' lc-today' : '') + '"'
+            + ' data-day="' + s + '" tabindex="' + (s === iso(focusDay) ? '0' : '-1') + '"'
+            + ' aria-selected="' + (s === chosen) + '"' + (future ? ' disabled' : '')
+            + ' aria-label="' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + '">' + d.getDate() + '</button></td>';
+        }
+        cells += '</tr>';
+      }
+      cal.innerHTML = '<div class="lc-cal-head">'
+        + '<button type="button" class="lc-cal-nav" data-cal-move="-1" aria-label="Previous month">‹</button>'
+        + '<select class="lc-cal-sel" data-cal-month aria-label="Month">' + months + '</select>'
+        + '<select class="lc-cal-sel" data-cal-year aria-label="Year">' + years + '</select>'
+        + '<button type="button" class="lc-cal-nav" data-cal-move="1" aria-label="Next month"'
+        + (view.getFullYear() === now.getFullYear() && view.getMonth() === now.getMonth() ? ' disabled' : '') + '>›</button></div>'
+        + '<table class="lc-cal-grid" role="grid"><thead><tr>'
+        + ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(function (x) { return '<th scope="col">' + x + '</th>'; }).join('')
+        + '</tr></thead><tbody>' + cells + '</tbody></table>'
+        + '<div class="lc-cal-foot"><button type="button" class="lc-cal-link" data-cal-today>Today</button>'
+        + '<button type="button" class="lc-cal-link" data-cal-clear>Clear</button></div>';
+      cal.querySelectorAll('button,select').forEach(function (el) { el._lcAssist = api; });
+    }
+    function openCal() {
+      var picked = fromIso(native.value);
+      view = picked ? new Date(picked.getFullYear(), picked.getMonth(), 1) : new Date(today().getFullYear(), today().getMonth(), 1);
+      focusDay = picked || today();
+      build();
+      cal.hidden = false;
+      cal.classList.remove('lc-drop-in'); void cal.offsetWidth; cal.classList.add('lc-drop-in');
+      btn.setAttribute('aria-expanded', 'true');
+      var f = cal.querySelector('.lc-day[tabindex="0"]'); if (f) f.focus({ preventScroll: true });
+      // Bring the whole calendar into view (the popup scrolls, not the page).
+      try { cal.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+    function closeCal(back) {
+      if (cal.hidden) return;
+      cal.hidden = true; btn.setAttribute('aria-expanded', 'false');
+      if (back) text.focus();
+    }
+    function moveFocus(days, months) {
+      var d = new Date(focusDay);
+      if (months) d.setMonth(d.getMonth() + months); else d.setDate(d.getDate() + days);
+      if (d > today()) d = today();
+      focusDay = d;
+      view = new Date(d.getFullYear(), d.getMonth(), 1);
+      build();
+      var f = cal.querySelector('[data-day="' + iso(d) + '"]'); if (f) f.focus();
+    }
+    btn.addEventListener('click', function () { if (cal.hidden) openCal(); else closeCal(true); });
+    cal.addEventListener('click', function (e) {
+      var t = e.target.closest('button');
+      if (!t) return;
+      if (t.hasAttribute('data-day')) { commit(fromIso(t.getAttribute('data-day')), 'calendar'); closeCal(true); return; }
+      if (t.hasAttribute('data-cal-move')) { view.setMonth(view.getMonth() + Number(t.getAttribute('data-cal-move'))); focusDay = null; build(); return; }
+      if (t.hasAttribute('data-cal-today')) { commit(today(), 'today'); closeCal(true); return; }
+      if (t.hasAttribute('data-cal-clear')) { commit(null); closeCal(true); }
+    });
+    cal.addEventListener('change', function (e) {
+      if (e.target.hasAttribute('data-cal-month')) view.setMonth(+e.target.value);
+      if (e.target.hasAttribute('data-cal-year')) view.setFullYear(+e.target.value);
+      if (view > today()) view = new Date(today().getFullYear(), today().getMonth(), 1);
+      focusDay = null; build();
+      var s = cal.querySelector(e.target.hasAttribute('data-cal-month') ? '[data-cal-month]' : '[data-cal-year]'); if (s) s.focus();
+    });
+    // Typing: digits only, the slashes place themselves; a complete real date fills the
+    // hidden original, anything else empties it (never submit half a date).
+    text.addEventListener('input', function (e) {
+      if (e.inputType === 'insertReplacementText') return;
+      reformat(text, function (d) {
+        d = d.slice(0, 8);
+        return d.slice(0, 2) + (d.length > 2 ? '/' + d.slice(2, 4) : '') + (d.length > 4 ? '/' + d.slice(4) : '');
+      });
+      var r = readDate(text.value);
+      native.value = r.date ? iso(r.date) : '';
+      native.dispatchEvent(new Event('change', { bubbles: true }));
+    }, true);
+    document.addEventListener('mousedown', function (e) { if (!box.contains(e.target)) closeCal(false); });
+
+    var api = {
+      key: function (e) {
+        if (cal.hidden) {
+          if (e.target === text && e.key === 'ArrowDown' && e.altKey) { e.preventDefault(); openCal(); return true; }
+          return false;
+        }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCal(true); return true; }
+        if (!e.target.hasAttribute || !e.target.hasAttribute('data-day')) return false;
+        var map = { ArrowLeft: [-1], ArrowRight: [1], ArrowUp: [-7], ArrowDown: [7], PageUp: [0, -1], PageDown: [0, 1] };
+        if (map[e.key]) { e.preventDefault(); moveFocus(map[e.key][0], map[e.key][1] || 0); return true; }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault(); e.stopPropagation();
+          if (!e.target.disabled) { commit(fromIso(e.target.getAttribute('data-day')), 'calendar'); closeCal(true); }
+          return true;
+        }
+        return false;
+      },
+      // After the saved answers are put back (or cleared), show the original's date.
+      sync: function () { var d = fromIso(native.value); text.value = d ? shown(d) : ''; }
+    };
+    text._lcAssist = api; btn._lcAssist = api;
+    native._lcDate = api;
+    api.sync();
+    return api;
+  }
+
   /* ---------- the popup ---------- */
   // trigger: 'first_visit' | 'cta' | 'gate' | 'handoff'
   // opts: {target: 'apply'|'contact', formId, role: 'landlord'|'tenant'}
@@ -653,6 +983,8 @@
         // Capture, so it runs before the page's own submit handler and can hold it back.
         form.addEventListener('submit', guardSubmit, true);
         form.querySelectorAll('input[name="property_address"]').forEach(addressAssist);
+        form.querySelectorAll('.file-field input[type="file"]').forEach(fileAssist);
+        form.querySelectorAll('input[type="date"]').forEach(dateAssist);
       }
       panel('form');
       if (submitted(form)) { showDone(); return; }
@@ -732,6 +1064,8 @@
             }
           });
         });
+        // A restored date lives in the hidden original; show it in the visible box.
+        form.querySelectorAll('.lc-date-native').forEach(function (n) { if (n._lcDate) n._lcDate.sync(); });
         // Show them as checked fields, exactly as when they were typed.
         form.querySelectorAll('input,select,textarea').forEach(function (el) {
           if (isEntry(el) && val(el)) { el.setAttribute('data-lc-touched', ''); runPageCheck(el, true); refreshTick(el); }
@@ -761,6 +1095,10 @@
         clearErr(el);
         var f = el.closest('.field');
         if (f) f.classList.remove('lc-ok', 'lc-emailok', 'lc-verified');
+      });
+      form.querySelectorAll('.lc-date-native').forEach(function (n) { if (n._lcDate) n._lcDate.sync(); });
+      form.querySelectorAll('input[type="file"]').forEach(function (f) {
+        if (f.value) { f.value = ''; f.dispatchEvent(new Event('change', { bubbles: true })); }
       });
       var em = ownerEmail(), box = em && confirmBox(em, false);
       if (box) { var c = box.querySelector('input'); c.value = ''; c.classList.remove('err', 'lc-match'); box.querySelector('.errmsg').classList.remove('show'); box.classList.remove('show'); }
@@ -921,6 +1259,7 @@
       var v = val(el);
       if (el.required && !v) return 'This field is required.';
       if (!v) return null;
+      if (el.hasAttribute('data-lc-date')) return dateProblem(v, strict);
       if (NAME_FIELDS[el.name]) return nameProblem(v, strict);
       if (el.name === 'tenant_name') return tenantNameProblem(v);
       if (el.type === 'tel') return phoneProblem(v, strict);
@@ -942,7 +1281,7 @@
       if (ownsRules(el) && val(el)) { clearErr(el); var q = popupProblem(el, strict); if (q) showErr(el, q); return; }
       if (!hasErr(el)) { var p = popupProblem(el, strict); if (p) showErr(el, p); }
     }
-    function ownsRules(el) { return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel'; }
+    function ownsRules(el) { return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.hasAttribute('data-lc-date'); }
     function verified(el) { return el.getAttribute('data-lc-verified-for') === val(el).toLowerCase() && !!val(el); }
     function refreshTick(el) {
       var f = el.closest('.field');

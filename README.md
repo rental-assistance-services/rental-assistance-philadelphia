@@ -69,6 +69,15 @@ it in yourself." under the suggestions, and "We couldn't find a match — you ca
 full address yourself." on its own when nothing matches, Photon is down, or it hasn't answered
 within 2.5s. What the visitor types is sent to Photon as they type.
 
+**Uploads and the date, in the site's style.** Each document upload is a drop box (white card,
+gold dashed border, "Drag a file here or browse", the accepted types and the 15MB limit); a chosen
+file shows its name, size and Remove, and a wrong type or oversize file is refused on the spot.
+The real `<input type="file">` is stretched invisibly over the box, so clicking and dropping are
+native and the form submits exactly as before. The move-in date is a text box that formats as
+typed (`03152024` → `03/15/2024`) with a site-styled calendar (month / year dropdowns, Today,
+Clear, keyboard, no future dates). The original `<input type="date">` stays in the form, hidden,
+and is what is submitted — the CRM still receives `YYYY-MM-DD`.
+
 **Answers kept for an hour.** What the visitor types is kept on their device (localStorage,
 `ras_lc_draft:<form id>`) for one hour after their last edit — reopening or moving between
 steps doesn't restart the hour. Coming back within it, the popup refills the form, returns to
