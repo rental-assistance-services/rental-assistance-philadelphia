@@ -41,6 +41,12 @@ and, as with the gates, nothing is sent. The answer (or a dismissal) is remember
 `localStorage` (`ras_role_check`), a landlord answer also opens the inline gates, and
 "Continue to the full application" pre-fills the long form.
 
+Every link that jumps to a back-rent / case-review form (`#apply`, `#contact`, `#form-card`,
+`#backrent-form` — the header and footer Apply, "Apply to recover back rent", the back-rent
+page's "Start my free case review", …) opens the popup instead of scrolling down to the form,
+at any time. A visitor who already said landlord starts at "Your rental". Links to any other
+section scroll as normal.
+
 It is one shared file, loaded with `<script src="/landlord-check.js" defer>` on every landing
 page — the homepage, `/back-rent/` and every `/blog/` page. **Add that line to any new landing
 page.** It is deliberately *not* on `/tenants/` or `/terms.html`. On phones it is a bottom

@@ -271,12 +271,96 @@ test.describe('landlord', () => {
   });
 });
 
+test.describe('Apply links open the popup instead of scrolling to the form', () => {
+  /** A visitor who already closed the first-visit popup — so only a click can open it. */
+  async function dismissedVisitor(page) {
+    await page.addInitScript(() => {
+      localStorage.setItem('ras_role_check', JSON.stringify({ v: 'dismissed', t: Date.now() }));
+    });
+  }
+  const scrollY = (page) => page.evaluate(() => window.scrollY);
+
+  const LINKS = [
+    { url: '/index.html', link: '#nav-links a.cta', name: 'header Apply' },
+    { url: '/index.html', link: 'footer a[href="#apply"]', name: 'footer Apply' },
+    { url: '/index.html', link: 'footer a[href="#contact"]', name: 'footer Contact' },
+    { url: '/index.html', link: 'a.btn[href="#apply"]', name: '"Apply to recover back rent"' },
+    { url: '/back-rent/index.html', link: 'a[href="#form-card"]', name: '"Start my free case review"' },
+  ];
+  for (const { url, link, name } of LINKS) {
+    test(`${url} ${name}: opens the popup and stays put`, async ({ page }) => {
+      await dismissedVisitor(page);
+      await page.goto(url);
+      await page.waitForTimeout(800);
+      await expect(popup(page)).toHaveCount(0);
+      const before = await scrollY(page);
+      await page.locator(link).first().evaluate((a) => a.click());
+      await expect(dialog(page)).toBeVisible();
+      expect(await currentStep(page)).toBe('Who you are');
+      expect(new URL(page.url()).hash).toBe('');           // no jump to the form's anchor
+      await page.waitForTimeout(400);
+      expect(await scrollY(page)).toBe(before);
+    });
+  }
+
+  test('a link to any other section still scrolls there normally', async ({ page }) => {
+    await dismissedVisitor(page);
+    await page.goto('/index.html');
+    await page.locator('#nav-links a[href="#faq"]').evaluate((a) => a.click());
+    await page.waitForTimeout(400);
+    await expect(popup(page)).toHaveCount(0);
+    expect(new URL(page.url()).hash).toBe('#faq');
+  });
+
+  test('a returning landlord skips "own or rent?" and submits as a landlord', async ({ page }) => {
+    const seen = await stubEndpoint(page, { ok: true, contact_id: CONTACT_ID });
+    await page.addInitScript(() => {
+      localStorage.setItem('ras_role_check', JSON.stringify({ v: 'landlord', t: Date.now() }));
+    });
+    await page.goto('/index.html');
+    await page.locator('#nav-links a.cta').evaluate((a) => a.click());
+    expect(await currentStep(page)).toBe('Your rental');
+    await page.getByRole('button', { name: 'Next →' }).click();
+    await page.fill('#lc-name', 'Marcus Reed');
+    await page.fill('#lc-phone', '2155550123');
+    await page.fill('#lc-email', 'landlord@example.com');
+    await page.getByRole('button', { name: 'Next →' }).click();
+    await dialog(page).getByRole('button', { name: /Request my free case review/ }).click();
+    await expect(dialog(page)).toContainText('we’ve got it');
+    expect(seen[0].visitor_role).toBe('landlord');
+    expect(await leads(page)).toHaveLength(1);
+  });
+
+  test('on a phone, Apply in the menu opens the popup and closes the menu', async ({ page }) => {
+    await dismissedVisitor(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/index.html');
+    await page.click('#nav-toggle');
+    await expect(page.locator('#nav-links')).toHaveClass(/open/);
+    await page.click('#nav-links a.cta');
+    await expect(dialog(page)).toBeVisible();
+    await expect(page.locator('#nav-links')).not.toHaveClass(/open/);
+    await expect(page.locator('#nav-toggle')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('a visitor who said tenant gets asked again when they click Apply', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('ras_role_check', JSON.stringify({ v: 'tenant', t: Date.now() }));
+    });
+    await page.goto('/index.html');
+    await page.locator('#nav-links a.cta').evaluate((a) => a.click());
+    expect(await currentStep(page)).toBe('Who you are');
+  });
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('it is a bottom sheet that leaves the top of the page visible, with no sideways scroll', async ({ page }) => {
     await page.goto('/index.html');
     await expect(dialog(page)).toBeVisible();
+    // The sheet slides up from below over 350ms; measure where it comes to rest, not mid-slide.
+    await dialog(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const box = await dialog(page).boundingBox();
     expect(Math.round(box.y + box.height)).toBe(844);  // sits on the bottom edge
     expect(box.y).toBeGreaterThan(844 * 0.3);           // the top of the page stays in view

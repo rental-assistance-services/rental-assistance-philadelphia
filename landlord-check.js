@@ -9,8 +9,10 @@
    steps using the same questions as the homepage's "Request your free case review" form.
 
    WHAT IT DOES
-   - Shows once per browser. The answer (landlord / tenant) or a dismissal is remembered in
-     localStorage under STORE, so a returning visitor is never asked twice.
+   - Opens by itself once per browser. The answer (landlord / tenant) or a dismissal is
+     remembered in localStorage under STORE, so a returning visitor is not asked again.
+   - Every Apply / case-review link on the page (FORM_ANCHORS) opens it too, at any time,
+     instead of scrolling down to the inline form. See interceptFormLinks().
    - Tenant: one screen pointing to /tenants/. NO network request, so no CRM row and no
      Google Ads conversion — the same rule as the inline gates.
    - Landlord: units + balance -> contact -> anything else -> POSTs the contact form's exact
@@ -281,11 +283,15 @@
     + '</form></div>';
 
   /* ---------- behaviour ---------- */
-  function open() {
-    var style = document.createElement('style');
-    style.setAttribute('data-landlord-check-style', '');
-    style.textContent = CSS;
-    document.head.appendChild(style);
+  // trigger: 'first_visit' (the automatic open) or 'cta' (an Apply / case-review link).
+  function open(trigger) {
+    if (document.querySelector('[data-landlord-check]')) return;   // already open
+    if (!document.querySelector('[data-landlord-check-style]')) {
+      var style = document.createElement('style');
+      style.setAttribute('data-landlord-check-style', '');
+      style.textContent = CSS;
+      document.head.appendChild(style);
+    }
 
     var root = document.createElement('div');
     root.className = 'lc-backdrop';
@@ -442,17 +448,50 @@
         });
     });
 
-    show(1);
-    track('open', { page: location.pathname });
+    // A visitor who already told us they are a landlord and then clicks Apply is not asked
+    // "own or rent?" a second time — they start at "Your rental", already stamped landlord.
+    // Back still returns them to the role question if they need to change the answer.
+    if (trigger === 'cta' && readChoice() === 'landlord') { roleInput.value = 'landlord'; show(2); }
+    else show(1);
+    track('open', { page: location.pathname, lc_trigger: trigger });
+  }
+
+  // The links that jump down to a back-rent / case-review form. Clicking one opens the popup
+  // instead of scrolling to the form: the popup is the form. Anchors to any other section
+  // (licensing, FAQ, portal, …) are left alone, and so is a link to another page.
+  var FORM_ANCHORS = ['#apply', '#contact', '#form-card', '#backrent-form'];
+  function interceptFormLinks(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a || a.closest('[data-landlord-check]')) return;
+    var url;
+    try { url = new URL(a.getAttribute('href'), location.href); } catch (err) { return; }
+    if (url.origin !== location.origin || url.pathname !== location.pathname) return;
+    if (FORM_ANCHORS.indexOf(url.hash) === -1) return;
+    // The homepage binds its own smooth-scroll handler to every "#" link, and that handler
+    // runs on the link itself — before any listener on the document in the bubble phase — and
+    // scrolls without checking defaultPrevented. So this listens in the CAPTURE phase and stops
+    // the click from reaching the link's handlers at all.
+    e.preventDefault();
+    e.stopPropagation();
+    // Stopping it also skips the mobile menu's close-on-click, so close the menu here.
+    var nav = a.closest('.nav-links');
+    if (nav) {
+      nav.classList.remove('open');
+      var toggle = document.getElementById('nav-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }
+    open('cta');
   }
 
   function init() {
     applyPrefill();                         // arriving from a blog page's "Continue" hand-off
+    document.addEventListener('click', interceptFormLinks, true);
     var choice = readChoice();
     if (choice === 'landlord') { answerInlineGates(); return; }
-    if (choice) return;                     // tenant or dismissed: never ask again
+    if (choice) return;                     // tenant or dismissed: never asked again unprompted
     // A short beat so the page paints first and the popup reads as a question, not a wall.
-    setTimeout(open, 600);
+    setTimeout(function () { open('first_visit'); }, 600);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
