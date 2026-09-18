@@ -289,6 +289,30 @@ test.describe('address suggestions', () => {
     });
     expect(a).toEqual(['lc-down', '0.35s', 'ease-in']);
   });
+
+  // The upload boxes are .lc-drop (flex, dashed). The list once borrowed that class for its
+  // fade-down and was laid out as a dashed row, 609px wide on a 390px phone.
+  for (const [label, size] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]]) {
+    test(`${label}: the suggestions stack one under another, inside the popup, not styled as an upload box`, async ({ page }) => {
+      await photonAnswers(page);
+      await page.setViewportSize(size);
+      await toPropertyStep(page);
+      await page.locator('#prop-address').pressSequentially('1932 N 5th');
+      await expect(options(page)).toHaveCount(3);
+      await expect(list(page)).not.toHaveClass(/(^|\s)lc-drop(\s|$)/);
+      expect(await list(page).evaluate((el) => getComputedStyle(el).borderTopStyle)).not.toBe('dashed');
+      const boxes = await options(page).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+      for (let i = 1; i < boxes.length; i++) {
+        expect(boxes[i].top).toBeGreaterThanOrEqual(boxes[i - 1].bottom - 1);      // below, not beside
+        expect(Math.abs(boxes[i].left - boxes[i - 1].left)).toBeLessThanOrEqual(1);
+      }
+      const [l, inp, d] = await Promise.all([list(page).boundingBox(), page.locator('#prop-address').boundingBox(),
+        dialog(page).boundingBox()]);
+      expect(l.width).toBeLessThanOrEqual(inp.width + 1);                          // no wider than the box it serves
+      expect(l.x + l.width).toBeLessThanOrEqual(d.x + d.width + 1);
+      expect(inp.x + inp.width).toBeLessThanOrEqual(size.width);                   // the input stays on screen
+    });
+  }
 });
 
 /** Walk the homepage application to a named step, filling each section on the way. */

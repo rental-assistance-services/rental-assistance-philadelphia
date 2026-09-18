@@ -294,7 +294,7 @@
     + '.lc-suggest{position:absolute;left:0;right:0;z-index:5;list-style:none;margin:6px 0 0;padding:6px;background:#fff;'
     + 'border-radius:10px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.14),0 2px 6px rgba(20,35,58,.06);}'
     + '.lc-suggest[hidden]{display:none;}'
-    + '.lc-suggest.lc-drop{animation:lc-down .35s ease-in both;}'
+    + '.lc-suggest.lc-suggest-in{animation:lc-down .35s ease-in both;}'
     + '.lc-suggest [role=option]{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:8px;cursor:pointer;'
     + 'transition:background .15s;}'
     + '.lc-suggest [role=option]:hover,.lc-suggest [role=option][aria-selected=true]{background:rgba(200,162,74,.13);}'
@@ -523,7 +523,7 @@
       list.classList.toggle('lc-only-manual', !items.length);
       var wasHidden = list.hidden;
       list.hidden = false;
-      if (wasHidden) { list.classList.remove('lc-drop'); void list.offsetWidth; list.classList.add('lc-drop'); }   // fade down
+      if (wasHidden) { list.classList.remove('lc-suggest-in'); void list.offsetWidth; list.classList.add('lc-suggest-in'); }   // fade down
       input.setAttribute('aria-expanded', 'true');
       highlight(-1);
     }
