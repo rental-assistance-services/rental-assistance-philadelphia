@@ -140,6 +140,10 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('ras_role_check', JSON.stringify({ v: 'dismissed', t: Date.now() }));
   });
+  // The address box asks Photon for suggestions; tests never reach the real service.
+  await page.route('https://photon.komoot.io/**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+    body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
 });
 
 const dataLayerLeads = (page) =>

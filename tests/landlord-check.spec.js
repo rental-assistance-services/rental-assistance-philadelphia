@@ -90,6 +90,157 @@ async function fillApplication(page) {
   }
 }
 
+// The address box asks Photon for suggestions; tests never reach the real service. Tests
+// about suggestions register their own answer (a later route wins).
+test.beforeEach(async ({ page }) => {
+  await page.route('https://photon.komoot.io/**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+    body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
+});
+
+/** Shaped like a real Photon answer for "1932 N 5th St" (checked against the live service 2026-09-18). */
+const PHOTON_FEATURES = [
+  { properties: { housenumber: '1932', street: 'North 5th Street', city: 'Philadelphia', state: 'Pennsylvania',
+    postcode: '19122', country: 'United States', countrycode: 'US', type: 'house' } },
+  { properties: { housenumber: '1932', street: 'East 5th Street', city: 'New York', state: 'New York',
+    postcode: '11223', country: 'United States', countrycode: 'US', type: 'house' } },
+  { properties: { housenumber: '12', street: 'Rizal Street', city: 'Quezon City', state: 'Metro Manila',
+    postcode: '1100', country: 'Philippines', countrycode: 'PH', type: 'house' } },
+];
+async function photonAnswers(page, features = PHOTON_FEATURES, { fail = false } = {}) {
+  const asked = [];
+  await page.route('https://photon.komoot.io/**', (route) => {
+    asked.push(route.request().url());
+    return fail ? route.abort() : route.fulfill({ status: 200, contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ type: 'FeatureCollection', features }) });
+  });
+  return asked;
+}
+/** Landlord, at the homepage application's property step. */
+async function toPropertyStep(page) {
+  await page.goto('/index.html');
+  await landlord(page).click();
+  await SECTION_FILL['About you (the owner)'](page);
+  await next(page).click();
+  expect(await currentStep(page)).toBe('The property');
+}
+
+test.describe('address suggestions', () => {
+  const list = (page) => page.locator('#prop-address-suggest');
+  const options = (page) => page.locator('#prop-address-suggest [role=option]');
+
+  test('typing an address offers real addresses, Philadelphia first, with the OpenStreetMap credit', async ({ page }) => {
+    const asked = await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    await expect(options(page).nth(0)).toContainText('1932 North 5th Street');
+    await expect(options(page).nth(0)).toContainText('Philadelphia, PA 19122');
+    await expect(options(page).nth(2)).toContainText('Quezon City, Metro Manila 1100, Philippines');   // not only the US
+    await expect(list(page)).toContainText('© OpenStreetMap contributors');
+    const url = new URL(asked[asked.length - 1]);
+    expect(url.searchParams.get('q')).toBe('1932 N 5th');
+    expect(url.searchParams.get('lat')).toBe('39.9526');                        // biased to Philadelphia
+    await expect(page.locator('#prop-address')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('arrow keys + Enter pick one and fill the whole address — Enter does not skip the step', async ({ page }) => {
+    await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    await page.keyboard.press('ArrowDown');
+    await expect(options(page).nth(0)).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street, Philadelphia, PA 19122');
+    await expect(list(page)).toBeHidden();
+    expect(await currentStep(page)).toBe('The property');
+    await expect(page.locator('.field:has(#prop-address)')).toHaveClass(/lc-ok/);
+  });
+
+  test('clicking a suggestion picks it', async ({ page }) => {
+    await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await options(page).nth(1).click();
+    await expect(page.locator('#prop-address')).toHaveValue('1932 East 5th Street, New York, NY 11223');
+    await expect(page.locator('#prop-address')).toBeFocused();
+  });
+
+  test('a typed block and lot (or unit) is never lost — it moves to the Unit / Block & Lot box', async ({ page }) => {
+    await photonAnswers(page);
+    await toPropertyStep(page);
+    await expect(page.locator('label[for="prop-unit"]')).toHaveText('Unit / Apt / Block & Lot');
+    await page.locator('#prop-address').pressSequentially('Blk 5 Lot 12 1932 N 5th');
+    await options(page).nth(0).click();
+    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street, Philadelphia, PA 19122');
+    await expect(page.locator('#prop-unit')).toHaveValue('Blk 5, Lot 12');
+    // and it adds to what is already there, without repeating it
+    await page.locator('#prop-address').fill('');
+    await page.locator('#prop-address').pressSequentially('Apt 3 Lot 12 1932 N 5th');
+    await options(page).nth(0).click();
+    await expect(page.locator('#prop-unit')).toHaveValue('Blk 5, Lot 12, Apt 3');
+  });
+
+  test('/back-rent/ has no unit box, so a block and lot stays at the front of the address', async ({ page }) => {
+    await photonAnswers(page);
+    await page.goto('/back-rent/index.html');
+    await landlord(page).click();
+    await page.locator('#prop-address').pressSequentially('Block 5 Lot 12 1932 N 5th');
+    await options(page).nth(0).click();
+    await expect(page.locator('#prop-address')).toHaveValue('Block 5 Lot 12, 1932 North 5th Street, Philadelphia, PA 19122');
+  });
+
+  test('Escape closes the list, not the popup; fewer than 3 letters asks nothing', async ({ page }) => {
+    const asked = await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('19');
+    await page.waitForTimeout(500);
+    expect(asked).toHaveLength(0);
+    await page.locator('#prop-address').pressSequentially('32 N');
+    await expect(options(page)).toHaveCount(3);
+    await page.keyboard.press('Escape');
+    await expect(list(page)).toBeHidden();
+    await expect(dialog(page)).toBeVisible();
+    await expect(page.locator('#prop-address')).toHaveValue('1932 N');   // what they typed is untouched
+  });
+
+  test('if Photon is down, the box is just a text box', async ({ page }) => {
+    await photonAnswers(page, [], { fail: true });
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th St');
+    await page.waitForTimeout(600);
+    await expect(list(page)).toBeHidden();
+    await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
+    await page.fill('#prop-rent', '1150');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The tenant');
+  });
+
+  test('on a phone the list is in the flow, so nothing is cut off at the bottom of the screen', async ({ page }) => {
+    await photonAnswers(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    expect(await list(page).evaluate((el) => getComputedStyle(el).position)).toBe('static');
+    const note = page.locator('.lc-suggest-note');
+    await note.scrollIntoViewIfNeeded();
+    await expect(note).toBeInViewport();
+  });
+
+  test('the list fades down over 350ms, ease-in', async ({ page }) => {
+    await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    const a = await list(page).evaluate((el) => {
+      const s = getComputedStyle(el); return [s.animationName, s.animationDuration, s.animationTimingFunction];
+    });
+    expect(a).toEqual(['lc-down', '0.35s', 'ease-in']);
+  });
+});
+
 test.describe('where it opens by itself', () => {
   for (const url of LANDING) {
     test(`${url}: opens on a first visit, asking own or rent`, async ({ page }) => {
@@ -204,7 +355,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.goto('/index.html');
     await landlord(page).click();
     const email = page.locator('#owner-email');
-    const msg = page.locator('.field:has(#owner-email) .errmsg');
+    const msg = page.locator('.field:has(#owner-email) > .errmsg');
     await email.pressSequentially('marcus@exa');               // still typing, still focused
     await expect(email).toBeFocused();
     await expect(msg).toBeVisible();
@@ -415,6 +566,40 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.locator('#owner-email').pressSequentially('m');
     await expect(field).not.toHaveClass(/lc-verified/);
     await expect(confirm).toHaveValue('');
+  });
+
+  test('the retype card drops DOWN smoothly — height, fade and slide finish together over 350ms', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.locator('#owner-email').pressSequentially('landlord@example.com');
+    // record the card every frame from before it opens until well after
+    await page.evaluate(() => {
+      window.__cardFrames = [];
+      const t0 = performance.now();
+      const tick = () => {
+        const box = document.querySelector('.lc-confirm');
+        if (box) {
+          const s = getComputedStyle(box);
+          window.__cardFrames.push({ t: performance.now() - t0, h: box.getBoundingClientRect().height,
+            op: Number(s.opacity), ty: new DOMMatrixReadOnly(s.transform).m42 });
+        }
+        if (performance.now() - t0 < 900) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await page.keyboard.press('Tab');                          // opens the card
+    await page.waitForTimeout(950);
+    const frames = await page.evaluate(() => window.__cardFrames);
+    const start = frames.find((f) => f.op > 0);
+    const end = frames[frames.length - 1];
+    expect(end.op).toBe(1);
+    expect(end.ty).toBe(0);
+    expect(start.ty, 'it starts ABOVE its place and drops down').toBeLessThan(0);
+    // the height grows with the fade instead of popping open and stopping dead early
+    const reached = frames.find((f) => f.h >= end.h * 0.95);
+    expect(reached.t - start.t, 'height is still opening late in the 350ms').toBeGreaterThan(220);
+    expect(frames.some((f) => f.h > end.h * 0.2 && f.h < end.h * 0.8)).toBe(true);
+    expect(frames.some((f) => f.op > 0.2 && f.op < 0.8)).toBe(true);
   });
 
   test('Next is held until the email is verified', async ({ page }) => {

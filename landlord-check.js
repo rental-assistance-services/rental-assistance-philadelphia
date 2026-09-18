@@ -199,16 +199,41 @@
     // A well-formed email is green straight away; its check + "Verified" wait for the retype.
     + '.lc-host .field.lc-emailok > input{border-color:rgba(47,158,94,.6);}'
     // The email confirm box: a small white card attached under the email (Kyle's mock-up,
-    // 2026-09-18) — green label, rounded input. It fades up and opens its own space like an
-    // error message, so nothing below jumps. Its padding leaves room for the input's focus ring.
-    + '.lc-host .lc-confirm{max-height:0;opacity:0;transform:translateY(8px);overflow:hidden;visibility:hidden;'
-    + 'margin:0;padding:0 10px;background:#fff;border:1px solid transparent;border-radius:10px;box-shadow:none;'
-    + 'transition:max-height .35s ease-in,margin .35s ease-in,padding .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
-    + 'border-color .35s ease-in,box-shadow .35s ease-in,visibility 0s linear .35s;}'
-    + '.lc-host .lc-confirm.show{max-height:10em;opacity:1;transform:none;visibility:visible;margin:6px 0 0;padding:11px 10px 10px;'
-    + 'border-color:var(--lc-hair);box-shadow:0 10px 24px rgba(20,35,58,.10),0 2px 6px rgba(20,35,58,.05);'
-    + 'transition:max-height .35s ease-in,margin .35s ease-in,padding .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
-    + 'border-color .35s ease-in,box-shadow .35s ease-in,visibility 0s;}'
+    // 2026-09-18) — green label, rounded input. It drops DOWN out of the email field: fades in,
+    // slides down 8px into place and opens its own space, all over the same 350ms ease-in.
+    // The height is animated EXACTLY (grid rows 0fr -> 1fr), not towards a max-height guess:
+    // a guess taller than the card makes the height finish early and stop dead mid-fade,
+    // which is what read as "not smooth". The border is a shadow ring so it takes no space
+    // while closed, and the inner padding grows with it so the closed card is truly 0px.
+    + '.lc-host .lc-confirm{display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(-8px);visibility:hidden;'
+    + 'margin-top:0;background:#fff;border-radius:10px;box-shadow:0 0 0 1px transparent;'
+    + 'transition:grid-template-rows .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
+    + 'box-shadow .35s ease-in,visibility 0s linear .35s;}'
+    + '.lc-host .lc-confirm.show{grid-template-rows:1fr;opacity:1;transform:none;visibility:visible;margin-top:6px;'
+    + 'box-shadow:0 0 0 1px var(--lc-hair),0 10px 24px rgba(20,35,58,.10),0 2px 6px rgba(20,35,58,.05);'
+    + 'transition:grid-template-rows .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
+    + 'box-shadow .35s ease-in,visibility 0s;}'
+    + '.lc-host .lc-confirm-in{min-height:0;overflow:hidden;padding:0 10px;transition:padding .35s ease-in;}'
+    // Address suggestions: a list that drops down over the fields below the address box
+    // (it overlays rather than pushing them), fading down over 350ms ease-in.
+    + '.lc-host .field.lc-addr{position:relative;}'
+    + '.lc-suggest{position:absolute;left:0;right:0;z-index:5;list-style:none;margin:6px 0 0;padding:6px;background:#fff;'
+    + 'border-radius:10px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.14),0 2px 6px rgba(20,35,58,.06);}'
+    + '.lc-suggest[hidden]{display:none;}'
+    + '.lc-suggest.lc-drop{animation:lc-down .35s ease-in both;}'
+    + '.lc-suggest [role=option]{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:8px;cursor:pointer;'
+    + 'transition:background .15s;}'
+    + '.lc-suggest [role=option]:hover,.lc-suggest [role=option][aria-selected=true]{background:rgba(200,162,74,.13);}'
+    + '.lc-sg-pin{flex:none;color:var(--lc-brass-2);margin-top:2px;display:inline-flex;}'
+    + '.lc-sg-1{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;line-height:1.3;}'
+    + '.lc-sg-2{display:block;font-size:.82rem;color:var(--lc-muted-2);line-height:1.35;}'
+    + '.lc-suggest-note{font-size:.7rem;color:var(--lc-muted-2);padding:7px 10px 3px;margin-top:4px;border-top:1px solid var(--lc-hair);}'
+    + '@keyframes lc-down{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}'
+    // On a phone the sheet ends at the screen's bottom edge, so a floating list would be cut
+    // off there. It sits in the flow instead: the fields below move down, the sheet grows and
+    // scrolls, and every suggestion (and the credit line) can be reached.
+    + '@media (max-width:640px){.lc-suggest{position:static;}}'
+    + '.lc-host .lc-confirm.show .lc-confirm-in{padding:11px 10px 10px;}'
     + '.lc-host .lc-confirm label{display:block;font-size:.8rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
     + '.lc-host .field .lc-confirm input{padding:11px 13px;}'
     // Chrome gives an autofilled field :-webkit-autofill but fires no reliable event; a
@@ -276,7 +301,8 @@
     + '@keyframes lc-sheet{from{transform:translateY(100%);}to{transform:none;}}'
     + '@media (prefers-reduced-motion:reduce){.lc-backdrop,.lc-dialog,.lc-panel,.lc-host fieldset.lc-enter,'
     + '.lc-host .errmsg,.lc-host .errmsg.show,.lc-host .field.show-err .errmsg,.lc-host .field input,.lc-host .field select,'
-    + '.lc-host .field textarea{transition:none;}.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after{animation:none;}}';
+    + '.lc-host .field textarea,.lc-host .lc-confirm,.lc-host .lc-confirm.show,.lc-host .lc-confirm-in{transition:none;}'
+    + '.lc-host .field.lc-ok .req,.lc-host .field.lc-ok > label::after,.lc-suggest{animation:none;}}';
 
   var HTML = ''
     + '<div class="lc-dialog" role="dialog" aria-modal="true" aria-labelledby="lc-title-role" tabindex="-1">'
@@ -314,6 +340,170 @@
     + '<button type="button" class="lc-btn lc-btn-main" data-lc-next>Next &rarr;</button></div>'
     + '</div>'
     + '</div></div>';
+
+  /* ---------- address suggestions (Photon) ----------
+     As the visitor types the property address, up to five real addresses are offered under
+     the box; picking one fills in the whole address. Typing it out by hand still works — this
+     only ever suggests.
+
+     Source: Photon (photon.komoot.io), a free address search over OpenStreetMap data — no
+     account, no key, CORS-open, built for search-as-you-type. Results are BIASED towards
+     Philadelphia (where every RAS case is) but not limited to it. It is a shared public server
+     with fair-use limits and no uptime promise: if it is slow, down or rate-limited, the box
+     simply behaves like a plain text box. OpenStreetMap's licence requires the attribution
+     line at the foot of the list.
+
+     Blocks and lots: anything typed that names a block, lot, unit, apartment, suite or "#…"
+     is never thrown away when a suggestion replaces the text. It moves to the
+     "Unit / Apt / Block & Lot" box if the form has one, and otherwise stays at the front of
+     the address. */
+  var PHOTON = 'https://photon.komoot.io/api/';
+  var BIAS = { lat: 39.9526, lon: -75.1652 };             // City Hall, Philadelphia
+  var UNIT_RE = /(?:\b(?:blk|block|lot|phase|unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
+  var US_STATES = { Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA', Colorado: 'CO',
+    Connecticut: 'CT', Delaware: 'DE', 'District of Columbia': 'DC', Florida: 'FL', Georgia: 'GA', Hawaii: 'HI',
+    Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA', Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME',
+    Maryland: 'MD', Massachusetts: 'MA', Michigan: 'MI', Minnesota: 'MN', Mississippi: 'MS', Missouri: 'MO',
+    Montana: 'MT', Nebraska: 'NE', Nevada: 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM',
+    'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', Ohio: 'OH', Oklahoma: 'OK', Oregon: 'OR',
+    Pennsylvania: 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC', 'South Dakota': 'SD', Tennessee: 'TN',
+    Texas: 'TX', Utah: 'UT', Vermont: 'VT', Virginia: 'VA', Washington: 'WA', 'West Virginia': 'WV',
+    Wisconsin: 'WI', Wyoming: 'WY', 'Puerto Rico': 'PR' };
+  var PIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg>';
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // One Photon result -> what the list shows and what the box is filled with.
+  function describe(p) {
+    var street = p.street || (p.type === 'street' ? p.name : '') || p.name || '';
+    if (!street) return null;
+    var line1 = (p.housenumber ? p.housenumber + ' ' : '') + street;
+    var us = (p.countrycode || '').toUpperCase() === 'US';
+    var place = p.city || p.town || p.village || p.district || p.locality || p.county || '';
+    var region = us ? (US_STATES[p.state] || p.state || '') : (p.state || '');
+    var tail = [region, p.postcode].filter(Boolean).join(' ');
+    var line2 = [place, tail].filter(Boolean).join(', ') + (us || !p.country ? '' : ', ' + p.country);
+    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), exact: !!p.housenumber };
+  }
+
+  function addressAssist(input) {
+    if (input._lcAssist) return input._lcAssist;
+    var field = input.closest('.field');
+    field.classList.add('lc-addr');
+    var id = (input.id || 'lc-addr') + '-suggest';
+    var list = document.createElement('ul');
+    list.className = 'lc-suggest'; list.id = id; list.setAttribute('role', 'listbox'); list.hidden = true;
+    input.insertAdjacentElement('afterend', list);
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-controls', id);
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('autocomplete', 'off');            // one list under the box, not two
+
+    var items = [], active = -1, timer = null, ctrl = null, cache = {}, filling = false;
+
+    function close() {
+      list.hidden = true; items = []; active = -1;
+      input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant');
+    }
+    function highlight(i) {
+      active = i;
+      Array.prototype.forEach.call(list.querySelectorAll('[role=option]'), function (li, n) {
+        li.setAttribute('aria-selected', n === i ? 'true' : 'false');
+      });
+      if (i >= 0) input.setAttribute('aria-activedescendant', id + '-' + i); else input.removeAttribute('aria-activedescendant');
+    }
+    function render(found) {
+      items = found;
+      if (!found.length) { close(); return; }
+      list.innerHTML = found.map(function (s, i) {
+        return '<li role="option" id="' + id + '-' + i + '" aria-selected="false" data-i="' + i + '">'
+          + '<span class="lc-sg-pin">' + PIN + '</span><span><span class="lc-sg-1">' + esc(s.line1) + '</span>'
+          + '<span class="lc-sg-2">' + esc(s.line2) + '</span></span></li>';
+      }).join('')
+        + '<li class="lc-suggest-note" role="presentation">Address search © OpenStreetMap contributors · Photon</li>';
+      var wasHidden = list.hidden;
+      list.hidden = false;
+      if (wasHidden) { list.classList.remove('lc-drop'); void list.offsetWidth; list.classList.add('lc-drop'); }   // fade down
+      input.setAttribute('aria-expanded', 'true');
+      highlight(-1);
+    }
+    function lookup(q) {
+      if (cache[q]) { render(cache[q]); return; }
+      if (ctrl) ctrl.abort();
+      ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      var url = PHOTON + '?q=' + encodeURIComponent(q) + '&limit=6&lang=en&lat=' + BIAS.lat + '&lon=' + BIAS.lon;
+      fetch(url, ctrl ? { signal: ctrl.signal } : {})
+        .then(function (r) { if (!r.ok) throw new Error('photon ' + r.status); return r.json(); })
+        .then(function (data) {
+          var seen = {}, found = [];
+          (data.features || []).forEach(function (f) {
+            var d = describe(f.properties || {});
+            if (d && !seen[d.value]) { seen[d.value] = true; found.push(d); }
+          });
+          found = found.slice(0, 5);
+          cache[q] = found;
+          if (document.activeElement === input && val(input) === q) render(found);
+        })
+        .catch(function () { /* down, slow or rate-limited: it is just a text box */ });
+    }
+    function choose(i) {
+      var s = items[i];
+      if (!s) return;
+      // Keep every block / lot / unit the visitor typed — never lose it to the suggestion.
+      var kept = (input.value.match(UNIT_RE) || []).map(function (t) { return t.trim(); });
+      var value = s.value;
+      if (kept.length) {
+        var unit = input.form && input.form.querySelector('[name="property_unit"]');
+        if (unit) {
+          var have = unit.value.trim();
+          kept = kept.filter(function (t) { return have.toLowerCase().indexOf(t.toLowerCase()) === -1; });
+          if (kept.length) {
+            unit.value = [have].concat(kept).filter(Boolean).join(', ');
+            unit.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+          }
+        } else {
+          value = kept.join(' ') + ', ' + s.value;
+        }
+      }
+      filling = true;
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+      filling = false;
+      close();
+      track('address_suggestion', { form_id: input.form ? input.form.id : '', exact: s.exact });
+      input.setSelectionRange(value.length, value.length);
+    }
+
+    input.addEventListener('input', function () {
+      if (filling) return;
+      clearTimeout(timer);
+      var q = val(input);
+      if (q.length < 3) { close(); return; }
+      timer = setTimeout(function () { lookup(q); }, 250);
+    });
+    input.addEventListener('blur', function () { setTimeout(close, 120); });
+    list.addEventListener('mousedown', function (e) { e.preventDefault(); });    // keep focus in the box
+    list.addEventListener('click', function (e) {
+      var li = e.target.closest('[role=option]');
+      if (li) choose(Number(li.getAttribute('data-i')));
+    });
+
+    // Called by the popup's keydown handler first; true = the list used the key.
+    var api = {
+      key: function (e) {
+        if (list.hidden || !items.length) return false;
+        if (e.key === 'ArrowDown') { e.preventDefault(); highlight(active < items.length - 1 ? active + 1 : 0); return true; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); highlight(active > 0 ? active - 1 : items.length - 1); return true; }
+        if (e.key === 'Enter' && active >= 0) { e.preventDefault(); e.stopPropagation(); choose(active); return true; }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return true; }
+        if (e.key === 'Tab') { close(); return false; }
+        return false;
+      }
+    };
+    input._lcAssist = api;
+    return api;
+  }
+  function val(el) { return String(el.value || '').trim(); }
 
   /* ---------- the popup ---------- */
   // trigger: 'first_visit' | 'cta' | 'gate' | 'handoff'
@@ -412,6 +602,7 @@
         observer.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         // Capture, so it runs before the page's own submit handler and can hold it back.
         form.addEventListener('submit', guardSubmit, true);
+        form.querySelectorAll('input[name="property_address"]').forEach(addressAssist);
       }
       panel('form');
       if (submitted(form)) { showDone(); return; }
@@ -608,12 +799,16 @@
         // Not type="email" and no name: browsers and password managers offer saved addresses
         // to email fields regardless of autocomplete="off", and an autofilled copy would
         // "confirm" a typo. The ignore attributes are LastPass / 1Password / Bitwarden's.
-        box.innerHTML = '<label for="' + id + '">Retype email to confirm</label>'
+        box.innerHTML = '<div class="lc-confirm-in"><label for="' + id + '">Retype email to confirm</label>'
           + '<input id="' + id + '" type="text" inputmode="email" autocomplete="off" autocorrect="off" autocapitalize="off"'
           + ' spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other"'
           + ' placeholder="Retype your email" data-lc-confirm>'
-          + '<p class="errmsg" aria-live="polite"></p>';
+          + '<p class="errmsg" aria-live="polite"></p></div>';
         f.appendChild(box);
+        // Make the browser lay out the CLOSED card now. Otherwise it is created and opened in
+        // the same frame, there is no "before" to animate from, and it just appears — which is
+        // exactly how it looked before this line existed.
+        void box.offsetHeight;
         guardRetype(box.querySelector('input'), el);
       }
       return box;
@@ -795,6 +990,10 @@
     }
 
     function onKey(e) {
+      // An open address list gets first say: arrows move through it, Enter picks, Escape
+      // closes the LIST (not the popup).
+      var assist = document.activeElement && document.activeElement._lcAssist;
+      if (assist && assist.key(e)) return;
       if (e.key === 'Escape') { e.preventDefault(); close('dismiss'); return; }
       // Enter in a field moves to the next section instead of submitting a half-filled form.
       if (e.key === 'Enter' && screen === 'form' && !nextBtn.hidden && e.target.tagName === 'INPUT'

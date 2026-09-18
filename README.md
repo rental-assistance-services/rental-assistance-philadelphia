@@ -57,6 +57,15 @@ when the visitor leaves the field or presses Next.
 Inside the popup, inputs use the site's control style (white, 1.5px border, 10px corners,
 brass focus, red error) and error messages fade up over 350ms while opening their own space.
 
+**Address suggestions.** The property-address box suggests real addresses as the visitor
+types (3+ characters), from **Photon** (`photon.komoot.io`, free, no key, OpenStreetMap data —
+the attribution line in the list is required by its licence). Results are biased towards
+Philadelphia but not limited to it. Arrow keys / Enter / click pick one; Escape closes the list.
+Anything typed that names a block, lot, unit, apartment, suite or `#…` is kept: it moves to the
+"Unit / Apt / Block & Lot" box (homepage) or stays at the front of the address (`/back-rent/`,
+which has no unit box). Photon is a shared public server with no uptime promise; if it is down
+the box is an ordinary text box. What the visitor types is sent to Photon as they type.
+
 A tenant gets the free help lines and a link to `/tenants/`; as with the gates, nothing is
 sent. A landlord on a page with no form (the blog) is taken to the homepage application,
 which opens straight into the popup.
