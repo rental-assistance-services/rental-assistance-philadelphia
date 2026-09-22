@@ -67,6 +67,11 @@ body{animation:page-in var(--dur) var(--ease) both;}
 @media (prefers-reduced-motion:reduce){
   @view-transition{navigation:none;}
   body{animation:none;}
+  /* The blanket stop, here rather than in /site.css, because only five of the fifteen pages
+     link /site.css and all fifteen link this file. While it lived there, /tenants/,
+     /terms.html and the blog kept animating under "reduce": the tenant panel, the chosen-line
+     and the 350ms transitions on .rg-btn / .role-gate below all carried on moving. */
+  *,*::before,*::after{animation-duration:.001ms !important;animation-delay:0ms !important;transition-duration:.001ms !important;}
 }
 
 /* ================= The form's shared pieces =================

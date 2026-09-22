@@ -39,6 +39,42 @@ test('every page loads /motion.js, and defers it', () => {
   expect(found.filter((f) => !/\sdefer(\s|>|=)/.test(f.tag)).map((f) => f.page)).toEqual([]);
 });
 
+// The blanket "stop everything" rule for prefers-reduced-motion lived in /site.css, which only
+// five of the fifteen pages link. /tenants/ had its own inline copy; /terms.html, /back-rent/
+// and the seven blog pages had nothing, so the .tenant-panel and .rg-chosen-line entrances and
+// the 350ms .rg-btn / .role-gate transitions kept moving for a visitor who asked them not to.
+// It now lives in /theme.css, which every page links — so the check is that /theme.css itself
+// serves it, not merely that the page has it from somewhere.
+for (const url of ['/tenants/index.html', '/terms.html']) {
+  test(`${url}: /theme.css stops everything under reduced motion`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(url);
+    // 1. the rule is in the theme.css this page loaded
+    const inTheme = await page.evaluate(() => [...document.styleSheets]
+      .filter((sh) => (sh.href || '').endsWith('/theme.css'))
+      .some((sh) => [...sh.cssRules].some((r) => r.media && r.conditionText.includes('prefers-reduced-motion')
+        && [...r.cssRules].some((k) => /^\*/.test(k.selectorText || '')
+          && k.style.getPropertyValue('animation-duration')))));
+    expect(inTheme, '/theme.css does not carry the blanket rule').toBe(true);
+    // 2. and it really wins: an element asking for two seconds gets none. Read as seconds,
+    // because Chromium serialises the rule's .001ms as "1e-06s" and that spelling is not
+    // the point — nothing perceptible is left is the point.
+    const secs = (v) => (v.endsWith('ms') ? parseFloat(v) / 1000 : parseFloat(v));
+    const stopped = await page.evaluate(() => {
+      const el = document.createElement('div');
+      el.style.cssText = 'transition-duration:2s;animation:none 2s;animation-delay:2s';
+      document.body.appendChild(el);
+      const c = getComputedStyle(el);
+      const out = { t: c.transitionDuration, a: c.animationDuration, d: c.animationDelay };
+      el.remove();
+      return out;
+    });
+    expect(secs(stopped.t), `transition ${stopped.t}`).toBeLessThan(0.01);
+    expect(secs(stopped.a), `animation ${stopped.a}`).toBeLessThan(0.01);
+    expect(secs(stopped.d), `delay ${stopped.d}`).toBe(0);
+  });
+}
+
 const PAGES = ['/index.html', '/services/back-rent/index.html', '/services/licensing/index.html',
   '/portal/index.html', '/faq/index.html'];
 
