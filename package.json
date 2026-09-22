@@ -4,6 +4,8 @@
   "private": true,
   "description": "Rental Assistance Services — Philadelphia back-rent / TFA intake site",
   "scripts": {
+    "dev": "node tests/static-server.js",
+    "start": "node tests/static-server.js",
     "test": "playwright test",
     "test:headed": "playwright test --headed"
   },
