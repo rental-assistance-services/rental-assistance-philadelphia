@@ -33,8 +33,8 @@ const FORMS = [
   { url: '/index.html', form: '#intake-form', gated: true },
   { url: '/index.html', form: '#contact-form', gated: true },
   { url: '/back-rent/index.html', form: '#backrent-form', gated: true },
-  { url: '/index.html', form: '#license-form', gated: false },
-  { url: '/index.html', form: '#tax-form', gated: false },
+  { url: '/services/licensing/index.html', form: '#license-form', gated: false },
+  { url: '/services/licensing/index.html', form: '#tax-form', gated: false },
 ];
 const GATED = FORMS.filter((f) => f.gated);
 
@@ -420,7 +420,7 @@ test.describe('landlord / tenant gate', () => {
       // A rental license and a city business-tax account are issued to the OWNER, so
       // these two cannot plausibly be filled by a tenant and are not gated. They still
       // have to carry the role, or the CRM cannot filter on it uniformly.
-      await page.goto('/index.html');
+      await page.goto('/services/licensing/index.html');
       for (const { form } of FORMS.filter((f) => !f.gated)) {
         expect(await roleValue(page, form)).toBe('landlord');
         await expect(page.locator(`[data-gate-for="${form.replace('#', '')}"]`)).toHaveCount(0);
@@ -493,7 +493,9 @@ test.describe('the tenant page and the panels agree', () => {
   });
 
   test('every page offers a tenant a way out', async ({ page }) => {
-    const PAGES = ['/index.html', '/back-rent/index.html', '/blog/index.html',
+    const PAGES = ['/index.html', '/services/back-rent/index.html',
+      '/services/licensing/index.html', '/portal/index.html', '/faq/index.html',
+      '/back-rent/index.html', '/blog/index.html',
       '/blog/eviction-diversion-program/index.html', '/blog/tfa-back-rent-recovery/index.html',
       '/blog/philadelphia-rental-license-requirements/index.html',
       '/blog/commercial-activity-license/index.html',

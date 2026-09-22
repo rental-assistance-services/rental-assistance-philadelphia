@@ -6,12 +6,34 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+  <!-- The homepage's sections, on their own pages since 2026-09-19. -->
   <url>
-    <loc>https://rentalassistanceservices.com/back-rent/</loc>
-    <lastmod>2026-09-13</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://rentalassistanceservices.com/services/back-rent/</loc>
+    <lastmod>2026-09-19</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
+  <url>
+    <loc>https://rentalassistanceservices.com/services/licensing/</loc>
+    <lastmod>2026-09-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://rentalassistanceservices.com/faq/</loc>
+    <lastmod>2026-09-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://rentalassistanceservices.com/portal/</loc>
+    <lastmod>2026-09-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <!-- /back-rent/ is deliberately NOT listed. It is the same offer as /services/back-rent/ at a
+       second address; listing both at 0.9 had them competing for the query the ads pay for. The
+       page is still served for old links and points its canonical at /services/back-rent/. -->
   <!-- Listed deliberately. This page carries no form and books no conversion, so ranking
        it for tenant-side queries is a WIN: it absorbs the traffic the brand name attracts
        and sends those people to services that can actually help them. -->

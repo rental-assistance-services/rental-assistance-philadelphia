@@ -18,6 +18,10 @@ const OK = { ok: true, contact_id: CONTACT_ID, files_uploaded: 0, documents: { s
 /** Every page a visitor can land on from search or an ad — the popup belongs on all of them. */
 const LANDING = [
   '/index.html',
+  '/services/back-rent/index.html',
+  '/services/licensing/index.html',
+  '/portal/index.html',
+  '/faq/index.html',
   '/back-rent/index.html',
   '/blog/index.html',
   '/blog/certificate-of-rental-suitability/index.html',
@@ -1424,7 +1428,9 @@ test.describe('Apply links open the popup instead of scrolling to the form', () 
     { url: '/index.html', link: '#nav-links a.cta', name: 'header Apply' },
     { url: '/index.html', link: 'footer a[href="#apply"]', name: 'footer Apply' },
     { url: '/index.html', link: 'footer a[href="#contact"]', name: 'footer Contact' },
-    { url: '/index.html', link: 'a.btn[href="#apply"]', name: '"Apply to recover back rent"' },
+    { url: '/services/back-rent/index.html', link: 'a.btn[href="/#apply"]', name: '"Apply to recover back rent"' },
+    { url: '/portal/index.html', link: 'a.btn[href="/#apply"]', name: '"Add a new case"' },
+    { url: '/faq/index.html', link: 'footer a[href="/#apply"]', name: 'footer Apply' },
     { url: '/back-rent/index.html', link: 'a[href="#form-card"]', name: '"Start my free case review"' },
   ];
   for (const { url, link, name } of LINKS) {
@@ -1445,11 +1451,49 @@ test.describe('Apply links open the popup instead of scrolling to the form', () 
 
   test('a link to any other section still scrolls there normally', async ({ page }) => {
     await as(page, 'dismissed');
-    await page.goto('/index.html');
-    await page.locator('#nav-links a[href="#faq"]').evaluate((a) => a.click());
+    await page.goto('/services/licensing/index.html');
+    await page.locator('a[href="#tax-compliance"]').first().evaluate((a) => a.click());
     await page.waitForTimeout(400);
     await expect(popup(page)).toHaveCount(0);
-    expect(new URL(page.url()).hash).toBe('#faq');
+    expect(new URL(page.url()).hash).toBe('#tax-compliance');
+  });
+
+  test('a menu link to another page just goes there, no popup', async ({ page }) => {
+    await as(page, 'dismissed');
+    await page.goto('/index.html');
+    await page.locator('#nav-links a[href="/faq/"]').click();
+    await page.waitForURL(/\/faq\/$/);
+    await page.waitForTimeout(400);
+    await expect(popup(page)).toHaveCount(0);
+    await expect(page.locator('#faq')).toBeVisible();
+  });
+
+  test('an old link to a section that moved lands on its new page, query string kept', async ({ page }) => {
+    await as(page, 'dismissed');
+    const MOVED = [
+      ['/?gclid=abc#faq', '/faq/?gclid=abc'],
+      ['/#rentassist', '/services/back-rent/'],
+      ['/#rentclear', '/services/licensing/'],
+      ['/#tax-compliance', '/services/licensing/#tax-compliance'],
+      ['/#portal', '/portal/'],
+    ];
+    for (const [from, to] of MOVED) {
+      await page.goto(from);
+      await page.waitForURL((u) => u.pathname + u.search + u.hash === to);
+    }
+    await page.goto('/#apply');                           // still on the homepage: not moved
+    expect(new URL(page.url()).pathname).toBe('/');
+  });
+
+  test('Apply on a page without the application hands a landlord to it, already open', async ({ page }) => {
+    await as(page, 'dismissed');
+    await page.goto('/services/back-rent/index.html');
+    await page.locator('a.btn[href="/#apply"]').first().evaluate((a) => a.click());
+    await expect(dialog(page)).toBeVisible();
+    await landlord(page).click();
+    await page.waitForURL(/\/#apply$/);
+    await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
+    expect(await currentStep(page)).toBe('About you (the owner)');
   });
 
   test('a returning landlord skips "own or rent?" and lands on the application', async ({ page }) => {
