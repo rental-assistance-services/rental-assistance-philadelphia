@@ -1054,12 +1054,19 @@
     function mount() {
       if (!form) {
         // No application on this page (the blog, /services/…, /portal/, /faq/): it lives on the homepage.
-        try { sessionStorage.setItem(HANDOFF, 'apply'); } catch (e) {}
+        // Whether the flag was actually stored decides where we send them, because a browser
+        // can refuse to store it: Safari private mode and partitioned third-party embeds both
+        // throw on setItem. Assuming it worked sent those visitors to the top of the homepage
+        // with no popup and no form — a dead end out of a button marked Apply.
+        var ok = false;
+        try { sessionStorage.setItem(HANDOFF, 'apply'); ok = true; } catch (e) {}
         track('handoff', { page: location.pathname });
-        // To the homepage's TOP, not /#apply: the HANDOFF flag already opens the application
-        // there. With the #apply the browser jumped the page down to the form section, so the
-        // popup opened over the bottom of the page and closing it left the visitor down there.
-        location.href = '/';
+        // Stored: the homepage's TOP, not /#apply, because the flag opens the application
+        // there by itself. With the #apply the browser jumped the page down to the form
+        // section, so the popup opened over the bottom of the page and closing it left the
+        // visitor down there. Not stored: /#apply, so the browser's own jump puts them on the
+        // form section — the popup can no longer carry them, so the anchor has to.
+        location.href = ok ? '/' : '/#apply';
         return;
       }
       if (!placeholder) {

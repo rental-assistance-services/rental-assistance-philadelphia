@@ -1420,6 +1420,32 @@ test.describe('the question in front of each form opens the popup', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator('#intake-form input[name="visitor_role"]')).toHaveValue('landlord');
   });
+
+  test('a browser that refuses to store the hand-off still lands on the form, not the top', async ({ page }) => {
+    // Safari private mode and partitioned third-party embeds throw on sessionStorage.setItem.
+    // The hand-off used to swallow that and send them to "/" anyway, where nothing opens the
+    // application: the flag it depends on was never written. Top of the homepage, no popup,
+    // no form — out of a button marked Apply. Only setItem throws here; localStorage is left
+    // alone, because that is what really happens and what `as()` writes into.
+    await page.addInitScript(() => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === window.sessionStorage) throw new DOMException('QuotaExceededError');
+        return real.call(this, k, v);
+      };
+    });
+    await page.goto('/blog/eviction-diversion-program/index.html');
+    await landlord(page).click();
+    await page.waitForURL((u) => u.pathname === '/' && u.hash === '#apply');   // the form section
+    // and the browser's own jump really put them there: the application section is on screen.
+    // Polled, not read once: `html{scroll-behavior:smooth}` animates the jump to the anchor,
+    // so a single read right after the navigation lands mid-scroll, still at the top.
+    await expect.poll(() => page.locator('#apply').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top < innerHeight && r.bottom > 0;
+    })).toBe(true);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  });
 });
 
 test.describe('Apply links open the popup instead of scrolling to the form', () => {
