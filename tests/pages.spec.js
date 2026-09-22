@@ -75,6 +75,30 @@ for (const url of ['/tenants/index.html', '/terms.html']) {
   });
 }
 
+// The "landlord or tenant?" choice cards answered focus with `outline:none` plus a glow and a
+// border colour. The glow is rgba(42,91,215,.24) over the paper — 1.41:1, under the 3:1 a focus
+// indicator needs — and forced-colors mode throws away both the glow and the border colour, so
+// a keyboard visitor there had no indicator at all. There is a real outline now.
+test('the choice cards keep a real focus outline', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('ras_role_check',
+    JSON.stringify({ v: 'dismissed', t: Date.now() })));
+  await page.goto('/index.html');
+  const cards = page.locator('[data-gate-for="intake-form"] .rg-btn');
+  await cards.first().focus();
+  await page.keyboard.press('Tab');          // reached by keyboard, so :focus-visible really matches
+  const card = cards.nth(1);
+  await expect(card).toBeFocused();
+  const ring = await card.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { visible: el.matches(':focus-visible'), style: s.outlineStyle,
+      width: parseFloat(s.outlineWidth), color: s.outlineColor };
+  });
+  expect(ring.visible, 'the card is not :focus-visible, so this proves nothing').toBe(true);
+  expect(ring.style).not.toBe('none');
+  expect(ring.width).toBeGreaterThanOrEqual(2);
+  expect(ring.color).not.toBe('rgba(0, 0, 0, 0)');
+});
+
 const PAGES = ['/index.html', '/services/back-rent/index.html', '/services/licensing/index.html',
   '/portal/index.html', '/faq/index.html'];
 

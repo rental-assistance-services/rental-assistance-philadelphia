@@ -94,7 +94,12 @@ body{animation:page-in var(--dur) var(--ease) both;}
 .rg-btn:hover,.lc-role:hover{border-color:var(--blue);box-shadow:0 14px 30px rgba(42,91,215,.14),0 0 0 3px rgba(42,91,215,.08);transform:translateY(-2px);}
 .rg-btn:hover::before,.lc-role:hover::before{background-color:#CFDDFB;box-shadow:inset 0 0 0 1px rgba(42,91,215,.34);}
 .rg-btn:hover::after,.lc-role:hover::after{transform:translate(4px,-50%);}
-.rg-btn:focus-visible,.lc-role:focus-visible{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(42,91,215,.24);}
+/* A real outline, not only the halo: the glow is rgba(42,91,215,.24) over the paper, which
+   measures 1.41:1 — under the 3:1 a focus indicator needs — and both it and the border colour
+   are thrown away in forced-colors mode, where the indicator then disappears altogether. An
+   outline survives: forced colors repaints outline-color with a system colour. 2.5px at 3px
+   offset is what every other focusable thing on the site already gets (site.css:46). */
+.rg-btn:focus-visible,.lc-role:focus-visible{outline:2.5px solid var(--blue);outline-offset:3px;border-color:var(--blue);box-shadow:0 0 0 4px rgba(42,91,215,.24);}
 .rg-btn .rg-small,.lc-role small{display:block;font-weight:500;font-size:.84rem;color:var(--muted-2);margin-top:4px;}
 
 /* ---------- landlord / tenant gate ----------
