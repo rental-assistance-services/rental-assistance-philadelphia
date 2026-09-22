@@ -1,5 +1,5 @@
 /**
- * What the search result says: who the page is for.
+ * What the search result says: who the page is for, and which page owns the query.
  *
  * #5 put "Philadelphia Landlords:" in front of the back-rent titles so that a tenant searching
  * for rent help can see from the search result itself that the page is not for them. Tenants
@@ -8,6 +8,11 @@
  * When the homepage was split into per-section pages, /services/back-rent/ was written from a
  * copy that predated #5, so it lost the prefix on all three: the title, the og:title and the
  * twitter:title. Nothing failed, because nothing checked.
+ *
+ * The other half is which page owns a query. /back-rent/ and /services/back-rent/ sell the same
+ * thing, and both sat in the sitemap at priority 0.9 pointing their canonical at themselves, so
+ * they competed with each other for the exact query the ads pay for. /services/back-rent/ is the
+ * canonical page; /back-rent/ points at it and is out of the sitemap.
  *
  * The page list is read off disk, so a page added later is covered without anyone having to
  * remember this file. There is no build step here: the file on disk is the file that is served.
@@ -77,3 +82,25 @@ for (const url of sitePages()) {
     }
   });
 }
+
+test('no two pages in the sitemap point at one canonical page', async ({ request }) => {
+  const xml = await (await request.get('/sitemap.xml')).text();
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  expect(locs.length, 'the sitemap lists no pages').toBeGreaterThan(5);
+
+  const listedBy = new Map();
+  for (const loc of locs) {
+    const servedAt = new URL(loc).pathname;
+    const res = await request.get(servedAt);
+    expect(res.status(), `${loc} is in the sitemap but is not served`).toBe(200);
+    const canonical = (await res.text()).match(/<link rel="canonical" href="([^"]+)"/);
+    expect(canonical, `${loc} is in the sitemap with no canonical`).not.toBeNull();
+    listedBy.set(canonical[1], [...(listedBy.get(canonical[1]) || []), loc]);
+  }
+
+  // Asking Google to index two addresses for one page is asking it to choose, and the choice
+  // splits the ranking. A second address stays served and points its canonical at the winner.
+  const competing = [...listedBy].filter(([, urls]) => urls.length > 1)
+    .map(([target, urls]) => `${urls.join(' and ')} both point at ${target}`);
+  expect(competing, 'two sitemap entries are competing for one page').toEqual([]);
+});
