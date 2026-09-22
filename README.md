@@ -119,7 +119,9 @@ the page a searcher just landed on.
 ## Design and motion — global, in two files
 
 **Every page links `/theme.css` and `/motion.js` first** (in `<head>`, before `/site.css` or the
-page's own `<style>`). Add both lines to any new page.
+page's own `<style>`). Add both lines to any new page, `defer` included — everything in
+`/motion.js` waits for `DOMContentLoaded` anyway, so deferring it runs the same code at the same
+moment without holding up the parser. The suite checks every page for it.
 
 - **`/theme.css`** holds the design tokens for the whole site — the palette, type, shadows, radius
   and the one motion timing, `--dur: 350ms` — plus the page motion. Change a colour or a timing

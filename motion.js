@@ -1,5 +1,6 @@
 /* Rental Assistance Philadelphia — the motion every page shares (with /theme.css). Loaded in
-   <head>, right after /theme.css; everything that touches the page waits for DOMContentLoaded.
+   <head> with defer, right after /theme.css; everything that touches the page waits for
+   DOMContentLoaded, so defer costs nothing and stops this blocking the parser.
    1) The top menu's sliding highlight: one pill behind the current page's menu item. A click
       opens the new page AT ONCE — nothing waits on the animation. The new page puts the pill
       where it was on the page just left and slides it onto its own item over 350ms, while the page

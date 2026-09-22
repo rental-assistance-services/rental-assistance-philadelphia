@@ -8,6 +8,36 @@
  * background it actually sits on.
  */
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.join(__dirname, '..');
+
+/** Every real page of the site, off disk. The two google-verification files are a single line
+ *  of text with no markup, so requiring a <head> leaves them out and keeps the count honest. */
+function sitePages(dir = ROOT, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) sitePages(f, out);
+    else if (e.name.endsWith('.html') && fs.readFileSync(f, 'utf8').includes('<head>')) out.push(f);
+  }
+  return out;
+}
+
+// /motion.js sat in <head> with no defer, so it blocked the parser on all fifteen pages for
+// nothing: everything in it already waits for DOMContentLoaded (motion.js:77-78, 152-153), so
+// with defer it runs at the same moment against the same DOM, only without holding the page up.
+// Read off disk, not through the browser, so a page nobody thought to test is still counted.
+test('every page loads /motion.js, and defers it', () => {
+  const found = sitePages().map((f) => ({
+    page: '/' + path.relative(ROOT, f),
+    tag: (fs.readFileSync(f, 'utf8').match(/<script[^>]*\/motion\.js[^>]*><\/script>/) || [])[0] || null,
+  }));
+  expect(found.length).toBe(15);                                    // a new page must be counted
+  expect(found.filter((f) => !f.tag).map((f) => f.page)).toEqual([]);            // none missing it
+  expect(found.filter((f) => !/\sdefer(\s|>|=)/.test(f.tag)).map((f) => f.page)).toEqual([]);
+});
 
 const PAGES = ['/index.html', '/services/back-rent/index.html', '/services/licensing/index.html',
   '/portal/index.html', '/faq/index.html'];
