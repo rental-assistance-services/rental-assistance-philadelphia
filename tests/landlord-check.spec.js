@@ -94,9 +94,36 @@ async function fillApplication(page) {
   }
 }
 
+/**
+ * Installed in every page: wait until the popup has stopped moving.
+ *
+ * Anything measured "at rest" needs this, and `Animation.finished` alone cannot give it:
+ * that promise REJECTS with AbortError the moment its animation is cancelled or replaced,
+ * and this popup cancels animations on purpose — showStep() strips `lc-enter` off every
+ * section and puts it back on the new one so the fade-up restarts. Awaiting the raw
+ * promises was therefore a race: sometimes the whole suite passed, and a serial run
+ * (`--workers=1`, or a single `-g`) failed on "AbortError: The user aborted a request."
+ * So a cancelled animation counts as stopped, and we look again once the ones we were
+ * waiting on are done — the animation that replaced them is waited on too, which a single
+ * snapshot of getAnimations() can never do.
+ */
+const AT_REST = () => {
+  window.lcAtRest = async (root) => {
+    for (let pass = 0; pass < 20; pass += 1) {
+      const going = (root ? root.getAnimations({ subtree: true }) : document.getAnimations())
+        .filter((a) => a.playState === 'running');
+      if (!going.length) return;
+      await Promise.all(going.map((a) => a.finished.catch(() => {})));   // cancelled = stopped
+    }
+  };
+};
+/** Wait for the whole page, or one element and its children, to stop moving. */
+const atRest = (target) => target.evaluate((el) => window.lcAtRest(el instanceof Element ? el : null));
+
 // The address box asks Photon for suggestions; tests never reach the real service. Tests
 // about suggestions register their own answer (a later route wins).
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(AT_REST);
   await page.route('https://photon.komoot.io/**', (route) => route.fulfill({
     status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
     body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
@@ -120,6 +147,20 @@ async function photonAnswers(page, features = PHOTON_FEATURES, { fail = false } 
   });
   return asked;
 }
+/**
+ * The text of one numbered section of /terms.html, e.g. termsSection(page, '7. Your information').
+ * Read from the heading to the next one, so a sentence that belongs in section 7 cannot pass by
+ * sitting anywhere else on the page.
+ */
+const termsSection = (page, heading) => page.evaluate((h) => {
+  const start = [...document.querySelectorAll('h2')].find((el) => el.textContent.trim().startsWith(h));
+  let out = '';
+  for (let el = start && start.nextElementSibling; el && el.tagName !== 'H2'; el = el.nextElementSibling) {
+    out += ' ' + el.textContent;
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}, heading);
+
 /** Landlord, at the homepage application's property step. */
 async function toPropertyStep(page) {
   await page.goto('/index.html');
@@ -317,6 +358,23 @@ test.describe('address suggestions', () => {
       expect(inp.x + inp.width).toBeLessThanOrEqual(size.width);                   // the input stays on screen
     });
   }
+
+  // The box hands what is typed to a third party, so the terms have to say so: section 7
+  // described submitted data as used to assess, file and contact, and nothing else.
+  test('the property address goes to Photon, and section 7 of the terms says so', async ({ page }) => {
+    const asked = await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    expect(asked.length, 'the address really is sent away as it is typed').toBeGreaterThan(0);
+    expect(asked[0]).toContain('photon.komoot.io');
+    const res = await page.goto('/terms.html');
+    expect(res.status()).toBe(200);
+    expect(await termsSection(page, '7. Your information')).toContain(
+      'As you type a property address into one of our forms, what you have typed is sent to Photon, '
+      + 'a free address-search service run by komoot, so it can offer matching addresses \u2014 you can '
+      + 'always ignore the suggestions and type the address out in full.');
+  });
 });
 
 /** Walk the homepage application to a named step, filling each section on the way. */
@@ -444,7 +502,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    await atRest(cal(page));
     const [b, i] = await Promise.all([page.getByRole('button', { name: 'Open calendar' }).boundingBox(), shown(page).boundingBox()]);
     expect(Math.abs((b.y + b.height / 2) - (i.y + i.height / 2))).toBeLessThan(2);    // centred on the input
     await cal(page).locator('[data-cal-month]').selectOption('8');                   // September, the longest
@@ -468,11 +526,11 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     const help = page.locator('.field:has(#tenant-movein) .help');
     const nextBtn = next(page);
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));   // step at rest
+    await atRest(page);   // step at rest
     const [h0, n0] = [await help.boundingBox(), await nextBtn.boundingBox()];
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    await atRest(cal(page));
     const [h1, n1] = [await help.boundingBox(), await nextBtn.boundingBox()];
     expect(h1.y).toBeCloseTo(h0.y, 0);                          // nothing below was pushed down
     expect(n1.y).toBeCloseTo(n0.y, 0);
@@ -494,7 +552,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await page.locator('[data-landlord-check]').evaluate((el) => { el.scrollTop = el.scrollHeight; });
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    await atRest(cal(page));
     const c = await cal(page).boundingBox(), row = await shown(page).boundingBox();
     const vh = page.viewportSize().height;
     expect(c.y + c.height).toBeLessThanOrEqual(vh);             // never cut off at the bottom
@@ -509,7 +567,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    await atRest(cal(page));
     const c = await cal(page).boundingBox();
     expect(c.width).toBeLessThanOrEqual(264);
     expect(c.x).toBeGreaterThanOrEqual(0);
@@ -692,6 +750,25 @@ test.describe('answers are kept for an hour', () => {
     await landlord(page).click();
     await expect(page.locator('#c-name')).toHaveValue('Marcus Reed');
     await expect(page.locator('#c-message')).toHaveValue('Tenant is four months behind.');
+  });
+
+  // What is kept is the visitor's name, email, phone and the property address, on what may
+  // be a shared computer. The popup says so as it restores; the terms had not.
+  test('the draft holds personal answers, and section 7 of the terms says so', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await SECTION_FILL['About you (the owner)'](page);
+    await next(page).click();
+    await SECTION_FILL['The property'](page);
+    await expect.poll(async () => (await draft(page))?.values?.property_address).toBe('1932 N 5th St');
+    expect(await draft(page)).toMatchObject({ values: { owner_name: 'Marcus Reed',
+      owner_email: 'landlord@example.com', owner_phone: '(215) 555-0123' } });
+    const res = await page.goto('/terms.html');
+    expect(res.status()).toBe(200);
+    expect(await termsSection(page, '7. Your information')).toContain(
+      'So you can finish later, the form keeps what you have typed in your own browser for one hour '
+      + 'after your last change \u2014 that copy stays on your device, is sent nowhere, and is cleared '
+      + 'after the hour, when you submit, or when you press Start over.');
   });
 });
 
@@ -1001,7 +1078,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(confirm).toBeFocused();                       // Tab lands in it
     // the card hugs its content: no blank band under the input (an inline input's text-line
     // space and a hidden message's paragraph margin each used to leave one)
-    await page.locator('.lc-confirm').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    await atRest(page.locator('.lc-confirm'));
     const gap = await page.locator('.lc-confirm').evaluate((box) =>
       box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom);
     expect(gap).toBeLessThanOrEqual(12);
@@ -1092,7 +1169,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // ...on the same line as the label text: the label does not grow, so the input below it
     // does not jump (an earlier version dropped the check below the text and grew it ~11px)
     expect((await labelBox()).h).toBeCloseTo(before.h, 1);
-    await req.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));   // measure at rest
+    await atRest(req);   // measure at rest
     const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
     expect(rq.y + rq.height).toBeLessThanOrEqual(lb.y + lb.height + 0.5);
     // an optional field has no asterisk, so its check appears after the label
@@ -1124,7 +1201,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     const samples = await page.evaluate(async () => {
       // Let the step's own fade-up (a 10px slide) finish first, or the "before" reading is
       // taken mid-slide and already looks like "after".
-      await Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {})));
+      await window.lcAtRest();
       const msg = document.querySelector('.field:has(#owner-phone) > .errmsg');
       const below = document.querySelector('#owner-units');
       // y is measured inside the dialog: the dialog re-centres itself as it grows, so a
@@ -1140,7 +1217,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
         out.push(read());
       }
       // A busy machine can run late; the end state is read once the transitions really finish.
-      await Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {})));
+      await window.lcAtRest();
       out.push(read());
       const s = getComputedStyle(msg);
       return { out, timing: s.transitionTimingFunction, duration: s.transitionDuration };
@@ -1175,7 +1252,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // Read at rest: border colours ease over 150ms, and a read at the start of that easing
     // still shows the PREVIOUS colour — enough to pass a wrong colour.
     const st = (loc) => loc.evaluate(async (el) => {
-      await Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {})));
+      await window.lcAtRest(el);
       const s = getComputedStyle(el);
       return { bg: s.backgroundColor, bw: s.borderTopWidth, r: s.borderTopLeftRadius, bc: s.borderTopColor };
     });
@@ -1463,7 +1540,7 @@ test.describe('on a phone', () => {
     await page.goto('/index.html');
     await expect(dialog(page)).toBeVisible();
     // The sheet slides up from below over 350ms; measure where it comes to rest, not mid-slide.
-    await dialog(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    await atRest(dialog(page));
     const box = await dialog(page).boundingBox();
     expect(Math.round(box.y + box.height)).toBe(844);  // sits on the bottom edge
     expect(box.y).toBeGreaterThan(844 * 0.3);           // the top of the page stays in view
