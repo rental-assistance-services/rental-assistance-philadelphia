@@ -1079,9 +1079,12 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // the card hugs its content: no blank band under the input (an inline input's text-line
     // space and a hidden message's paragraph margin each used to leave one)
     await atRest(page.locator('.lc-confirm'));
-    const gap = await page.locator('.lc-confirm').evaluate((box) =>
-      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom);
-    expect(gap).toBeLessThanOrEqual(12);
+    // Polled, not read once. `atRest` returns when nothing is running, but the card can start
+    // moving again a frame later — the popup cancels and restarts its own animations — and a
+    // single read taken in that frame is an honest measurement of the wrong moment.
+    await expect.poll(() => page.locator('.lc-confirm').evaluate((box) =>
+      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom))
+      .toBeLessThanOrEqual(12);
     // a typo is flagged as soon as it can no longer match
     await confirm.pressSequentially('landlord@exampel');
     await expect(cmsg).toBeVisible();
@@ -1170,8 +1173,13 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // does not jump (an earlier version dropped the check below the text and grew it ~11px)
     expect((await labelBox()).h).toBeCloseTo(before.h, 1);
     await atRest(req);   // measure at rest
-    const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
-    expect(rq.y + rq.height).toBeLessThanOrEqual(lb.y + lb.height + 0.5);
+    // Polled for the same reason: the check icon fading in can still be mid-flight when the
+    // two boxes are read, and its bottom then reads higher than where it comes to rest. The
+    // value polled is how far the check hangs below the label, so a failure says by how much.
+    await expect.poll(async () => {
+      const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
+      return (rq.y + rq.height) - (lb.y + lb.height);
+    }).toBeLessThanOrEqual(0.5);
     // an optional field has no asterisk, so its check appears after the label
     await page.locator('#owner-entity').pressSequentially('Reed Property Group LLC');
     const after = await page.locator('label[for="owner-entity"]')
