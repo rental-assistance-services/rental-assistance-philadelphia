@@ -361,7 +361,7 @@
           panel.className = 'callout on-ink'; panel.setAttribute('role','status'); panel.style.marginTop = '8px';
           panel.innerHTML = '<h3 style="margin:0 0 8px;color:#fff;">Thanks &mdash; we&rsquo;ve got it.</h3>'
             + '<p style="color:#B7C3D6;">We review your details, usually within one business day, and tell you straight whether the City will likely pay. '
-            + 'Prefer to talk? Call <a href="tel:+12154026882" style="color:var(--brass);">(215) 402-6882</a>.</p>';
+            + 'Prefer to talk? Call <a href="tel:+12154026882" style="color:var(--blue-bright);">(215) 402-6882</a>.</p>';
           contactForm.parentNode.insertBefore(panel, contactForm);
           contactForm.style.display = 'none';
           panel.scrollIntoView({behavior:'smooth', block:'center'});

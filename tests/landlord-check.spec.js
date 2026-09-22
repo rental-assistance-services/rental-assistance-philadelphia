@@ -444,7 +444,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
     const [b, i] = await Promise.all([page.getByRole('button', { name: 'Open calendar' }).boundingBox(), shown(page).boundingBox()]);
     expect(Math.abs((b.y + b.height / 2) - (i.y + i.height / 2))).toBeLessThan(2);    // centred on the input
     await cal(page).locator('[data-cal-month]').selectOption('8');                   // September, the longest
@@ -459,7 +459,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
       return need <= el.clientWidth + 0.5;
     }));
     expect(fits).toEqual([true, true]);
-    // and they still read as dropdowns: the brass chevron is showing
+    // and they still read as dropdowns: the blue chevron is showing
     const chevrons = await cal(page).locator('.lc-cal-sel').evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundImage));
     chevrons.forEach((bg) => expect(bg).toContain('svg'));
   });
@@ -468,11 +468,11 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     const help = page.locator('.field:has(#tenant-movein) .help');
     const nextBtn = next(page);
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));   // step at rest
+    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));   // step at rest
     const [h0, n0] = [await help.boundingBox(), await nextBtn.boundingBox()];
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
     const [h1, n1] = [await help.boundingBox(), await nextBtn.boundingBox()];
     expect(h1.y).toBeCloseTo(h0.y, 0);                          // nothing below was pushed down
     expect(n1.y).toBeCloseTo(n0.y, 0);
@@ -494,7 +494,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await page.locator('[data-landlord-check]').evaluate((el) => { el.scrollTop = el.scrollHeight; });
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
     const c = await cal(page).boundingBox(), row = await shown(page).boundingBox();
     const vh = page.viewportSize().height;
     expect(c.y + c.height).toBeLessThanOrEqual(vh);             // never cut off at the bottom
@@ -509,7 +509,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     await page.getByRole('button', { name: 'Open calendar' }).click();
     await expect(cal(page)).toBeVisible();
-    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await cal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
     const c = await cal(page).boundingBox();
     expect(c.width).toBeLessThanOrEqual(264);
     expect(c.x).toBeGreaterThanOrEqual(0);
@@ -1001,7 +1001,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(confirm).toBeFocused();                       // Tab lands in it
     // the card hugs its content: no blank band under the input (an inline input's text-line
     // space and a hidden message's paragraph margin each used to leave one)
-    await page.locator('.lc-confirm').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await page.locator('.lc-confirm').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
     const gap = await page.locator('.lc-confirm').evaluate((box) =>
       box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom);
     expect(gap).toBeLessThanOrEqual(12);
@@ -1092,7 +1092,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // ...on the same line as the label text: the label does not grow, so the input below it
     // does not jump (an earlier version dropped the check below the text and grew it ~11px)
     expect((await labelBox()).h).toBeCloseTo(before.h, 1);
-    await req.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));   // measure at rest
+    await req.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));   // measure at rest
     const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
     expect(rq.y + rq.height).toBeLessThanOrEqual(lb.y + lb.height + 0.5);
     // an optional field has no asterisk, so its check appears after the label
@@ -1124,7 +1124,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     const samples = await page.evaluate(async () => {
       // Let the step's own fade-up (a 10px slide) finish first, or the "before" reading is
       // taken mid-slide and already looks like "after".
-      await Promise.all(document.getAnimations().map((a) => a.finished));
+      await Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {})));
       const msg = document.querySelector('.field:has(#owner-phone) > .errmsg');
       const below = document.querySelector('#owner-units');
       // y is measured inside the dialog: the dialog re-centres itself as it grows, so a
@@ -1140,7 +1140,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
         out.push(read());
       }
       // A busy machine can run late; the end state is read once the transitions really finish.
-      await Promise.all(document.getAnimations().map((a) => a.finished));
+      await Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {})));
       out.push(read());
       const s = getComputedStyle(msg);
       return { out, timing: s.transitionTimingFunction, duration: s.transitionDuration };
@@ -1168,14 +1168,14 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(stepAnim).toEqual(['lc-up', '0.35s', 'ease-in']);
   });
 
-  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, brass focus, red error', async ({ page }) => {
+  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, blue focus, red error', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     const name = page.locator('#owner-name');
     // Read at rest: border colours ease over 150ms, and a read at the start of that easing
     // still shows the PREVIOUS colour — enough to pass a wrong colour.
     const st = (loc) => loc.evaluate(async (el) => {
-      await Promise.all(el.getAnimations().map((a) => a.finished));
+      await Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {})));
       const s = getComputedStyle(el);
       return { bg: s.backgroundColor, bw: s.borderTopWidth, r: s.borderTopLeftRadius, bc: s.borderTopColor };
     });
@@ -1187,7 +1187,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(idle.bw).toBe(ref.bw);
     expect(idle.r).toBe(ref.r);
     await name.focus();
-    await expect.poll(async () => (await st(name)).bc).toBe('rgb(200, 162, 74)');   // brass
+    await expect.poll(async () => (await st(name)).bc).toBe('rgb(42, 91, 215)');   // blue
     await page.locator('#owner-email').pressSequentially('nope');
     await expect.poll(async () => (await st(page.locator('#owner-email'))).bc).toBe('rgb(180, 67, 47)'); // red, like its message
     // ...and still red after leaving the field (the page's own rule would paint it gold)
@@ -1337,9 +1337,10 @@ test.describe('the question in front of each form opens the popup', () => {
   test('a blog page hands a landlord to the homepage application, already open in the popup', async ({ page }) => {
     await page.goto('/blog/eviction-diversion-program/index.html');
     await landlord(page).click();
-    await page.waitForURL(/\/#apply$/);
+    await page.waitForURL((u) => u.pathname === '/' && !u.hash);   // the top of the homepage
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
     expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator('#intake-form input[name="visitor_role"]')).toHaveValue('landlord');
   });
 });
@@ -1414,9 +1415,15 @@ test.describe('Apply links open the popup instead of scrolling to the form', () 
     await page.locator('a.btn[href="/#apply"]').first().evaluate((a) => a.click());
     await expect(dialog(page)).toBeVisible();
     await landlord(page).click();
-    await page.waitForURL(/\/#apply$/);
+    // The homepage's top, not /#apply: the hash made the browser jump the page down to the form
+    // section, so the popup opened over the bottom of the page and closing it left you there.
+    await page.waitForURL((u) => u.pathname === '/' && !u.hash);
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
     expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(popup(page)).toHaveCount(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);   // still at the top once it closes
   });
 
   test('a returning landlord skips "own or rent?" and lands on the application', async ({ page }) => {
@@ -1456,7 +1463,7 @@ test.describe('on a phone', () => {
     await page.goto('/index.html');
     await expect(dialog(page)).toBeVisible();
     // The sheet slides up from below over 350ms; measure where it comes to rest, not mid-slide.
-    await dialog(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await dialog(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
     const box = await dialog(page).boundingBox();
     expect(Math.round(box.y + box.height)).toBe(844);  // sits on the bottom edge
     expect(box.y).toBeGreaterThan(844 * 0.3);           // the top of the page stays in view

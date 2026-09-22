@@ -23,59 +23,47 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Public+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<script src="/motion.js"></script>
 <style>
-:root{
-  --ink:#11161C; --navy:#14233A; --navy-2:#1B3050; --navy-3:#0E1A2C;
-  --paper:#F6F1E7; --paper-2:#EFE7D6; --paper-3:#FBF7EE;
-  --brass:#C8A24A; --brass-2:#A9853A; --brass-soft:#E8D9B4;
-  --green:#2F9E5E; --green-deep:#207044; --green-soft:#DDEFE3;
-  --hairline:rgba(20,35,58,.20); --muted:#4C5667; --muted-2:#6A7384;
-  --shadow-sm:0 1px 2px rgba(20,35,58,.06), 0 2px 8px rgba(20,35,58,.05);
-  --shadow-md:0 2px 4px rgba(20,35,58,.07), 0 14px 40px rgba(20,35,58,.10);
-  --maxw:1140px; --rad:14px;
-  --serif:"Fraunces", Georgia, "Times New Roman", serif;
-  --sans:"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --mono:"Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --ease:cubic-bezier(.22,.61,.36,1);
-}
 *{box-sizing:border-box;}
 html{scroll-behavior:smooth;}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.62;font-size:17px;}
 h1,h2,h3{font-family:var(--serif);color:var(--navy);letter-spacing:-.012em;font-weight:560;margin:0 0 .5em;line-height:1.14;}
 h1{font-size:clamp(2.1rem,4.6vw,3.2rem);}
 p{margin:0 0 1em;}
-a{color:var(--brass-2);}
+a{color:var(--blue-2);}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
-.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--brass-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
-.eyebrow::before{content:"";width:26px;height:1px;background:var(--brass);display:inline-block;}
+.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--blue-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--blue);display:inline-block;}
 .topbar{background:var(--navy-3);color:#fff;}
 .topbar .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:14px;padding-bottom:14px;gap:16px;}
 .brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-weight:560;font-size:1.05rem;color:#fff;text-decoration:none;}
 .topbar .tel{color:#fff;text-decoration:none;font-weight:600;font-size:1.02rem;white-space:nowrap;}
-.topbar .tel span{color:var(--brass-soft);font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;display:block;font-weight:500;}
+.topbar .tel span{color:var(--blue-soft);font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;display:block;font-weight:500;}
 .arthead{background:linear-gradient(180deg,var(--paper-3),var(--paper));border-bottom:1px solid var(--hairline);padding:46px 0 40px;}
 .arthead .lead{font-size:1.16rem;color:var(--muted);max-width:60ch;}
 .listing{padding:46px 0;}
 .g{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;}
-.card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:26px;box-shadow:var(--shadow-sm);text-decoration:none;display:block;transition:transform .2s var(--ease),box-shadow .2s var(--ease);}
+.card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:26px;box-shadow:var(--shadow-sm);text-decoration:none;display:block;transition:transform .35s var(--ease),box-shadow .35s var(--ease);}
 .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);}
-.card .tag{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--brass-2);font-weight:600;}
+.card .tag{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-2);font-weight:600;}
 .card h3{margin:10px 0 8px;font-size:1.28rem;}
 .card p{margin:0;color:var(--muted);font-size:.97rem;}
 .card.feature{grid-column:1 / -1;background:var(--navy);}
-.card.feature .tag{color:var(--brass);}
+.card.feature .tag{color:var(--blue-bright);}
 .card.feature h3,.card.feature p{color:#fff;}
 .card.feature p{color:#B7C3D6;}
 .cta-band{background:var(--navy);color:#fff;padding:58px 0;text-align:center;}
 .cta-band h2{color:#fff;}
 .cta-band p{color:#B7C3D6;max-width:48ch;margin:0 auto;}
 .cta-actions{margin-top:24px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
-.btn-solid{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:10px;background:linear-gradient(180deg,var(--brass),var(--brass-2));color:#1a1205;font-weight:700;font-size:1rem;text-decoration:none;}
-.btn-ghost{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;border:1.5px solid var(--brass);background:transparent;color:#fff;font-weight:700;font-size:1rem;text-decoration:none;}
+.btn-solid{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:10px;background:linear-gradient(180deg,var(--blue),var(--blue-2));color:#FFFFFF;font-weight:700;font-size:1rem;text-decoration:none;}
+.btn-ghost{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;border:1.5px solid var(--blue);background:transparent;color:#fff;font-weight:700;font-size:1rem;text-decoration:none;}
 footer{background:var(--navy-3);color:#9FB0C6;padding:40px 0 30px;font-size:.9rem;}
 footer .ftop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:20px;align-items:center;margin-bottom:22px;}
 footer .fbrand{display:flex;align-items:center;gap:11px;font-family:var(--serif);color:#fff;font-size:1.05rem;}
-footer a{color:var(--brass-soft);}
+footer a{color:var(--blue-soft);}
 .foot-legal{border-top:1px solid rgba(255,255,255,.12);padding-top:20px;line-height:1.6;}
 .foot-legal strong{color:#C7D2E2;}
 @media(max-width:880px){ .g{grid-template-columns:1fr;} }
@@ -89,13 +77,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="wrap">
     <a class="brand" href="https://rentalassistanceservices.com/">
       <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="30" height="30" rx="8" fill="#0E1A2C"/>
-        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#C8A24A" stroke-width="1.4"/>
-        <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#C8A24A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="1" y="1" width="30" height="30" rx="8" fill="#081735"/>
+        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#7EA3FF" stroke-width="1.4"/>
+        <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#7EA3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       Rental Assistance Philadelphia
     </a>
-    <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;"><a href="/tenants/" style="color:#E8D9B4;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap;">Are you a tenant?</a><a class="tel" href="tel:+12154026882"><span>Speak with us</span>(215) 402-6882</a></span>
+    <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;"><a href="/tenants/" style="color:#DCE6FB;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap;">Are you a tenant?</a><a class="tel" href="tel:+12154026882"><span>Speak with us</span>(215) 402-6882</a></span>
   </div>
 </div>
 
@@ -160,9 +148,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="ftop">
       <div class="fbrand">
         <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect x="1" y="1" width="30" height="30" rx="8" fill="#0E1A2C"/>
-          <rect x="1" y="1" width="30" height="30" rx="8" stroke="#C8A24A" stroke-width="1.4"/>
-          <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#C8A24A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="1" y="1" width="30" height="30" rx="8" fill="#081735"/>
+          <rect x="1" y="1" width="30" height="30" rx="8" stroke="#7EA3FF" stroke-width="1.4"/>
+          <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#7EA3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Rental Assistance Philadelphia
       </div>

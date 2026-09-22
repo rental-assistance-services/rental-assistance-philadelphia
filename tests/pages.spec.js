@@ -58,8 +58,12 @@ for (const url of ['/index.html', '/services/back-rent/index.html']) {
           const sv = c.querySelector('.sv'), rg = document.createRange();
           rg.selectNodeContents(sv);
           const cr = c.getBoundingClientRect(), tr = rg.getBoundingClientRect();
+          // Lines, not rects: a number that counts up is its own <span>, so one line of text is
+          // several rects. Rects whose tops sit within 10px of each other share a line.
+          const tops = [...rg.getClientRects()].map((r) => r.top).sort((a, b) => a - b);
+          const lines = tops.filter((t, i) => i === 0 || t - tops[i - 1] > 10).length;
           return { text: sv.textContent, startsRow: Math.abs(cr.left - row.left) < 2,
-            gap: Math.round(tr.left - cr.left), lines: rg.getClientRects().length };
+            gap: Math.round(tr.left - cr.left), lines };
         });
       });
       for (const c of cells) {

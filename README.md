@@ -64,7 +64,7 @@ when the visitor leaves the field or presses Next.
   refuses paste, drop and browser / password-manager autofill, so it is a genuine second
   typing. Next / submit stay held until the two match and the email shows "Verified".
 Inside the popup, inputs use the site's control style (white, 1.5px border, 10px corners,
-brass focus, red error) and error messages fade up over 350ms while opening their own space.
+blue focus, red error) and error messages fade up over 350ms while opening their own space.
 
 **Address suggestions.** The property-address box suggests real addresses as the visitor
 types (3+ characters), from **Photon** (`photon.komoot.io`, free, no key, OpenStreetMap data —
@@ -79,7 +79,7 @@ full address yourself." on its own when nothing matches, Photon is down, or it h
 within 2.5s. What the visitor types is sent to Photon as they type.
 
 **Uploads and the date, in the site's style.** Each document upload is a drop box (white card,
-gold dashed border, "Drag a file here or browse", the accepted types and the 15MB limit); a chosen
+blue dashed border, "Drag a file here or browse", the accepted types and the 15MB limit); a chosen
 file shows its name, size and Remove, and a wrong type or oversize file is refused on the spot.
 The real `<input type="file">` is stretched invisibly over the box, so clicking and dropping are
 native and the form submits exactly as before. The move-in date is a text box that formats as
@@ -115,6 +115,36 @@ page — the five main pages, `/back-rent/` and every `/blog/` page. **Add that 
 page.** It is deliberately *not* on `/tenants/` or `/terms.html`. On phones it is a bottom
 sheet rather than a full-screen takeover, because Google penalises interstitials that hide
 the page a searcher just landed on.
+
+## Design and motion — global, in two files
+
+**Every page links `/theme.css` and `/motion.js` first** (in `<head>`, before `/site.css` or the
+page's own `<style>`). Add both lines to any new page.
+
+- **`/theme.css`** holds the design tokens for the whole site — the palette, type, shadows, radius
+  and the one motion timing, `--dur: 350ms` — plus the page motion. Change a colour or a timing
+  there, not in a page. A page's own `<style>` only overrides the odd token it genuinely needs
+  different (`/tenants/` is narrower, `/terms.html` uses the lighter paper).
+- **Palette:** two colours — premium blue (navy `--navy` for dark bands, royal `--blue` for every
+  accent, `--blue-2` for text/links on paper, `--blue-bright` for accents on navy) on the warm light
+  paper (`--paper`). Green is kept only for "this went right": a field that passes, a submitted
+  form, a paid case.
+- **Motion, all 350ms:** a page fades in when it opens or reloads; a link is followed at once
+  (nothing waits on an animation), and where the browser supports cross-document view transitions
+  the pages cross-fade with the top bar held still; the top menu's highlight **slides** from the
+  page you left to the one you clicked as it opens (hover never moves it);
+  sections rise in as they scroll into view; the phone menu and FAQ answers open and close; the
+  popup opens and closes (it closes by fading a still copy of itself, kept in a closed shadow root
+  so nothing can select it, while the real form goes straight back to the page).
+- **The form's look is shared too.** The "landlord or tenant?" choice cards (house / key icon, an
+  arrow that slides on hover), the gate in front of each form and the tenant panel are defined once
+  in `/theme.css` and used by the page gates, `/back-rent/` and the popup alike. The popup's own
+  styles (`/landlord-check.js`) build on the same tokens: a navy header like the homepage's
+  "What you can collect" card with a glowing progress bar, 22px corners, the site's blue gradient
+  and ghost buttons, and inputs whose corners match the choice cards.
+- **CountUp** (`/motion.js`): a plain-JS port of React Bits' `<CountUp />` — same props as data
+  attributes, same spring. The markup keeps the final number, so without JS it is simply there:
+  `$<span data-count-up data-to="3500" data-separator="," data-duration="1">3,500</span>`.
 
 ## Run it locally
 
