@@ -143,6 +143,20 @@ async function photonAnswers(page, features = PHOTON_FEATURES, { fail = false } 
   });
   return asked;
 }
+/**
+ * The text of one numbered section of /terms.html, e.g. termsSection(page, '7. Your information').
+ * Read from the heading to the next one, so a sentence that belongs in section 7 cannot pass by
+ * sitting anywhere else on the page.
+ */
+const termsSection = (page, heading) => page.evaluate((h) => {
+  const start = [...document.querySelectorAll('h2')].find((el) => el.textContent.trim().startsWith(h));
+  let out = '';
+  for (let el = start && start.nextElementSibling; el && el.tagName !== 'H2'; el = el.nextElementSibling) {
+    out += ' ' + el.textContent;
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}, heading);
+
 /** Landlord, at the homepage application's property step. */
 async function toPropertyStep(page) {
   await page.goto('/index.html');
@@ -340,6 +354,23 @@ test.describe('address suggestions', () => {
       expect(inp.x + inp.width).toBeLessThanOrEqual(size.width);                   // the input stays on screen
     });
   }
+
+  // The box hands what is typed to a third party, so the terms have to say so: section 7
+  // described submitted data as used to assess, file and contact, and nothing else.
+  test('the property address goes to Photon, and section 7 of the terms says so', async ({ page }) => {
+    const asked = await photonAnswers(page);
+    await toPropertyStep(page);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    await expect(options(page)).toHaveCount(3);
+    expect(asked.length, 'the address really is sent away as it is typed').toBeGreaterThan(0);
+    expect(asked[0]).toContain('photon.komoot.io');
+    const res = await page.goto('/terms.html');
+    expect(res.status()).toBe(200);
+    expect(await termsSection(page, '7. Your information')).toContain(
+      'As you type a property address into one of our forms, what you have typed is sent to Photon, '
+      + 'a free address-search service run by komoot, so it can offer matching addresses \u2014 you can '
+      + 'always ignore the suggestions and type the address out in full.');
+  });
 });
 
 /** Walk the homepage application to a named step, filling each section on the way. */
