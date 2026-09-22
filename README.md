@@ -145,6 +145,14 @@ page's own `<style>`). Add both lines to any new page.
 - **CountUp** (`/motion.js`): a plain-JS port of React Bits' `<CountUp />` — same props as data
   attributes, same spring. The markup keeps the final number, so without JS it is simply there:
   `$<span data-count-up data-to="3500" data-separator="," data-duration="1">3,500</span>`.
+- **The hero and the fold.** `.hero` is `min-height: calc(100svh - 76px)`, so from about 1024px
+  wide up it comes to rest on the fold: measured, its bottom sits 0.56px past the window at
+  1024, 1280, 1440 and 1920 — a sub-pixel, not a scroll. Narrower than that the two columns
+  stack and it runs past the fold, as it did before the revamp: measured 261px past at
+  1000×800, 28px at 768×1024 and 388px at 390×844. It does **not** fit one screen at every
+  size, and the narrow sizes are not an improvement on the old hero, which fit at 768×1024
+  and ran 329px past at 390×844. Sizes measured in Chromium against this branch and against
+  `6eaac53`.
 
 ## Run it locally
 
