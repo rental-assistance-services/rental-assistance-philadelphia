@@ -747,6 +747,25 @@ test.describe('answers are kept for an hour', () => {
     await expect(page.locator('#c-name')).toHaveValue('Marcus Reed');
     await expect(page.locator('#c-message')).toHaveValue('Tenant is four months behind.');
   });
+
+  // What is kept is the visitor's name, email, phone and the property address, on what may
+  // be a shared computer. The popup says so as it restores; the terms had not.
+  test('the draft holds personal answers, and section 7 of the terms says so', async ({ page }) => {
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await SECTION_FILL['About you (the owner)'](page);
+    await next(page).click();
+    await SECTION_FILL['The property'](page);
+    await expect.poll(async () => (await draft(page))?.values?.property_address).toBe('1932 N 5th St');
+    expect(await draft(page)).toMatchObject({ values: { owner_name: 'Marcus Reed',
+      owner_email: 'landlord@example.com', owner_phone: '(215) 555-0123' } });
+    const res = await page.goto('/terms.html');
+    expect(res.status()).toBe(200);
+    expect(await termsSection(page, '7. Your information')).toContain(
+      'So you can finish later, the form keeps what you have typed in your own browser for one hour '
+      + 'after your last change \u2014 that copy stays on your device, is sent nowhere, and is cleared '
+      + 'after the hour, when you submit, or when you press Start over.');
+  });
 });
 
 test.describe('where it opens by itself', () => {
