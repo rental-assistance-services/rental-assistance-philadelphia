@@ -14,6 +14,10 @@
  * they competed with each other for the exact query the ads pay for. /services/back-rent/ is the
  * canonical page; /back-rent/ points at it and is out of the sitemap.
  *
+ * Handing the query over only works if everything else follows it. The Service and
+ * BreadcrumbList structured data from #1 stayed on /back-rent/, where search engines no longer
+ * read it, and eleven links in the blog still sent readers and link equity to the old address.
+ *
  * The page list is read off disk, so a page added later is covered without anyone having to
  * remember this file. There is no build step here: the file on disk is the file that is served.
  */
@@ -104,3 +108,53 @@ test('no two pages in the sitemap point at one canonical page', async ({ request
     .map(([target, urls]) => `${urls.join(' and ')} both point at ${target}`);
   expect(competing, 'two sitemap entries are competing for one page').toEqual([]);
 });
+
+const CANONICAL = 'https://rentalassistanceservices.com/services/back-rent/';
+
+/** The page's canonical link and its JSON-LD blocks, parsed. A block that is not JSON throws. */
+async function readHead(page, url) {
+  await page.goto(url);
+  const head = await page.evaluate(() => ({
+    canonical: document.querySelector('link[rel="canonical"]')?.href ?? null,
+    blocks: [...document.querySelectorAll('script[type="application/ld+json"]')].map((s) => s.textContent),
+  }));
+  return { canonical: head.canonical, schema: head.blocks.map((text) => JSON.parse(text)) };
+}
+
+test('the structured data is on the canonical back-rent page, and only there', async ({ page }) => {
+  const canonicalPage = await readHead(page, '/services/back-rent/index.html');
+  expect(canonicalPage.canonical, '/services/back-rent/ no longer canonicalises to itself').toBe(CANONICAL);
+
+  const services = canonicalPage.schema.filter((s) => s['@type'] === 'Service');
+  expect(services.length, '/services/back-rent/ must carry exactly one Service block').toBe(1);
+  expect(services[0]['@id']).toBe(`${CANONICAL}#service`);
+  expect(services[0].url).toBe(CANONICAL);
+
+  const crumbs = canonicalPage.schema.filter((s) => s['@type'] === 'BreadcrumbList');
+  expect(crumbs.length, '/services/back-rent/ must carry exactly one BreadcrumbList block').toBe(1);
+  expect(crumbs[0].itemListElement.at(-1).item, 'the last breadcrumb must be the page itself').toBe(CANONICAL);
+
+  // Moved, not copied: the old page canonicalises away, so a copy there would be a second
+  // Service entity that search engines are told not to read.
+  const oldPage = await readHead(page, '/back-rent/index.html');
+  expect(oldPage.canonical).toBe(CANONICAL);
+  expect(oldPage.schema, '/back-rent/ still carries structured data').toEqual([]);
+});
+
+const blogPages = sitePages().filter((url) => url.startsWith('/blog/'));
+
+test('the blog is still read off disk', () => {
+  expect(blogPages.length, 'no blog pages found').toBeGreaterThan(1);
+});
+
+for (const url of blogPages) {
+  test(`${url}: links to the canonical back-rent page, not the old one`, async ({ page }) => {
+    await page.goto(url);
+    // Resolved by the browser, so a relative, absolute or #fragment link to the old page counts.
+    const old = await page.$$eval('a[href]', (links) => links
+      .map((a) => new URL(a.href))
+      .filter((u) => u.pathname === '/back-rent' || u.pathname.startsWith('/back-rent/'))
+      .map((u) => u.href));
+    expect(old, `${url} links to /back-rent/; point it at /services/back-rent/`).toEqual([]);
+  });
+}
