@@ -253,6 +253,22 @@ def main() -> int:
         print(f"{lid} {lcommit}")
         return 0
 
+    # Decided from the live deployment alone, before the listing, so that a target which
+    # is not among the last 25 deployments cannot turn "superseded" into "no target":
+    # first "the target is already live", then "a newer deployment took over".
+    if (a.to and ID_RE.fullmatch(a.to) and lid.startswith(a.to)) or (a.to_commit and lcommit == a.to_commit):
+        say(f"the target is already live ({lid}, {lcommit[:7] or 'no commit recorded'}); nothing to do")
+        return 8
+    if a.only_if_live_commit:
+        if not lcommit:
+            say(f"::error::cannot read which commit production serves ({lid}), so whether a newer "
+                "deployment took over is unknown; nothing switched")
+            return 1
+        if lcommit != a.only_if_live_commit:
+            say(f"production now serves {lcommit[:7]}, not {a.only_if_live_commit[:7]}: a newer deployment "
+                "took over, so nothing is switched")
+            return 7
+
     listing = api("GET", f"{a.project}/deployments?env=production&per_page=25")
     if not listing.get("success") or not isinstance(listing.get("result"), list):
         say(f"::error::cannot list the production deployments of {a.project}: {errors(listing)}")
@@ -303,15 +319,6 @@ def main() -> int:
     if tid == lid:
         say("the target is already live; nothing to do")
         return 8
-    if a.only_if_live_commit:
-        if not lcommit:
-            say(f"::error::cannot read which commit production serves ({lid}), so whether a newer "
-                "deployment took over is unknown; nothing switched")
-            return 1
-        if lcommit != a.only_if_live_commit:
-            say(f"production now serves {lcommit[:7]}, not {a.only_if_live_commit[:7]}: a newer deployment "
-                "took over, so nothing is switched")
-            return 7
     if not tcommit:
         say(f"::error::{tid} records no commit, so it cannot be verified; refusing")
         return 1

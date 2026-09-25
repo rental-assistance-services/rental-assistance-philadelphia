@@ -331,7 +331,7 @@ jobs:
             esac
             T="🔴 RAS site: ${C} ${WHY}. ${W}"
           elif [ "$VERDICT" = "approval-unknown" ]; then
-            T="🟠 RAS site: ${C} is live, but ${WHY}. Not rolled back. Re-run this job; if it stays unknown, an approver reviews what went live and runs action=accept, or reverts it."
+            T="🟠 RAS site: ${C} is live, but ${WHY}. Not rolled back. Re-run this job; if it stays unknown, an approver reviews what went live and runs action=accept (if it must go: revert it, then accept the revert)."
           elif [ "$VERDICT" = "unreachable" ]; then
             T="🟠 RAS site: ${C} ${WHY}; not rolled back (no answer is not evidence). Check it now."
           elif [ "$VERDICT" = "public-only" ]; then
@@ -380,7 +380,7 @@ jobs:
           if [ -z "$live" ] || [ -z "$main_sha" ]; then
             problems+=("could not read the live commit or main's head")
           elif [ "$live" != "$main_sha" ]; then
-            problems+=("production serves ${live:0:7} but main is ${main_sha:0:7}: a rollback is in place (fix main with a revert pull request) or a Cloudflare build failed")
+            problems+=("production serves ${live:0:7} but main is ${main_sha:0:7}: a rollback is in place (fix main with a revert pull request; after an unapproved commit an approver then accepts the revert) or a Cloudflare build failed")
           fi
           # Anything live that nobody approved, including a push that skipped CI. A
           # genuine verified marker settles it; otherwise the gate walks it again.
@@ -390,7 +390,7 @@ jobs:
             if [ "$vrc" != "0" ]; then
               verdict=$(EVENT=push SHA="$live" BASE_COMMIT="$VERIFIED_SINCE" python3 .github/scripts/deploy_gate.py | sed -nE 's/^approved=([a-z]+):.*/\1/p')
               if [ "$verdict" != "true" ]; then
-                problems+=("the live commit ${live:0:7} was never verified and its approval is '${verdict:-unknown}': an approver reviews it and runs action=accept, or reverts it")
+                problems+=("the live commit ${live:0:7} was never verified and its approval is '${verdict:-unknown}': an approver reviews it and runs action=accept, or reverts it and then accepts the revert (a revert alone does not end the check walking past it)")
               fi
             fi
           fi
@@ -555,6 +555,12 @@ jobs:
           python3 deploy/pages_switch.py --project "$PAGES_PROJECT" --to-commit "$WANT" --dry-run \
             --check "bash deploy/check-live.sh --release" || rc=$?
           [ "$rc" = "0" ] || [ "$rc" = "8" ] || { echo "::error::no deployment of ${WANT:0:7} passes its own check (exit ${rc}); not accepting it"; exit 1; }
+          # 8 = that commit is what production serves, answered before any check ran: check it here.
+          if [ "$rc" = "8" ]; then
+            rc=0
+            bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$WANT" || rc=$?
+            [ "$rc" = "0" ] || { echo "::error::${WANT:0:7} is live but does not pass its check (exit ${rc}); not accepting it"; exit 1; }
+          fi
           echo "commit=${WANT}" >> "$GITHUB_OUTPUT"
       # Named for the commit on purpose: deploy_gate.py trusts the marker only when
       # this run has a successful step named exactly "Mark <commit> verified".

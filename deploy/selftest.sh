@@ -114,6 +114,12 @@ expect_refused "a config.env line changing PATH" bash "$d/deploy/config-check.sh
 d=$(scratch); sed -i.bak 's#^PAGES_URL=.*#PAGES_URL=https://rental-assistance-services.pages.dev#' "$d/deploy/config.env"; rm -f "$d/deploy/config.env.bak"
 expect_refused "a PAGES_URL without its trailing slash" bash "$d/deploy/config-check.sh"; rm -rf "$d"
 
+d=$(scratch); sed -i.bak 's#^PAGES_URL=.*#PAGES_URL=https://look-alike.pages.dev/#' "$d/deploy/config.env"; rm -f "$d/deploy/config.env.bak"
+expect_refused "a PAGES_URL pointing at another Pages project" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
+d=$(scratch); sed -i.bak 's#^PUBLIC_URL=.*#PUBLIC_URL=https://x.example/#' "$d/deploy/config.env"; rm -f "$d/deploy/config.env.bak"
+expect_refused "a PUBLIC_URL that is not this site" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
 d=$(scratch); printf 'APPROVERS=kyle192003\n' >> "$d/deploy/config.env"
 expect_refused "a build with an unknown setting in config.env" build "$d"; rm -rf "$d"
 

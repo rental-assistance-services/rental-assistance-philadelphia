@@ -153,6 +153,20 @@ class TheOrderOfQuestions(SwitchCase):
         rc, _, _ = self.run_tool("--to", PREV, "--only-if-live-commit", C(3), "--no-put-back")
         self.assertEqual((rc, self.cf.posts), (8, []))
 
+    def test_a_superseded_rollback_is_superseded_even_if_its_target_is_not_listed(self):
+        # pass 4: the target lookup ran first, so an old target (not among the last 25)
+        # answered "no target" (roll back by hand) although something newer had taken over
+        newer = "dddddddd-0000-0000-0000-000000000004"
+        self.cf.deps.insert(0, dep(newer, C(4)))
+        self.cf.live = newer
+        rc, _, _ = self.run_tool("--to-commit", C(9), "--only-if-live-commit", C(3), "--no-put-back")
+        self.assertEqual((rc, self.cf.posts), (7, []))
+
+    def test_a_target_commit_that_is_live_is_already_live_whatever_the_listing(self):
+        self.cf.listing_ok = False
+        rc, _, _ = self.run_tool("--to-commit", C(3))
+        self.assertEqual((rc, self.cf.posts), (8, []))
+
     def test_an_unreadable_live_commit_is_an_error_not_superseded(self):
         self.cf.deps[0]["deployment_trigger"]["metadata"]["commit_hash"] = ""
         rc, _, _ = self.run_tool("--to", PREV, "--only-if-live-commit", C(3), "--no-put-back")

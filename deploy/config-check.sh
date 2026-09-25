@@ -7,8 +7,10 @@
 # comments and plain assignments to the eight known settings are allowed: a line
 # such as APPROVERS=..., PATH=... or GITHUB_API_URL=... would otherwise reach the
 # approval gate or a Cloudflare token in the same shell. Each value is checked
-# too. And with CHECKS=on the approval walk needs its starting point: without a
-# full VERIFIED_SINCE no commit could ever be verified.
+# too, and the addresses are pinned to this site's own: a settings line pointing
+# PAGES_URL or PUBLIC_URL at a look-alike would let a check read someone else's
+# build.json and stay quiet. And with CHECKS=on the approval walk needs its
+# starting point: without a full VERIFIED_SINCE no commit could ever be verified.
 #
 # Exit 0 = fine to source. Exit 1 = do not source; the reason is printed.
 set -euo pipefail
@@ -28,9 +30,14 @@ fi
 
 bad() { echo "::error::deploy/config.env: $1"; exit 1; }
 case "${CHECKS:-}" in on|off) ;; *) bad "CHECKS must be on or off" ;; esac
-[[ "${PAGES_PROJECT:-}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || bad "PAGES_PROJECT must be a Pages project name"
-[[ "${PAGES_URL:-}" =~ ^https://[a-z0-9][a-z0-9.-]*\.pages\.dev/$ ]] || bad "PAGES_URL must be https://<project>.pages.dev/, with the trailing slash"
-[ -z "${PUBLIC_URL:-}" ] || [[ "$PUBLIC_URL" =~ ^https://[a-z0-9][a-z0-9.-]*/$ ]] || bad "PUBLIC_URL must be empty or https://<host>/, with the trailing slash"
+[ "${PAGES_PROJECT:-}" = "rental-assistance-services" ] || bad "PAGES_PROJECT must be rental-assistance-services"
+# Cloudflare may add a suffix when it creates the project (rental-assistance-services-abc.pages.dev).
+[[ "${PAGES_URL:-}" =~ ^https://rental-assistance-services(-[a-z0-9]+)?\.pages\.dev/$ ]] \
+  || bad "PAGES_URL must be https://rental-assistance-services[-suffix].pages.dev/, with the trailing slash"
+case "${PUBLIC_URL:-}" in
+  ""|https://www.rentalassistanceservices.com/|https://rentalassistanceservices.com/) ;;
+  *) bad "PUBLIC_URL must be empty, https://www.rentalassistanceservices.com/ or https://rentalassistanceservices.com/" ;;
+esac
 [ -z "${VERIFIED_SINCE:-}" ] || [[ "$VERIFIED_SINCE" =~ ^[0-9a-f]{40}$ ]] || bad "VERIFIED_SINCE must be empty or a full 40-character commit id"
 case "${BARE_DOMAIN_FORWARDED:-no}" in yes|no) ;; *) bad "BARE_DOMAIN_FORWARDED must be yes or no" ;; esac
 case "${CANONICAL_ORIGIN:-}" in
