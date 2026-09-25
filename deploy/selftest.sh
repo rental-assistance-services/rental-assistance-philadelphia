@@ -87,6 +87,24 @@ build "$d"
 expect_ok ".well-known/security.txt is published" test -s "$d/dist/.well-known/security.txt"
 expect_ok "and the bundle with it passes verification" verify "$d"; rm -rf "$d"
 
+d=$(scratch); build "$d"; mkdir -p "$d/dist/.well-known"; printf 'x\n' > "$d/dist/.well-known/run.sh"
+expect_refused "a script under .well-known/ in the bundle" verify "$d"; rm -rf "$d"
+
+d=$(scratch); build "$d"; mkdir -p "$d/dist/.well-known"; printf 'x\n' > "$d/dist/.well-known/.env"
+expect_refused "a dotfile under .well-known/ in the bundle" verify "$d"; rm -rf "$d"
+
+d=$(scratch); build "$d"; printf 'x' > "$d/dist/photo#1.png"
+sed -i.bak 's#</body>#<img src="/photo%231.png"></body>#' "$d/dist/index.html"; rm -f "$d/dist/index.html.bak"
+expect_ok "a real file whose name holds a # (linked as %23) is found" verify "$d"; rm -rf "$d"
+
+d=$(scratch); sed -i.bak -e 's/^CHECKS=.*/CHECKS=on/' -e 's/^VERIFIED_SINCE=.*/VERIFIED_SINCE=/' "$d/deploy/config.env"; rm -f "$d/deploy/config.env.bak"
+expect_refused "CHECKS=on without a VERIFIED_SINCE commit" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
+d=$(scratch)
+# shellcheck disable=SC2016 # the literal text is the point: config-check must refuse it
+printf 'CHECKS=$(true)\n' >> "$d/deploy/config.env"
+expect_refused "a config.env line that would run a command" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
 d=$(scratch)
 (cd "$d" && "${CLEAN_ENV[@]}" CANONICAL_ORIGIN_OVERRIDE=https://www.rentalassistanceservices.com CF_PAGES_BRANCH=main BUILD_COMMIT=$SHA bash deploy/build.sh >/dev/null 2>&1)
 expect_refused "no bare-domain URL left after the www rewrite" grep -rqE 'https://rentalassistanceservices\.com([/"<]|$)' "$d/dist" --include='*.html' --include='*.xml' --include='*.txt'

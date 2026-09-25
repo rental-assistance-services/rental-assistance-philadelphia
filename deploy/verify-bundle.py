@@ -41,15 +41,17 @@ CSS_URL = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""", re.IGNORECASE)
 
 def local_path(ref: str) -> str | None:
     """The site path a reference points at, or None when it is not this site's file."""
-    # Decode first: "%23n" inside an SVG data URI is "#n", a fragment, not a file.
-    parts = urlsplit(unquote(ref.strip()))
+    # Split first, then decode the path: a real file name may contain "%23" ("#").
+    parts = urlsplit(ref.strip())
     if parts.scheme in ("http", "https"):
         if parts.netloc.lower() not in OWN_HOSTS:
             return None
         return unquote(parts.path) or "/"
     if parts.scheme or parts.netloc or not parts.path:
         return None  # mailto:, tel:, data:, javascript:, //cdn, or a pure #fragment / ?query
-    return unquote(parts.path)
+    path = unquote(parts.path)
+    # url(%23n) is an encoded "#n" (an SVG fill reference inside CSS): a fragment, not a file.
+    return None if path.startswith("#") else path
 
 
 def resolves(dist: pathlib.Path, base: pathlib.Path, path: str) -> bool:
@@ -85,9 +87,12 @@ def main() -> int:
     for f in sorted(p for p in dist.rglob("*") if p.is_file()):
         rel = f.relative_to(dist)
         in_well_known = rel.parts[0] == ".well-known"
+        # .well-known/ itself is allowed (security.txt, assetlinks.json); inside it the
+        # same rules apply as everywhere else: no dotfiles, no scripts, no source.
+        dot_parts = rel.parts[1:] if in_well_known else rel.parts
         if (rel.parts[0] in FORBIDDEN_DIRS or rel.name in FORBIDDEN_NAMES
-                or (f.suffix.lower() in FORBIDDEN_SUFFIXES and not in_well_known)
-                or (any(p.startswith(".") for p in rel.parts) and not in_well_known)
+                or f.suffix.lower() in FORBIDDEN_SUFFIXES
+                or any(p.startswith(".") for p in dot_parts)
                 or f.name.endswith((".spec.js", ".test.js", ".config.js"))
                 or (f.suffix.lower() == ".json" and str(rel) != "build.json" and not in_well_known)):
             problems.append(f"{rel} must never be published")

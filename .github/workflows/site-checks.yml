@@ -11,20 +11,29 @@ name: Site checks
 # so no GitHub spending limit can block one.
 #
 # This workflow does what Cloudflare cannot. Nothing below runs until
-# deploy/config.env says CHECKS=on.
+# deploy/config.env says CHECKS=on (deploy/config-check.sh then also requires
+# VERIFIED_SINCE, the commit the approval checks start from).
 #   after a merge   waits until production serves the merged commit, checks the
 #                   deployment (deploy/check-live.sh --release), and checks that
 #                   every commit that went live with it was merged by an approver
-#                   (.github/scripts/deploy_gate.py). Both good: the commit gets
-#                   the status `site-checks/verified`, the marker later checks walk
-#                   back to. A wrong deployment or an unapproved commit is rolled
-#                   back to the last approved commit through deploy/pages_switch.py
-#                   (checks the target first, never acts if a newer deployment
-#                   already took over) and Slack is told. When the approval cannot
-#                   be checked, or the site cannot be reached, it only alerts.
+#                   (.github/scripts/deploy_gate.py). Both good: the step
+#                   "Mark <commit> verified" gives the commit the status
+#                   `site-checks/verified`, linked to this run; later checks walk
+#                   back to the newest such marker, and the gate trusts a marker
+#                   only if that run's step really succeeded. A deployment that
+#                   fails its check, or that nobody approved, is rolled back to the
+#                   last VERIFIED commit (never merely the last approved one: an
+#                   approved merge can sit on top of an unapproved push) through
+#                   deploy/pages_switch.py, and Slack is told. It alerts instead of
+#                   rolling back when the approval cannot be checked, when the site
+#                   cannot be reached, and when only the public address is wrong
+#                   (pages.dev right: DNS or the domain, not this deployment).
 #   daily 11:40     the full live check, "is production still main?", and "is
 #                   anything live that nobody approved?". Silent when healthy.
-#   Run workflow    action = check | rollback (approvers only).
+#   Run workflow    check | rollback | accept (approvers only). accept = an
+#                   approver has looked at what is live and takes it as the new
+#                   starting point for the approval checks: after one unapproved
+#                   commit, every later check would walk past it and fail.
 #
 # This is the one human approval: GitHub's free plan cannot protect `main` on a
 # private repository and Cloudflare publishes whatever reaches `main`, so an
@@ -48,12 +57,12 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "check = run the full live check now; rollback = make an earlier production deployment live"
+        description: "check = the full live check now; rollback = make an earlier production deployment live; accept = an approver accepts what is live now as the starting point for the approval checks"
         type: choice
-        options: [check, rollback]
+        options: [check, rollback, accept]
         default: check
       deployment:
-        description: "rollback only: a Cloudflare deployment id (the 8-character prefix is enough). Empty = the one before the live one."
+        description: "rollback only: a Cloudflare deployment id (its first 8 characters are enough). Empty = the one before the live one."
         type: string
         default: ""
 
@@ -63,8 +72,10 @@ permissions:
 env:
   APPROVERS: ${{ vars.DEPLOY_APPROVERS || 'ryankyleocampo-github asilber15' }}
   VERIFIED_CONTEXT: site-checks/verified
-  # The one repo file sourced by the jobs: plain assignments only.
-  CONFIG_OK_RE: '^(#.*)?$|^[A-Z_]+=[A-Za-z0-9._/:-]*$'
+  # A Cloudflare deployment id, so an error message can never become a target.
+  ID_RE: '^[0-9a-f][0-9a-f-]{7,35}$'
+  # One run of deploy/check-live.sh takes at most this many seconds.
+  CHECK_DEADLINE: "60"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -78,16 +89,26 @@ jobs:
           persist-credentials: false
       - name: Prove the build guards fire
         run: bash deploy/selftest.sh
+      # The approval gate and the rollback switch, against a simulated GitHub and
+      # Cloudflare: every scenario the reviews reproduced. No network, no token.
+      - name: Test the gate and the rollback switch
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+          python3 -m unittest discover -s deploy -p 'test_*.py'
 
   # ---------------------------------------------------------------------------
   after-deploy:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The wait up to 10 minutes; the checks a few minutes; a rollback at most
+    # 3 x 60 s on the target's own address plus 6 x (10 s + 60 s) in public.
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
       statuses: write
+      actions: read
     concurrency:
       group: pages-ras
       cancel-in-progress: false
@@ -100,10 +121,7 @@ jobs:
         id: cfg
         run: |
           set -euo pipefail
-          if grep -qvE "$CONFIG_OK_RE" deploy/config.env; then
-            echo "::error::deploy/config.env holds a line that is not a comment or a plain assignment; it will not be sourced"
-            exit 1
-          fi
+          bash deploy/config-check.sh
           . deploy/config.env
           {
             echo "checks=${CHECKS}"
@@ -139,8 +157,8 @@ jobs:
             fi
             sleep 15
           done
-          echo "::error::production did not start serving ${GITHUB_SHA:0:7} within 10 minutes. Cloudflare's build probably failed"
-          echo "::error::(Workers & Pages > the project > Deployments shows its log); the previous deployment is still live."
+          echo "::error::production did not start serving ${GITHUB_SHA:0:7} within 10 minutes: the Cloudflare build failed (its log is under"
+          echo "::error::Workers & Pages > the project > Deployments), or production was rolled back on purpose and this is a re-run of an old check."
           echo "landed=false" >> "$GITHUB_OUTPUT"
           exit 1
 
@@ -164,78 +182,114 @@ jobs:
           PUBLIC_URL: ${{ steps.cfg.outputs.public_url }}
         run: |
           set -uo pipefail
-          rc=0
-          bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$GITHUB_SHA" || rc=$?
-          if [ "$rc" = "0" ] && [ -n "$PUBLIC_URL" ]; then
+          # The deployment itself, on the project's own address...
+          pages=0
+          bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$GITHUB_SHA" || pages=$?
+          # ...then, once the domain points here, the public address.
+          public=0
+          if [ "$pages" = "0" ] && [ -n "$PUBLIC_URL" ]; then
             for attempt in 1 2 3 4 5 6; do
-              rc=0
-              bash deploy/check-live.sh --release --url "$PUBLIC_URL" --expect-commit "$GITHUB_SHA" || rc=$?
-              [ "$rc" = "0" ] && break
-              echo "public address check attempt ${attempt}/6 exited ${rc}"
+              public=0
+              bash deploy/check-live.sh --release --url "$PUBLIC_URL" --expect-commit "$GITHUB_SHA" || public=$?
+              [ "$public" = "0" ] && break
+              echo "public address check attempt ${attempt}/6 exited ${public}"
               sleep 10
             done
           fi
-          echo "rc=${rc}" >> "$GITHUB_OUTPUT"
+          { echo "pages=${pages}"; echo "public=${public}"; } >> "$GITHUB_OUTPUT"
 
-      - name: Mark it verified, or roll back, or alert
+      - name: Decide
         id: act
         if: steps.wait.outputs.landed == 'true'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          APPROVED: ${{ steps.gate.outputs.approved }}
+          REASON: ${{ steps.gate.outputs.reason }}
+          PAGES_RC: ${{ steps.check.outputs.pages }}
+          PUBLIC_RC: ${{ steps.check.outputs.public }}
+          PAGES_URL: ${{ steps.cfg.outputs.pages_url }}
+          PUBLIC_URL: ${{ steps.cfg.outputs.public_url }}
+        run: |
+          set -uo pipefail
+          out() { echo "$1" >> "$GITHUB_OUTPUT"; }
+          if [ "$APPROVED" = "true" ] && [ "$PAGES_RC" = "0" ] && [ "$PUBLIC_RC" = "0" ]; then
+            out verdict=good; exit 0
+          fi
+          # The deployment itself is wrong: it goes, whatever the approval says.
+          if [ "$PAGES_RC" = "1" ]; then
+            out verdict=rollback; out "why=failed its check on ${PAGES_URL}"; exit 0
+          fi
+          if [ "$APPROVED" = "false" ]; then
+            out verdict=rollback; out "why=was not approved (${REASON})"; exit 0
+          fi
+          if [ "$APPROVED" != "true" ]; then
+            out verdict=approval-unknown; out "why=the approval could not be checked (${REASON:-no answer})"; exit 1
+          fi
+          if [ "$PAGES_RC" != "0" ]; then
+            out verdict=unreachable; out "why=could not be reached to check it"; exit 1
+          fi
+          # The deployment is right on its own address; only the public address is not.
+          # That is DNS or the domain, not this deployment: rolling back would not help.
+          out verdict=public-only
+          out "why=is right on ${PAGES_URL}, but ${PUBLIC_URL} does not serve it (check exit ${PUBLIC_RC}): DNS or the custom domain, not this deployment"
+          exit 1
+
+      # Named for the commit on purpose: deploy_gate.py trusts a verified marker only
+      # when the run it links to has a successful step named exactly this.
+      - name: Mark ${{ github.sha }} verified
+        id: mark
+        if: steps.act.outputs.verdict == 'good'
+        env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" -f state=success \
+            -f context="$VERIFIED_CONTEXT" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}" \
+            -f description="live, checked, every commit approved" > /dev/null
+          echo "### Live, checked and approved: ${GITHUB_SHA:0:7}" >> "$GITHUB_STEP_SUMMARY"
+
+      # --no-put-back: the deployment being removed never comes back, from the tool
+      # or from a cancel. --only-if-live-commit: if anything newer went live
+      # meanwhile, it is left alone (read again right before the switch).
+      - name: Roll back to the last verified commit
+        id: rollback
+        if: steps.act.outputs.verdict == 'rollback'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PROJECT: ${{ steps.cfg.outputs.project }}
           PAGES_URL: ${{ steps.cfg.outputs.pages_url }}
           PUBLIC_URL: ${{ steps.cfg.outputs.public_url }}
-          APPROVED: ${{ steps.gate.outputs.approved }}
-          REASON: ${{ steps.gate.outputs.reason }}
-          RC: ${{ steps.check.outputs.rc }}
+          BASE_COMMIT: ${{ steps.cfg.outputs.verified_since }}
         run: |
           set -uo pipefail
           out() { echo "$1" >> "$GITHUB_OUTPUT"; }
-          if [ "$APPROVED" = "true" ] && [ "$RC" = "0" ]; then
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" -f state=success \
-              -f context="$VERIFIED_CONTEXT" -f description="live, checked, every commit approved" > /dev/null
-            out verdict=good
-            echo "### Live, checked and approved: ${GITHUB_SHA:0:7}" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            out outcome=no-token; exit 1
           fi
-          if [ "$APPROVED" = "unknown" ]; then
-            out "verdict=approval-unknown"; out "why=the approval could not be checked (${REASON})"; exit 1
+          target=$(python3 .github/scripts/deploy_gate.py --last-verified-before "$GITHUB_SHA") || target=""
+          if ! [[ "$target" =~ ^[0-9a-f]{40}$ ]]; then
+            out outcome=no-target; exit 1
           fi
-          if [ "$APPROVED" != "false" ] && [ "$RC" = "2" ]; then
-            out verdict=unreachable; out "why=the deployment could not be reached to check it"; exit 1
-          fi
-          if [ "$APPROVED" = "false" ]; then why="was not approved (${REASON})"; else why="failed its check"; fi
-          out "why=${why}"
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            out verdict=rollback-needed-no-token; exit 1
-          fi
-          target=$(python3 .github/scripts/deploy_gate.py --last-approved-before "$GITHUB_SHA" | tail -n1)
-          if ! printf '%s' "$target" | grep -qE '^[0-9a-f]{40}$'; then
-            out verdict=rollback-no-target; exit 1
-          fi
+          out "target=${target}"
           rc=0
-          python3 deploy/pages_switch.py --project "$PROJECT" --to-commit "$target" --only-if-live-commit "$GITHUB_SHA" \
-            --public-url "${PUBLIC_URL:-$PAGES_URL}" --check "bash deploy/check-live.sh --release" \
-            --state-file "$RUNNER_TEMP/pages-switch.json" || rc=$?
+          python3 deploy/pages_switch.py --project "$PROJECT" --to-commit "$target" --no-put-back \
+            --only-if-live-commit "$GITHUB_SHA" --public-url "${PUBLIC_URL:-$PAGES_URL}" \
+            --check "bash deploy/check-live.sh --release" --attempts 6 --wait 10 || rc=$?
           case "$rc" in
-            0) out verdict=rolled-back ;;       4) out verdict=rolled-back-unverified ;;
-            7) out verdict=superseded; exit 0 ;; 3) out verdict=rollback-target-refused ;;
-            5) out verdict=rollback-put-back ;; *) out verdict=rollback-failed ;;
+            0) o="rolled-back" ;;
+            2) o="no-target" ;;
+            3) o="target-refused" ;;
+            4) o="rolled-back-unverified" ;;
+            6) o="unconfirmed" ;;
+            7) o="superseded" ;;
+            8) o="already-rolled-back" ;;
+            *) o="failed" ;;
           esac
+          out "outcome=${o}"
+          case "$o" in superseded|already-rolled-back) exit 0 ;; esac
           exit 1
-
-      - name: Restore what was live if this job was cancelled mid-switch
-        if: cancelled()
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PROJECT: ${{ steps.cfg.outputs.project }}
-        run: |
-          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || exit 0
-          python3 deploy/pages_switch.py --project "$PROJECT" --restore "$RUNNER_TEMP/pages-switch.json" --check "bash deploy/check-live.sh --release" || true
 
       - name: Tell Slack
         if: failure() || cancelled()
@@ -244,24 +298,41 @@ jobs:
           LANDED: ${{ steps.wait.outputs.landed }}
           VERDICT: ${{ steps.act.outputs.verdict }}
           WHY: ${{ steps.act.outputs.why }}
+          MARK: ${{ steps.mark.outcome }}
+          OUTCOME: ${{ steps.rollback.outputs.outcome }}
+          TARGET: ${{ steps.rollback.outputs.target }}
           PROJECT: ${{ steps.cfg.outputs.project }}
+          JOB: ${{ job.status }}
         run: |
           RUN="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           C="${GITHUB_SHA:0:7}"
-          HAND="Cloudflare > Workers & Pages > ${PROJECT} > Deployments > the previous deployment > Rollback to this deployment."
-          case "$LANDED/$VERDICT" in
-            false/*)                     T="🔴 RAS site: production did not update to ${C} within 10 minutes (Cloudflare build failed?). The previous version is still live." ;;
-            */rolled-back)               T="🔴 RAS site: ${C} ${WHY}. Production was rolled back to the last approved commit and verified." ;;
-            */rolled-back-unverified)    T="🔴 RAS site: ${C} ${WHY}. Production was rolled back, but the public site could not be reached to verify it." ;;
-            */rollback-target-refused)   T="🔴 RAS site: ${C} ${WHY}, and the last approved deployment failed its own check, so production was left as is. ${HAND}" ;;
-            */rollback-put-back)         T="🔴 RAS site: ${C} ${WHY}; the rollback target was wrong in public, so production was put back. Check it now." ;;
-            */rollback-needed-no-token)  T="🔴 RAS site: ${C} ${WHY}, and there is no Cloudflare token to roll back with. ${HAND}" ;;
-            */rollback-no-target)        T="🔴 RAS site: ${C} ${WHY}, and no approved commit was found to roll back to. ${HAND}" ;;
-            */rollback-failed)           T="🔴 RAS site: ${C} ${WHY} AND the rollback failed. The site may be wrong right now. ${HAND}" ;;
-            */approval-unknown)          T="🟠 RAS site: ${C} is live, but ${WHY}. Not rolled back. Re-run the check." ;;
-            */unreachable)               T="🟠 RAS site: ${C} could not be reached to check it; not rolled back. Check it now." ;;
-            *)                           T="🔴 RAS site checks failed or were cancelled after ${C}." ;;
-          esac
+          HAND="Cloudflare > Workers & Pages > ${PROJECT} > Deployments > the last good deployment > Rollback to this deployment."
+          if [ "$JOB" = "cancelled" ]; then
+            T="🟠 RAS site: the check after ${C} was cancelled part-way (${VERDICT:-before a verdict}${OUTCOME:+, rollback ${OUTCOME}}). Check which version is live: /build.json."
+          elif [ "$LANDED" = "false" ]; then
+            T="🔴 RAS site: production did not start serving ${C} within 10 minutes. The Cloudflare build failed (see its log), or production was rolled back on purpose and this is a re-run of an old check. The previous version is still live."
+          elif [ "$VERDICT" = "good" ] && [ "$MARK" != "success" ]; then
+            T="🟠 RAS site: ${C} is live, checked and approved, but the verified marker could not be posted, so later checks walk further back. Re-run this job."
+          elif [ "$VERDICT" = "rollback" ]; then
+            case "$OUTCOME" in
+              rolled-back)            W="Production was rolled back to the last verified commit (${TARGET:0:7}), and that was verified in public." ;;
+              rolled-back-unverified) W="Production was rolled back to the last verified commit (${TARGET:0:7}), but the public address has not confirmed it. Check it now." ;;
+              unconfirmed)            W="The rollback could not be confirmed either way. Production may be wrong right now. ${HAND}" ;;
+              target-refused)         W="The last verified deployment (${TARGET:0:7}) failed, or could not get through, its own check, so production was left as is. ${HAND}" ;;
+              no-token)               W="There is no Cloudflare token in this repository to roll back with. ${HAND}" ;;
+              no-target)              W="No verified commit with a deployment was found to roll back to. ${HAND}" ;;
+              *)                      W="The rollback FAILED. The site may be wrong right now. ${HAND}" ;;
+            esac
+            T="🔴 RAS site: ${C} ${WHY}. ${W}"
+          elif [ "$VERDICT" = "approval-unknown" ]; then
+            T="🟠 RAS site: ${C} is live, but ${WHY}. Not rolled back. Re-run this job; if it stays unknown, an approver reviews what went live and runs action=accept, or reverts it."
+          elif [ "$VERDICT" = "unreachable" ]; then
+            T="🟠 RAS site: ${C} ${WHY}; not rolled back (no answer is not evidence). Check it now."
+          elif [ "$VERDICT" = "public-only" ]; then
+            T="🟠 RAS site: ${C} ${WHY}. Not rolled back. Check the www record at GoDaddy and the custom domain in Cloudflare."
+          else
+            T="🔴 RAS site checks failed after ${C}; see the run."
+          fi
           python3 .github/scripts/notify_slack.py "${T} ${RUN}"
 
   # ---------------------------------------------------------------------------
@@ -273,6 +344,7 @@ jobs:
       contents: read
       pull-requests: read
       statuses: read
+      actions: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -284,51 +356,58 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
-          if grep -qvE "$CONFIG_OK_RE" deploy/config.env; then
-            echo "::error::deploy/config.env holds a line that is not a plain assignment"; exit 1
-          fi
+          bash deploy/config-check.sh || exit 1
           . deploy/config.env
           if [ "${CHECKS}" != "on" ]; then
             echo "::notice::CHECKS=${CHECKS}: the Cloudflare Pages project is not connected yet; nothing to check"
-            echo "skipped=true" >> "$GITHUB_OUTPUT"; exit 0
+            exit 0
           fi
           url="${PUBLIC_URL:-$PAGES_URL}"
+          problems=()
           rc=0
           bash deploy/check-live.sh --url "$url" || rc=$?
+          [ "$rc" = "1" ] && problems+=("the live check found a problem (a page, the bare-domain forward or a dev file; the run log says which)")
+          [ "$rc" = "2" ] && problems+=("the site could not be checked (no answer or a server error)")
           live=$(curl -sS --proto '=https' -m 20 "${url}build.json?cb=d-${GITHUB_RUN_ID}" 2>/dev/null \
                  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null || true)
           main_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha 2>/dev/null || true)
           if [ -z "$live" ] || [ -z "$main_sha" ]; then
-            echo "::error::could not read the live commit or main's head"; [ "$rc" = "0" ] && rc=1
+            problems+=("could not read the live commit or main's head")
           elif [ "$live" != "$main_sha" ]; then
-            echo "::error::production serves ${live:0:7}, main is ${main_sha:0:7}: a rollback is in place (fix main with a revert pull request) or a build failed"
-            [ "$rc" = "0" ] && rc=1
+            problems+=("production serves ${live:0:7} but main is ${main_sha:0:7}: a rollback is in place (fix main with a revert pull request) or a Cloudflare build failed")
           fi
-          # A push that skipped CI, or anything the after-deploy check never saw, is caught here.
-          if [ -n "$live" ]; then
-            state=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${live}/status" \
-                      --jq "[.statuses[] | select(.context == \"${VERIFIED_CONTEXT}\")][0].state" 2>/dev/null || true)
-            if [ "$state" != "success" ]; then
+          # Anything live that nobody approved, including a push that skipped CI. A
+          # genuine verified marker settles it; otherwise the gate walks it again.
+          if [[ "$live" =~ ^[0-9a-f]{40}$ ]]; then
+            vrc=0
+            python3 .github/scripts/deploy_gate.py --is-verified "$live" || vrc=$?
+            if [ "$vrc" != "0" ]; then
               verdict=$(EVENT=push SHA="$live" BASE_COMMIT="$VERIFIED_SINCE" python3 .github/scripts/deploy_gate.py | sed -nE 's/^approved=([a-z]+):.*/\1/p')
               if [ "$verdict" != "true" ]; then
-                echo "::error::the live commit ${live:0:7} was never verified, and its approval is '${verdict:-unknown}'"
-                [ "$rc" = "0" ] && rc=1
+                problems+=("the live commit ${live:0:7} was never verified and its approval is '${verdict:-unknown}': an approver reviews it and runs action=accept, or reverts it")
               fi
             fi
           fi
-          exit "$rc"
+          if [ "${#problems[@]}" -gt 0 ]; then
+            for p in "${problems[@]}"; do echo "::error::$p"; done
+            joined=$(printf '%s; ' "${problems[@]}")
+            echo "problems=${joined%; }" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "healthy: production serves ${live:0:7}, which is main, checked and approved"
       - name: Tell Slack
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PROBLEMS: ${{ steps.live.outputs.problems }}
         run: |
-          python3 .github/scripts/notify_slack.py "🟠 RAS site daily check FAILED: a page, the bare-domain forward, a dev file, production not being main, or something live that nobody approved. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          python3 .github/scripts/notify_slack.py "🟠 RAS site daily check FAILED: ${PROBLEMS:-see the run}. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
   # ---------------------------------------------------------------------------
   rollback:
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     concurrency:
       group: pages-ras
       cancel-in-progress: false
@@ -337,6 +416,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Roll back and verify (approvers only)
+        id: switch
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -344,38 +424,140 @@ jobs:
           ACTOR: ${{ github.triggering_actor }}
         run: |
           set -uo pipefail
-          if [[ " ${APPROVERS,,} " != *" ${ACTOR,,} "* ]]; then
-            echo "::error::${ACTOR} is not an approver"; exit 1
+          out() { echo "$1" >> "$GITHUB_OUTPUT"; }
+          if ! python3 .github/scripts/deploy_gate.py --is-approver "$ACTOR"; then
+            echo "::error::${ACTOR} is not an approver"; out verdict=refused; exit 1
           fi
-          if grep -qvE "$CONFIG_OK_RE" deploy/config.env; then
-            echo "::error::deploy/config.env holds a line that is not a plain assignment"; exit 1
-          fi
+          bash deploy/config-check.sh || { out verdict=refused; exit 1; }
           . deploy/config.env
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
             echo "::error::no Cloudflare token in this repository: roll back in the dashboard (Workers & Pages > ${PAGES_PROJECT} > Deployments > Rollback to this deployment)"
-            exit 1
+            out verdict=no-token; exit 1
           fi
           if [ -n "$WANT" ]; then
-            [[ "$WANT" =~ ^[0-9a-f-]{8,36}$ ]] || { echo "::error::'${WANT}' is not a deployment id"; exit 1; }
+            [[ "$WANT" =~ $ID_RE ]] || { echo "::error::'${WANT}' is not a deployment id"; out verdict=refused; exit 1; }
             sel=(--to "$WANT")
           else
             sel=(--previous)
           fi
+          rc=0
           python3 deploy/pages_switch.py --project "$PAGES_PROJECT" "${sel[@]}" \
             --public-url "${PUBLIC_URL:-$PAGES_URL}" --check "bash deploy/check-live.sh --release" \
-            --state-file "$RUNNER_TEMP/pages-switch.json"
+            --state-file "$RUNNER_TEMP/pages-switch.json" --attempts 6 --wait 10 || rc=$?
+          case "$rc" in
+            0) v=good ;; 1) v=not-switched ;; 2) v=no-target ;; 3) v=target-refused ;;
+            4) v=unverified ;; 5) v=put-back ;; 6) v=may-be-wrong ;; 8) v=already-live ;; *) v=error ;;
+          esac
+          out "verdict=${v}"
+          [ "$rc" = "8" ] && exit 0
+          exit "$rc"
       - name: Restore what was live if this job was cancelled mid-switch
+        id: restore
         if: cancelled()
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          set -uo pipefail
+          bash deploy/config-check.sh || { echo "restore=not-attempted" >> "$GITHUB_OUTPUT"; exit 1; }
           . deploy/config.env
           [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || exit 0
-          python3 deploy/pages_switch.py --project "$PAGES_PROJECT" --restore "$RUNNER_TEMP/pages-switch.json" --check "bash deploy/check-live.sh --release" || true
+          rc=0
+          python3 deploy/pages_switch.py --project "$PAGES_PROJECT" --restore "$RUNNER_TEMP/pages-switch.json" \
+            --public-url "${PUBLIC_URL:-$PAGES_URL}" --check "bash deploy/check-live.sh --release" \
+            --attempts 6 --wait 10 || rc=$?
+          case "$rc" in 0) r=nothing-to-restore ;; 5) r=put-back-verified ;; *) r=put-back-failed ;; esac
+          echo "restore=${r}" >> "$GITHUB_OUTPUT"
       - name: Tell Slack
-        if: failure()
+        if: failure() || cancelled()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          VERDICT: ${{ steps.switch.outputs.verdict }}
+          RESTORE: ${{ steps.restore.outputs.restore }}
         run: |
-          python3 .github/scripts/notify_slack.py "🔴 RAS site rollback FAILED or was refused; check which deployment is live (/build.json). ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          case "$VERDICT" in
+            refused)        W="Refused: not started by an approver, not a deployment id, or a bad deploy/config.env. Nothing changed." ;;
+            no-token)       W="There is no Cloudflare token in this repository; roll back in the Cloudflare dashboard. Nothing changed." ;;
+            not-switched)   W="Cloudflare did not switch production. Nothing changed." ;;
+            no-target)      W="There is no earlier successful deployment to switch to. Nothing changed." ;;
+            target-refused) W="The chosen deployment failed, or could not get through, its own check, so production was not touched." ;;
+            unverified)     W="Switched, but the public address has not confirmed it (unreachable, or still showing the old version). Check it now." ;;
+            put-back)       W="The chosen deployment passed its own check but the public address did not serve it, so production was put back, and that was verified." ;;
+            may-be-wrong)   W="Production may be wrong right now: putting it back failed, or the switch could not be confirmed. Check it now." ;;
+            *) case "$RESTORE" in
+                 put-back-verified)  W="The run was cancelled mid-switch; what was live before was put back and verified." ;;
+                 put-back-failed)    W="The run was cancelled mid-switch and putting back what was live FAILED. Check it now." ;;
+                 nothing-to-restore) W="The run was cancelled before anything was switched." ;;
+                 *)                  W="See the run; check which version is live: /build.json." ;;
+               esac ;;
+          esac
+          python3 .github/scripts/notify_slack.py "🔴 RAS site rollback: ${W} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+  # ---------------------------------------------------------------------------
+  # After one unapproved commit, every later approval check walks past it and
+  # fails, even for approved merges. An approver who has looked at what is live
+  # can accept it: it then carries a genuine verified marker and later checks stop
+  # there. Accepting takes responsibility for everything up to that commit.
+  accept:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'accept' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+    concurrency:
+      group: pages-ras
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Who asked, and is what is live healthy?
+        id: live
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -uo pipefail
+          if ! python3 .github/scripts/deploy_gate.py --is-approver "$ACTOR"; then
+            echo "::error::${ACTOR} is not an approver; only an approver can accept what is live"; exit 1
+          fi
+          bash deploy/config-check.sh || exit 1
+          . deploy/config.env
+          [ "${CHECKS}" = "on" ] || { echo "::error::CHECKS is not on; there is nothing to accept yet"; exit 1; }
+          live=$(curl -sS --proto '=https' -m 20 "${PAGES_URL}build.json?cb=a-${GITHUB_RUN_ID}" 2>/dev/null \
+                 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null || true)
+          [[ "$live" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not read the live commit from ${PAGES_URL}build.json"; exit 1; }
+          rc=0
+          bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$live" || rc=$?
+          [ "$rc" = "0" ] || { echo "::error::the live deployment does not pass its check (exit ${rc}); fix it or roll back first"; exit 1; }
+          echo "commit=${live}" >> "$GITHUB_OUTPUT"
+      # Named for the commit on purpose: deploy_gate.py trusts the marker only when
+      # this run has a successful step named exactly "Mark <commit> verified".
+      - name: Mark ${{ steps.live.outputs.commit }} verified
+        id: mark
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ steps.live.outputs.commit }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${COMMIT}" -f state=success \
+            -f context="$VERIFIED_CONTEXT" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}" \
+            -f description="accepted by ${ACTOR}" > /dev/null
+          echo "### ${COMMIT:0:7} accepted by ${ACTOR}: the approval checks start from it now" >> "$GITHUB_STEP_SUMMARY"
+      - name: Tell Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          COMMIT: ${{ steps.live.outputs.commit }}
+          MARK: ${{ steps.mark.outcome }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          RUN="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ "$MARK" = "success" ]; then
+            T="🟢 RAS site: ${ACTOR} accepted what is live (${COMMIT:0:7}); the approval checks start from it now."
+          else
+            T="🔴 RAS site: accept by ${ACTOR} was refused or failed; nothing was marked."
+          fi
+          python3 .github/scripts/notify_slack.py "${T} ${RUN}"

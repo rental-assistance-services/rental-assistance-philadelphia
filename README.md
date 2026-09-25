@@ -153,9 +153,10 @@ the long form, and the phone layout. CI runs both on every push and PR to `main`
 | Served by | GitHub Pages from `main` today (the `CNAME` file). Moving to Cloudflare Pages, project `rental-assistance-services`, connected to this repository |
 | Build | Cloudflare runs `bash deploy/build.sh` (output `dist/`). It publishes only what a browser needs, by file type: never this README, `tests/`, `package.json`, `deploy/` or `.github/` (GitHub Pages serves all of them today). It stamps every page (`<meta name="ras-build">`, `/build.json`), keeps unknown URLs real 404s, copies the Google verification files byte for byte, and ends by running `deploy/verify-bundle.py`, so a bad bundle fails the Cloudflare build and the previous deployment stays live |
 | Pull requests | Cloudflare builds every branch as a preview (`https://<branch>.rental-assistance-services.pages.dev`, `noindex`) and links it on the pull request. Forms cannot submit from a preview: the intake API only accepts this site's own addresses |
-| Production | A merge to `main`. `.github/workflows/site-checks.yml` then waits for production to serve that commit, checks it, and checks that every commit that went live with it was merged by an approver (RK or Abe). Both good: the commit gets the status `site-checks/verified`. A wrong deployment or an unapproved commit is rolled back to the last approved commit through `deploy/pages_switch.py` and Slack is told; when the approval cannot be checked or the site cannot be reached, it only alerts. GitHub's free plan cannot protect `main` on a private repository, so this is the approval; it stops mistakes, not someone with write access who edits the workflow |
-| Daily | 11:40 UTC: the full live check, "is production still `main`?", and "is anything live that nobody approved?" (this also catches a push that skipped CI). Silent when healthy |
-| Rollback | Actions > Site checks > Run workflow > `rollback` (empty = the deployment before the live one, or a deployment id). It checks the target first, confirms, verifies, and puts the original back if the target is wrong. Or Cloudflare > Workers & Pages > rental-assistance-services > Deployments > the deployment > Rollback to this deployment |
+| Production | A merge to `main`. `.github/workflows/site-checks.yml` then waits for production to serve that commit, checks it, and checks that every commit that went live with it was merged by an approver (RK or Abe). Both good: the step "Mark <commit> verified" gives the commit the status `site-checks/verified`, linked to that run; the gate trusts a marker only if that run's step really succeeded, so a status posted by hand counts for nothing. A deployment that fails its check, or that nobody approved, is rolled back to the last **verified** commit (not merely the last approved one, which can carry an unapproved push under it) through `deploy/pages_switch.py`, which never switches back to the deployment it removed and leaves anything newer alone; Slack is told. It only alerts when the approval cannot be checked, when the site cannot be reached, and when only the public address is wrong (pages.dev right: that is DNS or the domain, not the deployment). GitHub's free plan cannot protect `main` on a private repository, so this is the approval; it stops mistakes, not someone with write access who edits the workflow |
+| Daily | 11:40 UTC: the full live check, "is production still `main`?", and "is anything live that nobody approved?" (this also catches a push that skipped CI). Silent when healthy; the Slack message names each problem it found |
+| Rollback | Actions > Site checks > Run workflow > `rollback` (empty = the deployment before the live one, or a deployment id). It checks the target on its own address first, confirms, verifies, and puts the original back if the target is wrong in public. Or Cloudflare > Workers & Pages > rental-assistance-services > Deployments > the deployment > Rollback to this deployment. Then fix `main` with a revert pull request |
+| Accept | Actions > Site checks > Run workflow > `accept` (approvers only). After one unapproved commit, every later approval check walks past it and fails, even for approved merges. An approver who has looked at what is live runs `accept`: the live commit is checked, marked verified, and the checks start from it. Accepting takes responsibility for everything up to that commit |
 | Which version is live | `curl -s https://rental-assistance-services.pages.dev/build.json` (or the public address once it has moved) |
 
 **Rollbacks need a Cloudflare token** in this repository (`CLOUDFLARE_API_TOKEN` and
@@ -164,6 +165,12 @@ limited to one project, so it can change every Pages project in its account; whi
 account holds this project, and so whether a token belongs here, is RK's call. Until
 there is one, every place that would roll back alerts instead, with what to click.
 
+Two things not to do: **do not put Cloudflare Access in front of the preview
+addresses** (`*.rental-assistance-services.pages.dev`). A rollback checks its target
+on exactly such an address first, so every rollback would be refused. And treat a
+Slack alert as a prompt to look, not proof: everyone with write access here can read
+the webhook and post to the channel.
+
 The public address moves to `www.rentalassistanceservices.com`: Cloudflare Pages can
 serve a bare domain only when its DNS is at Cloudflare, and this DNS stays at GoDaddy,
 which forwards the bare domain to `www` (path and query string kept, so Google Ads
@@ -171,16 +178,19 @@ which forwards the bare domain to `www` (path and query string kept, so Google A
 
 | Setting | What it does |
 |---|---|
-| `CHECKS` | `off` until the Cloudflare project is connected and has published `main` once |
+| `CHECKS` | `off` until the Cloudflare project is connected and has published `main` once. `deploy/config-check.sh` refuses `CHECKS=on` without a full `VERIFIED_SINCE` |
 | `PAGES_URL` | the project's own address (always answers) |
 | `PUBLIC_URL` | the public address the checks hold to account; empty until the domain points at Pages |
-| `VERIFIED_SINCE` | the commit the approval checks start from, set in the same pull request as `CHECKS=on` |
+| `VERIFIED_SINCE` | the full id of the commit production serves when the checks go on (the approval checks start from it), set in the same pull request as `CHECKS=on` |
 | `BARE_DOMAIN_FORWARDED` | `yes` once GoDaddy forwards the bare domain; the daily check then tests the forward |
 | `CANONICAL_ORIGIN` | the origin canonical links, sitemap and structured data name (the build rewrites the source's `https://rentalassistanceservices.com` to it; only the two real origins are accepted) |
 
 GitHub Pages is switched off, and this repository made private, only after Cloudflare
 Pages has served the domain for a full day.
 
-Checks by hand, all read-only: `bash deploy/selftest.sh` (the build guards fire),
+Checks by hand, all read-only: `bash deploy/selftest.sh` (the build and config guards
+fire), `python3 -m unittest discover -s deploy -p 'test_*.py'` and
+`python3 -m unittest discover -s .github/scripts -p 'test_*.py'` (the rollback switch
+and the approval gate against a simulated Cloudflare and GitHub),
 `BUILD_COMMIT=$(git rev-parse HEAD) bash deploy/build.sh` (builds and verifies),
 `bash deploy/check-live.sh --url <address>`.
