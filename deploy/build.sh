@@ -43,6 +43,12 @@ if ! printf '%s' "$COMMIT" | grep -qE '^[0-9a-f]{40}$'; then
   exit 1
 fi
 BRANCH="${CF_PAGES_BRANCH:-${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-local}}}"
+# A typo here would ship broken canonical links on every page while every check stays
+# green (the check compares against this same value), so only the two real origins pass.
+case "${CANONICAL_ORIGIN%/}" in
+  https://rentalassistanceservices.com|https://www.rentalassistanceservices.com) ;;
+  *) echo "::error::CANONICAL_ORIGIN '${CANONICAL_ORIGIN}' is not https://rentalassistanceservices.com or https://www.rentalassistanceservices.com"; exit 1 ;;
+esac
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 python3 - "$ROOT" "$OUT" "$COMMIT" "$BRANCH" "$BUILT_AT" "${PRODUCTION_BRANCH:-main}" \
@@ -71,14 +77,17 @@ if out.exists():
     shutil.rmtree(out)
 out.mkdir(parents=True)
 
-copied = []
+copied, skipped = [], []
 for path in sorted(root.rglob("*")):
     rel = path.relative_to(root)
-    if not path.is_file() or rel.parts[0] in DEV_DIRS or any(p.startswith(".") for p in rel.parts):
+    if not path.is_file() or rel.parts[0] in DEV_DIRS:
         continue
-    if rel.name in DEV_FILES or rel.suffix.lower() not in SITE_TYPES:
+    if any(p.startswith(".") for p in rel.parts) and rel.parts[0] != ".well-known":
         continue
-    if rel.name.endswith((".spec.js", ".test.js", ".config.js")):
+    if rel.name in DEV_FILES or rel.name.endswith((".spec.js", ".test.js", ".config.js")):
+        continue
+    if rel.suffix.lower() not in SITE_TYPES and rel.parts[0] != ".well-known":
+        skipped.append(str(rel))
         continue
     dest = out / rel
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -106,7 +115,7 @@ if not (out / "404.html").exists():
     generated_404 = True
 
 rewrite = canonical.rstrip("/") != SOURCE_ORIGIN
-origin_re = re.compile(re.escape(SOURCE_ORIGIN) + r"(?=[/\"'\s<)]|$)")
+origin_re = re.compile(re.escape(SOURCE_ORIGIN) + r"(?=[/\"'\s<)?#]|$)")
 close_head = re.compile(r"</head\s*>", re.IGNORECASE)
 meta = (f'<meta name="ras-build" content="{short}">\n'
         f'<meta name="ras-build-commit" content="{commit}">\n'
@@ -150,6 +159,8 @@ if headers:
 }, indent=2) + "\n", encoding="utf-8")
 
 print(f"copied {len(copied)} file(s); stamped {len(stamped)} page(s) with {short} (branch {branch})")
+if skipped:
+    print(f"::warning::left out {len(skipped)} file(s) of a type the site does not publish: " + ", ".join(skipped[:20]))
 if generated_404:
     print("the source has no 404.html: generated a minimal one so unknown URLs stay real 404s")
 if rewrite:
@@ -157,6 +168,8 @@ if rewrite:
 if branch != prod_branch:
     print("preview build: _headers marks every URL noindex")
 PY
+
+python3 "$HERE/verify-bundle.py" "$OUT"
 
 echo
 echo "=== dist/: exactly what Cloudflare Pages publishes ==="

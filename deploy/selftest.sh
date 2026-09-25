@@ -75,6 +75,19 @@ d=$(scratch); build "$d" some-feature-branch
 expect_ok "a preview build marks every URL noindex" grep -q 'X-Robots-Tag: noindex' "$d/dist/_headers"; rm -rf "$d"
 
 d=$(scratch)
+expect_refused "a canonical origin that is not one of the two real ones" \
+  sh -c "cd '$d' && env -u CF_PAGES_COMMIT_SHA -u GITHUB_SHA CANONICAL_ORIGIN_OVERRIDE=https://rentalassistanceservices.co CF_PAGES_BRANCH=main BUILD_COMMIT=$SHA bash deploy/build.sh >/dev/null 2>&1"
+rm -rf "$d"
+
+d=$(scratch); build "$d"; printf '\nbody{background:url(/missing-texture.png)}\n' >> "$d/dist/site.css"
+expect_refused "a stylesheet pointing at a file that is not there" verify "$d"; rm -rf "$d"
+
+d=$(scratch); mkdir -p "$d/.well-known"; echo "Contact: mailto:info@rentalassistanceservices.com" > "$d/.well-known/security.txt"
+build "$d"
+expect_ok ".well-known/security.txt is published" test -s "$d/dist/.well-known/security.txt"
+expect_ok "and the bundle with it passes verification" verify "$d"; rm -rf "$d"
+
+d=$(scratch)
 (cd "$d" && "${CLEAN_ENV[@]}" CANONICAL_ORIGIN_OVERRIDE=https://www.rentalassistanceservices.com CF_PAGES_BRANCH=main BUILD_COMMIT=$SHA bash deploy/build.sh >/dev/null 2>&1)
 expect_refused "no bare-domain URL left after the www rewrite" grep -rqE 'https://rentalassistanceservices\.com([/"<]|$)' "$d/dist" --include='*.html' --include='*.xml' --include='*.txt'
 expect_ok "email addresses are not rewritten" grep -rq 'info@rentalassistanceservices.com' "$d/dist" --include='*.html'
