@@ -3,3 +3,7 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+dist/
+
+# Python caches from running the deploy scripts' tests
+__pycache__/
