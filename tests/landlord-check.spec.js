@@ -324,7 +324,7 @@ test.describe('address suggestions', () => {
     await expect(note).toBeInViewport();
   });
 
-  test('the list fades down over 350ms, ease-in', async ({ page }) => {
+  test('the list fades down over 350ms, ease-in', { tag: '@timing' }, async ({ page }) => {
     await photonAnswers(page);
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
@@ -1102,7 +1102,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(confirm).toHaveValue('');
   });
 
-  test('the retype card drops DOWN smoothly — height, fade and slide finish together over 350ms', async ({ page }) => {
+  test('the retype card drops DOWN smoothly — height, fade and slide finish together over 350ms', { tag: '@timing' }, async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     await page.locator('#owner-email').pressSequentially('landlord@example.com');
@@ -1200,7 +1200,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(page.locator('.field:has(#tenant-email)')).not.toHaveClass(/lc-ok/);
   });
 
-  test('an error message fades up AND opens its space over 350ms — nothing below it jumps', async ({ page }) => {
+  test('an error message fades up AND opens its space over 350ms — nothing below it jumps', { tag: '@timing' }, async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     // Press Next on the empty section and sample, every ~40ms, the phone error's height and
@@ -1242,7 +1242,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(samples.timing).toContain('ease-in');
   });
 
-  test('each new section fades up over 350ms, ease-in', async ({ page }) => {
+  test('each new section fades up over 350ms, ease-in', { tag: '@timing' }, async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     await SECTION_FILL['About you (the owner)'](page);
