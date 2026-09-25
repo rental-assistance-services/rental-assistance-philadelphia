@@ -158,11 +158,11 @@
       });
     }
     var missHtml = missing.length
-      ? '<p style="margin-top:12px;"><strong>Still needed:</strong> ' + missing.join(', ') + '. We&rsquo;ll email you a secure link to add these &mdash; your place is saved, so you won&rsquo;t lose your application.</p>'
+      ? '<p style="margin-top:12px;"><strong>Still needed:</strong> ' + missing.join(', ') + '. We&rsquo;ll email you a secure link to add these. Your place is saved, so you won&rsquo;t lose your application.</p>'
       : '';
     if(dropped.length){
       missHtml += '<p style="margin-top:12px;"><strong>Please re-send:</strong> ' + dropped.join(', ')
-        + ' &mdash; we couldn&rsquo;t read ' + (dropped.length > 1 ? 'those files' : 'that file')
+        + '. We couldn&rsquo;t read ' + (dropped.length > 1 ? 'those files' : 'that file')
         + '. Each document must be under 15MB and a PDF, photo, or spreadsheet.</p>';
     }
     var nextFile = (form.id === 'intake-form')
@@ -173,9 +173,9 @@
     panel.setAttribute('role','status');
     panel.style.marginTop = '8px';
     panel.innerHTML = '<h3 style="margin:0 0 8px;">Application received'
-      + (ref ? ' &mdash; reference ' + ref : '') + '</h3>'
+      + (ref ? ' (reference ' + ref + ')' : '') + '</h3>'
       + '<p>Thanks! Here&rsquo;s what happens next:</p>'
-      + '<ul class="checklist"><li>We review your details &mdash; usually within one business day.</li>'
+      + '<ul class="checklist"><li>We review your details, usually within one business day.</li>'
       + '<li>We tell you straight whether the City will likely pay.</li>'
       + '<li>' + nextFile + '</li></ul>'
       + '<p>We&rsquo;ll email a confirmation to the address you provided and follow up shortly. Questions? <a href="mailto:info@rentalassistanceservices.com">info@rentalassistanceservices.com</a>.</p>'
@@ -359,9 +359,9 @@
           if(window.rasTrackLead){ window.rasTrackLead('contact-form', res.data && res.data.contact_id); }
           var panel = document.createElement('div');
           panel.className = 'callout on-ink'; panel.setAttribute('role','status'); panel.style.marginTop = '8px';
-          panel.innerHTML = '<h3 style="margin:0 0 8px;color:#fff;">Thanks &mdash; we&rsquo;ve got it.</h3>'
+          panel.innerHTML = '<h3 style="margin:0 0 8px;color:#fff;">Thanks, we&rsquo;ve got it.</h3>'
             + '<p style="color:#B7C3D6;">We review your details, usually within one business day, and tell you straight whether the City will likely pay. '
-            + 'Prefer to talk? Call <a href="tel:+12154026882" style="color:var(--brass);">(215) 402-6882</a>.</p>';
+            + 'Prefer to talk? Call <a href="tel:+12154026882" style="color:var(--blue-bright);">(215) 402-6882</a>.</p>';
           contactForm.parentNode.insertBefore(panel, contactForm);
           contactForm.style.display = 'none';
           panel.scrollIntoView({behavior:'smooth', block:'center'});
@@ -396,8 +396,8 @@
    * updated. Numbers verified 2026-09-13.
    */
   var TENANT_RESOURCES = [
-    {name:'Eviction Diversion Program — tenant hotline', tel:'+12155239501', label:'215-523-9501',
-     meta:'City of Philadelphia · Mon–Fri, 9am–4pm',
+    {name:'Eviction Diversion Program: tenant hotline', tel:'+12155239501', label:'215-523-9501',
+     meta:'City of Philadelphia · Monday to Friday, 9am to 4pm',
      note:'They explain the program and connect you to a housing counselor.'},
     {name:'Philly Tenant Hotline', tel:'+12674432500', label:'(267) 443-2500',
      meta:'Free legal help &amp; tenant advocacy',
@@ -414,11 +414,11 @@
         + '<span class="tp-meta">' + r.meta + '</span>'
         + '<p style="margin:6px 0 0;">' + r.note + '</p></li>';
     }).join('');
-    return '<h3>We work for landlords &mdash; but you’re not out of options.</h3>'
+    return '<h3>We work for landlords, but you’re not out of options.</h3>'
       + '<p>Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>, '
       + 'so there is nothing we can file for you. We would rather tell you that now than take your details.</p>'
       + '<p><strong>The part worth knowing:</strong> the City’s Eviction Diversion Program can pay your past-due '
-      + 'rent &mdash; up to $3,500 plus two months of future rent &mdash; but <strong>the landlord files it, not you</strong>. '
+      + 'rent (up to $3,500 plus two months of future rent), but <strong>the landlord files it, not you</strong>. '
       + 'The first hotline below can explain it to you so you can raise it with them.</p>'
       + '<ul class="tp-list">' + items + '</ul>'
       + '<p class="tp-more"><a href="/tenants/"><strong>Full list of free help for Philadelphia tenants &rarr;</strong></a></p>';

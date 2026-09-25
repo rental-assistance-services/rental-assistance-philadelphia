@@ -37,22 +37,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Public+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<script src="/motion.js" defer></script>
 <style>
-:root{
-  --ink:#11161C; --navy:#14233A; --navy-2:#1B3050; --navy-3:#0E1A2C;
-  --paper:#F6F1E7; --paper-2:#EFE7D6; --paper-3:#FBF7EE;
-  --brass:#C8A24A; --brass-2:#A9853A; --brass-soft:#E8D9B4;
-  --green:#2F9E5E; --green-deep:#207044; --green-soft:#DDEFE3;
-  --hairline:rgba(20,35,58,.20); --muted:#4C5667; --muted-2:#6A7384;
-  --shadow-sm:0 1px 2px rgba(20,35,58,.06), 0 2px 8px rgba(20,35,58,.05);
-  --shadow-md:0 2px 4px rgba(20,35,58,.07), 0 14px 40px rgba(20,35,58,.10);
-  --shadow-lg:0 8px 24px rgba(20,35,58,.14), 0 30px 70px rgba(20,35,58,.18);
-  --maxw:1140px; --rad:14px;
-  --serif:"Fraunces", Georgia, "Times New Roman", serif;
-  --sans:"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --mono:"Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --ease:cubic-bezier(.22,.61,.36,1);
-}
 *{box-sizing:border-box;}
 html{scroll-behavior:smooth;}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.62;font-size:17px;}
@@ -61,46 +48,46 @@ h1{font-size:clamp(2.1rem,4.6vw,3.2rem);}
 h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-top:1.4em;}
 h3{font-size:1.22rem;margin-top:1.3em;}
 p{margin:0 0 1em;}
-a{color:var(--brass-2);}
+a{color:var(--blue-2);}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
-.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--brass-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
-.eyebrow::before{content:"";width:26px;height:1px;background:var(--brass);display:inline-block;}
+.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--blue-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--blue);display:inline-block;}
 .topbar{background:var(--navy-3);color:#fff;}
 .topbar .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:14px;padding-bottom:14px;gap:16px;}
 .brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-weight:560;font-size:1.05rem;color:#fff;text-decoration:none;}
 .brand svg{flex:0 0 auto;}
 .topbar .tel{color:#fff;text-decoration:none;font-weight:600;font-size:1.02rem;white-space:nowrap;}
-.topbar .tel span{color:var(--brass-soft);font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;display:block;font-weight:500;}
+.topbar .tel span{color:var(--blue-soft);font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;display:block;font-weight:500;}
 .arthead{background:linear-gradient(180deg,var(--paper-3),var(--paper));border-bottom:1px solid var(--hairline);padding:40px 0 34px;}
 .crumbs{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);margin-bottom:18px;}
 .crumbs a{color:var(--muted-2);text-decoration:none;}
-.crumbs a:hover{color:var(--brass-2);}
+.crumbs a:hover{color:var(--blue-2);}
 .artmeta{font-family:var(--mono);font-size:.74rem;letter-spacing:.06em;color:var(--muted-2);margin-top:14px;}
 .artbody{padding:46px 0 20px;}
 .artbody .wrap{max-width:760px;}
 .artbody h2{border-top:1px solid var(--hairline);padding-top:1.1em;}
 .lead-p{font-size:1.16rem;color:var(--muted);}
-.toc{background:var(--paper-3);border:1px solid var(--hairline);border-left:4px solid var(--brass);border-radius:12px;padding:20px 24px;margin:8px 0 30px;}
-.toc h4{font-family:var(--mono);font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;color:var(--brass-2);margin:0 0 12px;}
+.toc{background:var(--paper-3);border:1px solid var(--hairline);border-left:4px solid var(--blue);border-radius:12px;padding:20px 24px;margin:8px 0 30px;}
+.toc h4{font-family:var(--mono);font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-2);margin:0 0 12px;}
 .toc ol{margin:0;padding-left:20px;}
 .toc li{margin-bottom:7px;}
 .toc a{color:var(--navy-2);text-decoration:none;}
-.toc a:hover{color:var(--brass-2);}
+.toc a:hover{color:var(--blue-2);}
 .callout{background:var(--green-soft);border:1px solid rgba(47,158,94,.3);border-left:4px solid var(--green);border-radius:11px;padding:18px 22px;margin:22px 0;color:var(--ink);font-size:.98rem;}
 .callout strong{color:var(--green-deep);}
-.callout.brass{background:rgba(200,162,74,.12);border-color:rgba(200,162,74,.42);border-left-color:var(--brass);}
-.callout.brass strong{color:var(--brass-2);}
+.callout.blue{background:rgba(42,91,215,.12);border-color:rgba(42,91,215,.42);border-left-color:var(--blue);}
+.callout.blue strong{color:var(--blue-2);}
 .steps-ol{counter-reset:step;list-style:none;padding:0;margin:24px 0;}
 .steps-ol li{position:relative;padding:0 0 22px 58px;}
-.steps-ol li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:40px;height:40px;border-radius:11px;background:var(--navy);color:var(--brass);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:1.15rem;}
+.steps-ol li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:40px;height:40px;border-radius:11px;background:var(--navy);color:var(--blue-bright);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:1.15rem;}
 .steps-ol li strong{color:var(--navy);}
 .steps-ol li h3{margin:2px 0 6px;}
 .faq-q{font-family:var(--serif);font-weight:560;color:var(--navy);font-size:1.15rem;margin:1.4em 0 .3em;}
 .cta-inline{background:var(--navy);color:#fff;border-radius:var(--rad);padding:28px 30px;margin:36px 0;box-shadow:var(--shadow-md);}
 .cta-inline h3{color:#fff;margin:0 0 8px;}
 .cta-inline p{color:#B7C3D6;margin:0 0 18px;}
-.btn-solid{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:10px;background:linear-gradient(180deg,var(--brass),var(--brass-2));color:#1a1205;font-weight:700;font-size:1rem;text-decoration:none;}
-.btn-ghost{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;border:1.5px solid var(--brass);background:transparent;color:#fff;font-weight:700;font-size:1rem;text-decoration:none;margin-left:10px;}
+.btn-solid{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:10px;background:linear-gradient(180deg,var(--blue),var(--blue-2));color:#FFFFFF;font-weight:700;font-size:1rem;text-decoration:none;}
+.btn-ghost{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;border:1.5px solid var(--blue);background:transparent;color:#fff;font-weight:700;font-size:1rem;text-decoration:none;margin-left:10px;}
 .cta-band{background:var(--navy);color:#fff;padding:58px 0;text-align:center;}
 .cta-band h2{color:#fff;border:0;}
 .cta-band p{color:#B7C3D6;max-width:48ch;margin-left:auto;margin-right:auto;}
@@ -108,14 +95,14 @@ a{color:var(--brass-2);}
 .related{background:var(--paper-2);border-top:1px solid var(--hairline);padding:46px 0;}
 .related h2{margin-top:0;}
 .rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
-.rel-card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:22px;box-shadow:var(--shadow-sm);text-decoration:none;display:block;transition:transform .2s var(--ease),box-shadow .2s var(--ease);}
+.rel-card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:22px;box-shadow:var(--shadow-sm);text-decoration:none;display:block;transition:transform .35s var(--ease),box-shadow .35s var(--ease);}
 .rel-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);}
 .rel-card h3{margin:0 0 6px;font-size:1.08rem;color:var(--navy);}
 .rel-card p{margin:0;color:var(--muted);font-size:.92rem;}
 footer{background:var(--navy-3);color:#9FB0C6;padding:40px 0 30px;font-size:.9rem;}
 footer .ftop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:20px;align-items:center;margin-bottom:22px;}
 footer .fbrand{display:flex;align-items:center;gap:11px;font-family:var(--serif);color:#fff;font-size:1.05rem;}
-footer a{color:var(--brass-soft);}
+footer a{color:var(--blue-soft);}
 .foot-legal{border-top:1px solid rgba(255,255,255,.12);padding-top:20px;line-height:1.6;}
 .foot-legal strong{color:#C7D2E2;}
 @media(max-width:880px){ .rel-grid{grid-template-columns:1fr;} }
@@ -129,13 +116,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="wrap">
     <a class="brand" href="https://rentalassistanceservices.com/">
       <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="30" height="30" rx="8" fill="#0E1A2C"/>
-        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#C8A24A" stroke-width="1.4"/>
-        <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#C8A24A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="1" y="1" width="30" height="30" rx="8" fill="#081735"/>
+        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#7EA3FF" stroke-width="1.4"/>
+        <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#7EA3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       Rental Assistance Philadelphia
     </a>
-    <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;"><a href="/tenants/" style="color:#E8D9B4;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap;">Are you a tenant?</a><a class="tel" href="tel:+12154026882"><span>Speak with us</span>(215) 402-6882</a></span>
+    <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;"><a href="/tenants/" style="color:#DCE6FB;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap;">Are you a tenant?</a><a class="tel" href="tel:+12154026882"><span>Speak with us</span>(215) 402-6882</a></span>
   </div>
 </div>
 
@@ -150,7 +137,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <article class="artbody">
   <div class="wrap">
-    <p class="lead-p">For most Philadelphia landlords, the answer is yes. The City treats renting property as operating a business, and a <strong>Commercial Activity License</strong> usually has to be in place <em>before</em> your Rental License can issue. It's free, but it's not optional &mdash; and it sits at a specific point in the licensing chain. Here's what it is, who's exempt, and how to get it.</p>
+    <p class="lead-p">For most Philadelphia landlords, the answer is yes. The City treats renting property as operating a business, and a <strong>Commercial Activity License</strong> usually has to be in place <em>before</em> your Rental License can issue. It's free, but it's not optional, and it sits at a specific point in the licensing chain. Here's what it is, who's exempt, and how to get it.</p>
 
     <div class="toc">
       <h4>What's on this page</h4>
@@ -168,42 +155,42 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p>The Commercial Activity License is a license from the Department of Licenses &amp; Inspections (L&amp;I) that the City requires of businesses operating in Philadelphia. Because the City treats renting out property as a business activity, most landlords fall under it. Two things surprise people:</p>
     <ul>
       <li><strong>It's free.</strong> There's no fee for the license itself.</li>
-      <li><strong>It's still mandatory.</strong> Free doesn't mean optional &mdash; for most landlords, you can't get a Rental License without it.</li>
+      <li><strong>It's still mandatory.</strong> Free doesn't mean optional. For most landlords, you can't get a Rental License without it.</li>
     </ul>
 
     <h2 id="who">Who needs one</h2>
-    <p>Most Philadelphia landlords need a Commercial Activity License. If you rent residential property in the city and don't qualify for the owner-occupied exception below, you need one before your Rental License can issue. No Commercial Activity License (where required) means no Rental License &mdash; which means no legal right to collect rent.</p>
+    <p>Most Philadelphia landlords need a Commercial Activity License. If you rent residential property in the city and don't qualify for the owner-occupied exception below, you need one before your Rental License can issue. No Commercial Activity License (where required) means no Rental License, which means no legal right to collect rent.</p>
 
     <h2 id="exception">The owner-occupied exception</h2>
-    <p>There is one clean way out. If your building has <strong>4 or fewer units</strong> <em>and</em> you (the owner) <strong>live in one of them</strong>, you do <em>not</em> need a Commercial Activity License. You still need the Business Tax Account and the Rental License &mdash; you simply skip this middle step.</p>
-    <div class="callout brass"><strong>Both conditions are required.</strong> A small building alone isn't enough, and living on-site alone isn't enough. You need both: 4 units or fewer <em>and</em> the owner residing in one of them.</div>
+    <p>There is one clean way out. If your building has <strong>4 or fewer units</strong> <em>and</em> you (the owner) <strong>live in one of them</strong>, you do <em>not</em> need a Commercial Activity License. You still need the Business Tax Account and the Rental License. You simply skip this middle step.</p>
+    <div class="callout blue"><strong>Both conditions are required.</strong> A small building alone isn't enough, and living on-site alone isn't enough. You need both: 4 units or fewer <em>and</em> the owner residing in one of them.</div>
 
     <h2 id="order">Where it sits in the licensing chain</h2>
     <p>Philadelphia licensing is a chain done in order. The Commercial Activity License is the middle link:</p>
     <ol class="steps-ol">
       <li>
-        <h3>Business Tax Account (BIRT) &mdash; first</h3>
+        <h3>First: Business Tax Account (BIRT)</h3>
         <p>Open a Business Tax Account with the Department of Revenue before anything else. Nothing downstream issues without it.</p>
       </li>
       <li>
-        <h3>Commercial Activity License &mdash; next</h3>
+        <h3>Next: Commercial Activity License</h3>
         <p>With the tax account in place, you obtain the Commercial Activity License from L&amp;I (unless you qualify for the owner-occupied exception).</p>
       </li>
       <li>
-        <h3>Rental License &mdash; last</h3>
+        <h3>Last: Rental License</h3>
         <p>With the account and Commercial Activity License in place, L&amp;I issues the Rental License. The Commercial Activity License is the gate to it.</p>
       </li>
     </ol>
 
     <div class="cta-inline">
       <h3>Not sure if you need one?</h3>
-      <p>Tell us your unit count and whether you live on-site, and we'll tell you immediately &mdash; then handle the Commercial Activity License (if you need it) and the rest of your licensing chain with the City.</p>
+      <p>Tell us your unit count and whether you live on-site, and we'll tell you immediately, then handle the Commercial Activity License (if you need it) and the rest of your licensing chain with the City.</p>
       <a class="btn-solid" href="https://rentalassistanceservices.com/services/licensing/">Check my licensing &rarr;</a>
       <a class="btn-ghost" href="tel:+12154026882">Call (215) 402-6882</a>
     </div>
 
     <h2 id="taxes">Why a tax balance blocks it</h2>
-    <p>To obtain a Commercial Activity License, you must be <strong>current on city taxes</strong>. An outstanding balance or an unfiled return is the single most common reason the Commercial Activity License &mdash; and the Rental License behind it &mdash; gets blocked. If that's your situation, the fix is to clear the tax hold first, then license. We set up the Business Tax Account, file outstanding returns, and clear holds and liens before licensing.</p>
+    <p>To obtain a Commercial Activity License, you must be <strong>current on city taxes</strong>. An outstanding balance or an unfiled return is the single most common reason the Commercial Activity License (and the Rental License behind it) gets blocked. If that's your situation, the fix is to clear the tax hold first, then license. We set up the Business Tax Account, file outstanding returns, and clear holds and liens before licensing.</p>
 
     <h2 id="faq">Common questions</h2>
 
@@ -211,20 +198,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p>Because it's the gate to your Rental License. Free or not, without it (where required) you can't get licensed, and without a Rental License you can't legally collect rent or enforce an eviction.</p>
 
     <p class="faq-q">I own a triplex and live in one unit. Do I need it?</p>
-    <p>No &mdash; that's the owner-occupied exception: 4 units or fewer and you living in one. You still need the Business Tax Account and the Rental License, just not the Commercial Activity License.</p>
+    <p>No. That's the owner-occupied exception: 4 units or fewer and you living in one. You still need the Business Tax Account and the Rental License, just not the Commercial Activity License.</p>
 
     <p class="faq-q">I own a triplex but don't live there. Do I need it?</p>
     <p>Yes. The exception requires both a small building and owner-occupancy. Without living on-site, the exception doesn't apply.</p>
 
     <p class="faq-q">Can you set this up for me?</p>
-    <p>Yes. We confirm whether you need it, and if you do, we obtain it &mdash; along with the Business Tax Account and Rental License &mdash; in the correct order, clearing any tax holds first.</p>
+    <p>Yes. We confirm whether you need it, and if you do, we obtain it (along with the Business Tax Account and Rental License) in the correct order, clearing any tax holds first.</p>
   </div>
 </article>
 
 <section class="cta-band">
   <div class="wrap">
     <h2>Get every license in the right order.</h2>
-    <p>We handle the Business Tax Account, the Commercial Activity License where required, and the Rental License &mdash; so you're cleared to operate.</p>
+    <p>We handle the Business Tax Account, the Commercial Activity License where required, and the Rental License, so you're cleared to operate.</p>
     <div class="cta-actions">
       <a class="btn-solid" href="https://rentalassistanceservices.com/services/licensing/">Start my licensing plan &rarr;</a>
       <a class="btn-ghost" href="tel:+12154026882">Call (215) 402-6882</a>
@@ -248,9 +235,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="ftop">
       <div class="fbrand">
         <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect x="1" y="1" width="30" height="30" rx="8" fill="#0E1A2C"/>
-          <rect x="1" y="1" width="30" height="30" rx="8" stroke="#C8A24A" stroke-width="1.4"/>
-          <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#C8A24A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="1" y="1" width="30" height="30" rx="8" fill="#081735"/>
+          <rect x="1" y="1" width="30" height="30" rx="8" stroke="#7EA3FF" stroke-width="1.4"/>
+          <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#7EA3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Rental Assistance Philadelphia
       </div>
@@ -261,7 +248,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
     </div>
     <div class="foot-legal">
-      <p>Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private, independent filing service <strong>hired by property owners</strong>. We do not represent tenants and cannot file on a tenant's behalf &mdash; tenants, please see <a href="/tenants/">where to get help</a>. We are <strong>not a government agency and are not affiliated with, endorsed by, or acting on behalf of</strong> the City of Philadelphia, the Department of Licenses &amp; Inspections, the Department of Revenue, or any government entity, and we are not a law firm. You can apply for any of these licenses and accounts directly with the City yourself. This guide is general information, not legal or tax advice; requirements can change and edge cases exist &mdash; verify specifics at the City's official channels or with qualified counsel. Results vary by case.</p>
+      <p>Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private, independent filing service <strong>hired by property owners</strong>. We do not represent tenants and cannot file on a tenant's behalf. Tenants, please see <a href="/tenants/">where to get help</a>. We are <strong>not a government agency and are not affiliated with, endorsed by, or acting on behalf of</strong> the City of Philadelphia, the Department of Licenses &amp; Inspections, the Department of Revenue, or any government entity, and we are not a law firm. You can apply for any of these licenses and accounts directly with the City yourself. This guide is general information, not legal or tax advice; requirements can change and edge cases exist. Verify specifics at the City's official channels or with qualified counsel. Results vary by case.</p>
     </div>
   </div>
 </footer>

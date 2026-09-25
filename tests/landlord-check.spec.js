@@ -273,7 +273,7 @@ test.describe('address suggestions', () => {
     await photonAnswers(page, []);
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('Block 5 Lot 12 Sampaguita');
-    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(manual(page)).toHaveText('We couldn’t find a match. You can still type your full address yourself.');
     await expect(options(page)).toHaveCount(0);
     await expect(list(page)).not.toContainText('OpenStreetMap');       // nothing of theirs is shown
     // Escape closes the list, not the popup
@@ -294,7 +294,7 @@ test.describe('address suggestions', () => {
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
     await page.waitForTimeout(1500);
     await expect(list(page)).toBeHidden();                           // not straight away
-    await expect(manual(page)).toContainText('you can still type your full address yourself', { timeout: 3000 });
+    await expect(manual(page)).toContainText('You can still type your full address yourself', { timeout: 3000 });
     release();
     await expect(options(page)).toHaveCount(3);
     await expect(manual(page)).toHaveText('Don’t see your address? You can still type it in yourself.');
@@ -304,7 +304,7 @@ test.describe('address suggestions', () => {
     await photonAnswers(page, [], { fail: true });
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th St');
-    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(manual(page)).toHaveText('We couldn’t find a match. You can still type your full address yourself.');
     await expect(options(page)).toHaveCount(0);
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
     await page.fill('#prop-rent', '1150');
@@ -372,7 +372,7 @@ test.describe('address suggestions', () => {
     expect(res.status()).toBe(200);
     expect(await termsSection(page, '7. Your information')).toContain(
       'As you type a property address into one of our forms, what you have typed is sent to Photon, '
-      + 'a free address-search service run by komoot, so it can offer matching addresses \u2014 you can '
+      + 'a free address-search service run by komoot, so it can offer matching addresses. You can '
       + 'always ignore the suggestions and type the address out in full.');
   });
 });
@@ -426,10 +426,10 @@ test.describe('file uploads look like the site', () => {
     await toStep(page, 'Your documents');
     const msg = page.locator('.field:has(#doc-lease) > .errmsg');
     await page.setInputFiles('#doc-lease', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hi') });
-    await expect(msg).toContainText('“notes.txt” isn’t a file we can take — please use PDF, JPG, PNG or HEIC.');
+    await expect(msg).toContainText('“notes.txt” isn’t a file we can take. Please use PDF, JPG, PNG or HEIC.');
     expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
     await page.setInputFiles('#doc-lease', pdf('huge-scan.pdf', 16 * 1024 * 1024));
-    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB — files must be under 15MB.');
+    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB. Files must be under 15MB.');
     expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
     await page.setInputFiles('#doc-lease', pdf('lease.pdf'));
     await expect(msg).toBeHidden();
@@ -517,7 +517,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
       return need <= el.clientWidth + 0.5;
     }));
     expect(fits).toEqual([true, true]);
-    // and they still read as dropdowns: the brass chevron is showing
+    // and they still read as dropdowns: the blue chevron is showing
     const chevrons = await cal(page).locator('.lc-cal-sel').evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundImage));
     chevrons.forEach((bg) => expect(bg).toContain('svg'));
   });
@@ -642,7 +642,7 @@ test.describe('answers are kept for an hour', () => {
     // picks up where they were
     expect(await currentStep(page)).toBe('The property');
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
-    await expect(note(page)).toContainText('we kept what you typed on this device for an hour');
+    await expect(note(page)).toContainText('We kept what you typed on this device for an hour');
     await back(page).click();
     await expect(page.locator('#owner-name')).toHaveValue('Marcus Reed');
     await expect(page.locator('#owner-entity')).toHaveValue('Reed Property Group LLC');
@@ -767,7 +767,7 @@ test.describe('answers are kept for an hour', () => {
     expect(res.status()).toBe(200);
     expect(await termsSection(page, '7. Your information')).toContain(
       'So you can finish later, the form keeps what you have typed in your own browser for one hour '
-      + 'after your last change \u2014 that copy stays on your device, is sent nowhere, and is cleared '
+      + 'after your last change. That copy stays on your device, is sent nowhere, and is cleared '
       + 'after the hour, when you submit, or when you press Start over.');
   });
 });
@@ -958,7 +958,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     for (const shouty of ['MARCUS REED', 'Marcus REED', 'Keana O’NEIL']) {
       await name.fill('');
       await name.pressSequentially(shouty);
-      await expect(msg).toHaveText('Please type your name normally, not in all capitals — e.g. Marcus Reed.');
+      await expect(msg).toHaveText('Please type your name normally, not in all capitals, e.g. Marcus Reed.');
       await expect(field).not.toHaveClass(/lc-ok/);
     }
     // ...but capitals inside a normal name are fine, and so are suffixes and initials
@@ -1049,7 +1049,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
       return e.defaultPrevented;
     });
     expect(pasted).toBe(true);
-    await expect(cmsg).toContainText('pasting and autofill are turned off');
+    await expect(cmsg).toContainText('Pasting and autofill are turned off');
     // drop
     const dropped = await confirm.evaluate((el) => {
       const e = new Event('drop', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented;
@@ -1079,9 +1079,12 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // the card hugs its content: no blank band under the input (an inline input's text-line
     // space and a hidden message's paragraph margin each used to leave one)
     await atRest(page.locator('.lc-confirm'));
-    const gap = await page.locator('.lc-confirm').evaluate((box) =>
-      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom);
-    expect(gap).toBeLessThanOrEqual(12);
+    // Polled, not read once. `atRest` returns when nothing is running, but the card can start
+    // moving again a frame later — the popup cancels and restarts its own animations — and a
+    // single read taken in that frame is an honest measurement of the wrong moment.
+    await expect.poll(() => page.locator('.lc-confirm').evaluate((box) =>
+      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom))
+      .toBeLessThanOrEqual(12);
     // a typo is flagged as soon as it can no longer match
     await confirm.pressSequentially('landlord@exampel');
     await expect(cmsg).toBeVisible();
@@ -1170,8 +1173,13 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // does not jump (an earlier version dropped the check below the text and grew it ~11px)
     expect((await labelBox()).h).toBeCloseTo(before.h, 1);
     await atRest(req);   // measure at rest
-    const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
-    expect(rq.y + rq.height).toBeLessThanOrEqual(lb.y + lb.height + 0.5);
+    // Polled for the same reason: the check icon fading in can still be mid-flight when the
+    // two boxes are read, and its bottom then reads higher than where it comes to rest. The
+    // value polled is how far the check hangs below the label, so a failure says by how much.
+    await expect.poll(async () => {
+      const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
+      return (rq.y + rq.height) - (lb.y + lb.height);
+    }).toBeLessThanOrEqual(0.5);
     // an optional field has no asterisk, so its check appears after the label
     await page.locator('#owner-entity').pressSequentially('Reed Property Group LLC');
     const after = await page.locator('label[for="owner-entity"]')
@@ -1245,7 +1253,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(stepAnim).toEqual(['lc-up', '0.35s', 'ease-in']);
   });
 
-  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, brass focus, red error', async ({ page }) => {
+  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, blue focus, red error', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     const name = page.locator('#owner-name');
@@ -1264,7 +1272,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(idle.bw).toBe(ref.bw);
     expect(idle.r).toBe(ref.r);
     await name.focus();
-    await expect.poll(async () => (await st(name)).bc).toBe('rgb(200, 162, 74)');   // brass
+    await expect.poll(async () => (await st(name)).bc).toBe('rgb(42, 91, 215)');   // blue
     await page.locator('#owner-email').pressSequentially('nope');
     await expect.poll(async () => (await st(page.locator('#owner-email'))).bc).toBe('rgb(180, 67, 47)'); // red, like its message
     // ...and still red after leaving the field (the page's own rule would paint it gold)
@@ -1414,10 +1422,37 @@ test.describe('the question in front of each form opens the popup', () => {
   test('a blog page hands a landlord to the homepage application, already open in the popup', async ({ page }) => {
     await page.goto('/blog/eviction-diversion-program/index.html');
     await landlord(page).click();
-    await page.waitForURL(/\/#apply$/);
+    await page.waitForURL((u) => u.pathname === '/' && !u.hash);   // the top of the homepage
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
     expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator('#intake-form input[name="visitor_role"]')).toHaveValue('landlord');
+  });
+
+  test('a browser that refuses to store the hand-off still lands on the form, not the top', async ({ page }) => {
+    // Safari private mode and partitioned third-party embeds throw on sessionStorage.setItem.
+    // The hand-off used to swallow that and send them to "/" anyway, where nothing opens the
+    // application: the flag it depends on was never written. Top of the homepage, no popup,
+    // no form — out of a button marked Apply. Only setItem throws here; localStorage is left
+    // alone, because that is what really happens and what `as()` writes into.
+    await page.addInitScript(() => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === window.sessionStorage) throw new DOMException('QuotaExceededError');
+        return real.call(this, k, v);
+      };
+    });
+    await page.goto('/blog/eviction-diversion-program/index.html');
+    await landlord(page).click();
+    await page.waitForURL((u) => u.pathname === '/' && u.hash === '#apply');   // the form section
+    // and the browser's own jump really put them there: the application section is on screen.
+    // Polled, not read once: `html{scroll-behavior:smooth}` animates the jump to the anchor,
+    // so a single read right after the navigation lands mid-scroll, still at the top.
+    await expect.poll(() => page.locator('#apply').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top < innerHeight && r.bottom > 0;
+    })).toBe(true);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 });
 
@@ -1491,9 +1526,15 @@ test.describe('Apply links open the popup instead of scrolling to the form', () 
     await page.locator('a.btn[href="/#apply"]').first().evaluate((a) => a.click());
     await expect(dialog(page)).toBeVisible();
     await landlord(page).click();
-    await page.waitForURL(/\/#apply$/);
+    // The homepage's top, not /#apply: the hash made the browser jump the page down to the form
+    // section, so the popup opened over the bottom of the page and closing it left you there.
+    await page.waitForURL((u) => u.pathname === '/' && !u.hash);
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
     expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(popup(page)).toHaveCount(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);   // still at the top once it closes
   });
 
   test('a returning landlord skips "own or rent?" and lands on the application', async ({ page }) => {
