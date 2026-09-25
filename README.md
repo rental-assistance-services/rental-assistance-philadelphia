@@ -156,14 +156,18 @@ the long form, and the phone layout. CI runs both on every push and PR to `main`
 | Production | A merge to `main`. `.github/workflows/site-checks.yml` then waits for production to serve that commit, checks it, and checks that every commit that went live with it was merged by an approver (RK or Abe). Both good: the step "Mark <commit> verified" gives the commit the status `site-checks/verified`, linked to that run; the gate trusts a marker only if that run's step really succeeded, so a status posted by hand counts for nothing. A deployment that fails its check, or that nobody approved, is rolled back to the last **verified** commit (not merely the last approved one, which can carry an unapproved push under it) through `deploy/pages_switch.py`, which never switches back to the deployment it removed and leaves anything newer alone; Slack is told. It only alerts when the approval cannot be checked, when the site cannot be reached, and when only the public address is wrong (pages.dev right: that is DNS or the domain, not the deployment). GitHub's free plan cannot protect `main` on a private repository, so this is the approval; it stops mistakes, not someone with write access who edits the workflow |
 | Daily | 11:40 UTC: the full live check, "is production still `main`?", and "is anything live that nobody approved?" (this also catches a push that skipped CI). Silent when healthy; the Slack message names each problem it found |
 | Rollback | Actions > Site checks > Run workflow > `rollback` (empty = the deployment before the live one, or a deployment id). It checks the target on its own address first, confirms, verifies, and puts the original back if the target is wrong in public. Or Cloudflare > Workers & Pages > rental-assistance-services > Deployments > the deployment > Rollback to this deployment. Then fix `main` with a revert pull request |
-| Accept | Actions > Site checks > Run workflow > `accept` (approvers only). After one unapproved commit, every later approval check walks past it and fails, even for approved merges. An approver who has looked at what is live runs `accept`: the live commit is checked, marked verified, and the checks start from it. Accepting takes responsibility for everything up to that commit |
+| Accept | Actions > Site checks > Run workflow > `accept` (approvers only). After one unapproved commit, every later approval check walks past it and fails, even for approved merges. An approver who has looked at it runs `accept`: the commit is checked, marked verified, and the checks start from it. Empty `commit` = the one production serves. With a Cloudflare token, any commit whose own deployment passes its check, e.g. the revert that was itself rolled back because the unapproved commit sat under it (accept the revert, then roll production to it or merge anything). Accepting takes responsibility for everything up to that commit. A rollback or accept waiting for a check to finish is cancelled if a new push queues behind it: start it again |
 | Which version is live | `curl -s https://rental-assistance-services.pages.dev/build.json` (or the public address once it has moved) |
 
 **Rollbacks need a Cloudflare token** in this repository (`CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`, Account > Cloudflare Pages > Edit). A Pages token cannot be
-limited to one project, so it can change every Pages project in its account; which
-account holds this project, and so whether a token belongs here, is RK's call. Until
-there is one, every place that would roll back alerts instead, with what to click.
+`CLOUDFLARE_ACCOUNT_ID`, Account > Cloudflare Pages > Edit). Before adding one, know
+what it means: a Pages token cannot be limited to one project, so it can change every
+Pages project in its account; both writers of this repository can read any of its
+secrets through a workflow of their own; and a workflow change that reaches `main` runs
+with the token at the next automatic rollback. So a token here is, in effect, handed to
+everyone with write access, for every Pages project in that account. Which account
+holds this project, and so whether a token belongs here, is RK's call. Until there is
+one, every place that would roll back alerts instead, with what to click.
 
 Two things not to do: **do not put Cloudflare Access in front of the preview
 addresses** (`*.rental-assistance-services.pages.dev`). A rollback checks its target
@@ -178,7 +182,7 @@ which forwards the bare domain to `www` (path and query string kept, so Google A
 
 | Setting | What it does |
 |---|---|
-| `CHECKS` | `off` until the Cloudflare project is connected and has published `main` once. `deploy/config-check.sh` refuses `CHECKS=on` without a full `VERIFIED_SINCE` |
+| `CHECKS` | `off` until the Cloudflare project is connected and has published `main` once. `deploy/config-check.sh` (run before the file is ever sourced) allows only the settings in this table, checks each value, and refuses `CHECKS=on` without a full `VERIFIED_SINCE` |
 | `PAGES_URL` | the project's own address (always answers) |
 | `PUBLIC_URL` | the public address the checks hold to account; empty until the domain points at Pages |
 | `VERIFIED_SINCE` | the full id of the commit production serves when the checks go on (the approval checks start from it), set in the same pull request as `CHECKS=on` |

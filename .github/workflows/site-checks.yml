@@ -65,6 +65,10 @@ on:
         description: "rollback only: a Cloudflare deployment id (its first 8 characters are enough). Empty = the one before the live one."
         type: string
         default: ""
+      commit:
+        description: "accept only: the full commit id to accept. Empty = the one production serves. Another commit (e.g. a revert that was rolled back) needs the Cloudflare token: its own deployment is checked first."
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -174,9 +178,11 @@ jobs:
           BASE_COMMIT: ${{ steps.cfg.outputs.verified_since }}
         run: python3 .github/scripts/deploy_gate.py
 
+      # !cancelled(): a crash in the gate must not skip the check and the decision (an
+      # empty approval counts as "could not be checked").
       - name: Check the deployment
         id: check
-        if: steps.wait.outputs.landed == 'true'
+        if: ${{ !cancelled() && steps.wait.outputs.landed == 'true' }}
         env:
           PAGES_URL: ${{ steps.cfg.outputs.pages_url }}
           PUBLIC_URL: ${{ steps.cfg.outputs.public_url }}
@@ -200,7 +206,7 @@ jobs:
 
       - name: Decide
         id: act
-        if: steps.wait.outputs.landed == 'true'
+        if: ${{ !cancelled() && steps.wait.outputs.landed == 'true' }}
         env:
           APPROVED: ${{ steps.gate.outputs.approved }}
           REASON: ${{ steps.gate.outputs.reason }}
@@ -237,7 +243,7 @@ jobs:
       # when the run it links to has a successful step named exactly this.
       - name: Mark ${{ github.sha }} verified
         id: mark
-        if: steps.act.outputs.verdict == 'good'
+        if: ${{ !cancelled() && steps.act.outputs.verdict == 'good' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -253,7 +259,7 @@ jobs:
       # meanwhile, it is left alone (read again right before the switch).
       - name: Roll back to the last verified commit
         id: rollback
-        if: steps.act.outputs.verdict == 'rollback'
+        if: ${{ !cancelled() && steps.act.outputs.verdict == 'rollback' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -495,9 +501,11 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # After one unapproved commit, every later approval check walks past it and
-  # fails, even for approved merges. An approver who has looked at what is live
-  # can accept it: it then carries a genuine verified marker and later checks stop
-  # there. Accepting takes responsibility for everything up to that commit.
+  # fails, even for approved merges. An approver who has looked at it can accept a
+  # commit: it then carries a genuine verified marker and later checks stop there.
+  # Accepting takes responsibility for everything up to that commit. By default the
+  # commit production serves; with a token, any commit whose own deployment passes
+  # its check (e.g. the revert that was itself rolled back because X sat under it).
   accept:
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'accept' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -512,25 +520,42 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Who asked, and is what is live healthy?
+      - name: Who asked, and does the commit to accept pass its check?
         id: live
         env:
           ACTOR: ${{ github.triggering_actor }}
+          WANT: ${{ inputs.commit }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -uo pipefail
           if ! python3 .github/scripts/deploy_gate.py --is-approver "$ACTOR"; then
-            echo "::error::${ACTOR} is not an approver; only an approver can accept what is live"; exit 1
+            echo "::error::${ACTOR} is not an approver; only an approver can accept a commit"; exit 1
           fi
           bash deploy/config-check.sh || exit 1
           . deploy/config.env
           [ "${CHECKS}" = "on" ] || { echo "::error::CHECKS is not on; there is nothing to accept yet"; exit 1; }
           live=$(curl -sS --proto '=https' -m 20 "${PAGES_URL}build.json?cb=a-${GITHUB_RUN_ID}" 2>/dev/null \
                  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null || true)
-          [[ "$live" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not read the live commit from ${PAGES_URL}build.json"; exit 1; }
+          if [ -z "$WANT" ] || [ "$WANT" = "$live" ]; then
+            [[ "$live" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not read the live commit from ${PAGES_URL}build.json"; exit 1; }
+            rc=0
+            bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$live" || rc=$?
+            [ "$rc" = "0" ] || { echo "::error::the live deployment does not pass its check (exit ${rc}); fix it or roll back first"; exit 1; }
+            echo "commit=${live}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$WANT" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::'${WANT}' is not a full 40-character commit id"; exit 1; }
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::accepting a commit that is not live needs the Cloudflare token (its deployment is checked first); without it, accept what is live"; exit 1
+          fi
+          # Its newest successful production deployment, checked on its own address (dry run:
+          # nothing is switched).
           rc=0
-          bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$live" || rc=$?
-          [ "$rc" = "0" ] || { echo "::error::the live deployment does not pass its check (exit ${rc}); fix it or roll back first"; exit 1; }
-          echo "commit=${live}" >> "$GITHUB_OUTPUT"
+          python3 deploy/pages_switch.py --project "$PAGES_PROJECT" --to-commit "$WANT" --dry-run \
+            --check "bash deploy/check-live.sh --release" || rc=$?
+          [ "$rc" = "0" ] || [ "$rc" = "8" ] || { echo "::error::no deployment of ${WANT:0:7} passes its own check (exit ${rc}); not accepting it"; exit 1; }
+          echo "commit=${WANT}" >> "$GITHUB_OUTPUT"
       # Named for the commit on purpose: deploy_gate.py trusts the marker only when
       # this run has a successful step named exactly "Mark <commit> verified".
       - name: Mark ${{ steps.live.outputs.commit }} verified
@@ -556,7 +581,7 @@ jobs:
         run: |
           RUN="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "$MARK" = "success" ]; then
-            T="🟢 RAS site: ${ACTOR} accepted what is live (${COMMIT:0:7}); the approval checks start from it now."
+            T="🟢 RAS site: ${ACTOR} accepted ${COMMIT:0:7}; the approval checks start from it now."
           else
             T="🔴 RAS site: accept by ${ACTOR} was refused or failed; nothing was marked."
           fi

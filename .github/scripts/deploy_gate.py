@@ -30,9 +30,12 @@ What it checks, by event:
 Merge methods: a merge commit or a squash is one commit on main's first-parent
 history. A rebase merge puts all N of the pull request's commits there. They are
 accepted as part of that pull request when they sit directly below its merge
-commit (at most N-1 of them) and GitHub links each one to that same pull request
-(GitHub links a commit to the pull request that brought it into main). If GitHub
-does not link one, it is judged on its own, so the verdict fails closed.
+commit (at most N-1 of them), GitHub links each one to that same pull request,
+and each was committed by GitHub itself (noreply@github.com) within a minute of
+the merge commit, as the commits a rebase merge creates are. A commit pushed to
+main earlier fails that even when GitHub links it to the pull request (part of a
+branch pushed straight to main before the rest was squash-merged). Anything that
+does not fit is judged on its own, so the verdict fails closed.
 
 It never guesses. If GitHub's API cannot answer, the verdict is "unknown"
 (callers must not publish on it, and must not roll back on it either).
@@ -66,6 +69,7 @@ from __future__ import annotations
 import http.client
 import json
 import os
+from datetime import datetime
 import re
 import sys
 import time
@@ -77,11 +81,20 @@ SERVER = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
 VERIFIED_WORKFLOW = os.environ.get("VERIFIED_WORKFLOW", ".github/workflows/site-checks.yml")
 MAX_WALK = 30
 RETRY_SLEEP = 5  # seconds between asks when GitHub has not linked a new merge yet
+WEB_FLOW = "noreply@github.com"  # the committer of commits GitHub itself creates
+REBASE_WINDOW = 60  # seconds: a rebase merge commits all its commits at one moment
+STATUS_PAGES = 10  # a marker buried under more than 1,000 statuses is not found
 HEX40 = re.compile(r"[0-9a-f]{40}")
 
 
 class Unknown(Exception):
     """GitHub (or the live site) could not give an answer; the verdict must be 'unknown'."""
+
+
+class Refused(Unknown):
+    """GitHub answered, with a 4xx: the thing asked about does not exist or is not ours.
+    Still 'unknown' for everything the gate asks on its own; but when it merely follows
+    a link someone else wrote (a status's target_url), it means "not genuine"."""
 
 
 def eprint(msg: str) -> None:
@@ -100,7 +113,7 @@ def get(url: str, token: str | None, attempts: int = 3) -> object:
                 return json.load(resp)
         except urllib.error.HTTPError as e:
             if e.code < 500 and e.code != 429:
-                raise Unknown(f"GET {url.split('/repos/')[-1]} answered HTTP {e.code}") from e
+                raise Refused(f"GET {url.split('/repos/')[-1]} answered HTTP {e.code}") from e
             last = e
         except (OSError, http.client.HTTPException, ValueError) as e:
             # URLError, timeouts, resets, a dropped connection, a body that is not JSON
@@ -123,6 +136,7 @@ class Repo:
         self.name, self.token, self.approvers = name, token, approvers
         self._merged: dict[str, list[dict]] = {}
         self._pr: dict[int, dict] = {}
+        self._commit: dict[str, dict] = {}
 
     def merged_prs(self, sha: str) -> list[dict]:
         """Pull requests into main, merged, that GitHub links to this commit. GitHub links
@@ -146,10 +160,27 @@ class Repo:
             self._pr[number] = full if isinstance(full, dict) else {}
         return self._pr[number]
 
-    def judge(self, sha: str, run: tuple[int, int] | None) -> tuple[bool, str, tuple[int, int] | None]:
+    def commit(self, sha: str) -> dict:
+        if sha not in self._commit:
+            c = get(f"{API}/repos/{self.name}/commits/{sha}", self.token)
+            self._commit[sha] = c if isinstance(c, dict) else {}
+        return self._commit[sha]
+
+    def committed_by_github_at(self, sha: str) -> float | None:
+        """When GitHub itself committed `sha` (a web-flow commit), or None if it did not."""
+        c = (self.commit(sha).get("commit") or {}).get("committer") or {}
+        if (c.get("email") or "").lower() != WEB_FLOW:
+            return None
+        try:
+            return datetime.fromisoformat((c.get("date") or "").replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return None
+
+    def judge(self, sha: str, run: tuple[int, int, float] | None) -> tuple[bool, str, tuple[int, int, float] | None]:
         """Is `sha` part of a pull request into main merged by an approver?
         `run` carries a rebase merge down the walk: (its PR number, how many more commits
-        directly below may still belong to it). Returns (ok, why, run for the next commit)."""
+        directly below may still belong to it, when GitHub committed the merge commit).
+        Returns (ok, why, run for the next commit)."""
         merges = self.merged_prs(sha)
         exact = [p for p in merges if p.get("merge_commit_sha") == sha]
         if exact:
@@ -158,11 +189,14 @@ class Repo:
             who = (full.get("merged_by") or {}).get("login") or ""
             if who.lower() in self.approvers:
                 n = full.get("commits") if isinstance(full.get("commits"), int) else 1
-                return True, f"PR #{num} merged by {who}", ((num, n - 1) if n > 1 else None)
+                at = self.committed_by_github_at(sha) if n > 1 else None
+                return True, f"PR #{num} merged by {who}", ((num, n - 1, at) if at is not None else None)
             return False, f"PR #{num} was merged by {who or 'an unknown account'}, who is not an approver", None
         if run and run[1] > 0 and any(p.get("number") == run[0] for p in merges):
-            left = run[1] - 1
-            return True, f"part of PR #{run[0]} (rebase merge)", ((run[0], left) if left > 0 else None)
+            at = self.committed_by_github_at(sha)
+            if at is not None and abs(at - run[2]) <= REBASE_WINDOW:
+                left = run[1] - 1
+                return True, f"part of PR #{run[0]} (rebase merge)", ((run[0], left, run[2]) if left > 0 else None)
         if merges:
             nums = ", ".join(f"#{p.get('number')}" for p in merges)
             return False, (f"linked to {nums} but not where it was merged (a commit from a branch "
@@ -170,8 +204,7 @@ class Repo:
         return False, "not part of any pull request into main (a direct push)", None
 
     def first_parent(self, sha: str) -> str:
-        c = get(f"{API}/repos/{self.name}/commits/{sha}", self.token)
-        parents = (c.get("parents") or []) if isinstance(c, dict) else []
+        parents = self.commit(sha).get("parents") or []
         return parents[0]["sha"] if parents else ""
 
     def verified(self, context: str, sha: str) -> bool:
@@ -182,9 +215,18 @@ class Repo:
           - its target_url is a run of VERIFIED_WORKFLOW in this repository, on main,
             started by a push or by hand;
           - in that run, a step named exactly "Mark <this commit> verified" succeeded.
-        Faking all three means committing a workflow change to main, the stated limit."""
-        statuses = get(f"{API}/repos/{self.name}/commits/{sha}/statuses?per_page=100", self.token)
-        for s in statuses if isinstance(statuses, list) else []:
+        Faking all three means committing a workflow change to main, the stated limit.
+        A link that GitHub answers with a 4xx (a made-up run, a deleted run, a wrong
+        attempt) makes that one status "not genuine"; it can never switch the gate to
+        "unknown", or a single bogus status would switch off every rollback."""
+        statuses: list = []
+        for page in range(1, STATUS_PAGES + 1):
+            batch = get(f"{API}/repos/{self.name}/commits/{sha}/statuses?per_page=100&page={page}", self.token)
+            batch = batch if isinstance(batch, list) else []
+            statuses += batch
+            if len(batch) < 100:
+                break
+        for s in statuses:
             if not isinstance(s, dict) or s.get("context") != context or s.get("state") != "success":
                 continue
             if ((s.get("creator") or {}).get("login") or "") != "github-actions[bot]":
@@ -192,8 +234,11 @@ class Repo:
             m = RUN_URL.match(s.get("target_url") or "")
             if not m or m.group("server") != SERVER or m.group("repo").lower() != self.name.lower():
                 continue
-            if self._marked_by_run(int(m.group("run")), m.group("attempt"), sha):
-                return True
+            try:
+                if self._marked_by_run(int(m.group("run")), m.group("attempt"), sha):
+                    return True
+            except Refused:
+                continue  # a link to nothing real: not genuine, and not a reason to stop
         return False
 
     def _marked_by_run(self, run_id: int, attempt: str | None, sha: str) -> bool:
@@ -253,7 +298,7 @@ def check_range(repo: Repo, sha: str, base: str, context: str) -> tuple[str, str
     if sha == base:
         return ("true", f"{sha[:7]} is already the live, known-good commit; nothing new to check", [])
     walked, whys, bad = [], [], []
-    run: tuple[int, int] | None = None
+    run: tuple[int, int, float] | None = None
     cur = sha
     for _ in range(MAX_WALK):
         if not cur:

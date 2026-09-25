@@ -31,6 +31,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 OUT="$ROOT/dist"
 
+# Only the eight known settings, each with a valid value (deploy/config-check.sh).
+bash "$HERE/config-check.sh" >&2 || { echo "build: deploy/config.env failed its check; not building" >&2; exit 1; }
 # shellcheck disable=SC1091
 . "$HERE/config.env"
 # Lets deploy/selftest.sh build with another origin without editing the committed

@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
@@ -38,6 +39,8 @@ class FakeGitHub:
         self.links: dict[str, list[int]] = {}
         self.prs: dict[int, dict] = {}
         self.statuses: dict[str, list[dict]] = {}
+        self.committers: dict[str, dict] = {}   # sha -> {"email", "date"}; default: a person
+        self.missing_runs: set[int] = set()     # run ids GitHub answers 404 for
         self.runs: dict[int, dict] = {}
         self.jobs: dict[tuple[int, str | None], dict] = {}
         self.live: dict | None = None
@@ -50,6 +53,11 @@ class FakeGitHub:
         for a, b in zip(newest_first, newest_first[1:]):
             self.parents[S(a)] = [S(b)]
         self.parents.setdefault(S(newest_first[-1]), [])
+
+    def by_github(self, *names: str, at: str = "2026-09-25T10:00:00Z") -> None:
+        """Commits GitHub itself created at one moment, as a rebase merge does."""
+        for name in names:
+            self.committers[S(name)] = {"email": "noreply@github.com", "date": at}
 
     def pr(self, number: int, merged_at: str, by: str = APPROVER, commits: int = 1, linked=()) -> None:
         self.prs[number] = {"number": number, "merge_commit_sha": S(merged_at), "merged_by": {"login": by},
@@ -86,11 +94,17 @@ class FakeGitHub:
             return [{"number": n, "merged_at": "2026-09-25T00:00:00Z", "base": {"ref": "main"},
                      "merge_commit_sha": self.prs[n]["merge_commit_sha"]} for n in self.links.get(sha, [])]
         if parts[0] == "commits" and len(parts) == 3 and parts[2] == "statuses":
-            return self.statuses.get(parts[1], [])
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+            page = int(query.get("page", ["1"])[0])
+            return self.statuses.get(parts[1], [])[(page - 1) * 100:page * 100]
         if parts[0] == "commits" and len(parts) == 2:
-            return {"sha": parts[1], "parents": [{"sha": p} for p in self.parents.get(parts[1], [])]}
+            who = self.committers.get(parts[1], {"email": "someone@example.com", "date": "2026-09-01T00:00:00Z"})
+            return {"sha": parts[1], "parents": [{"sha": p} for p in self.parents.get(parts[1], [])],
+                    "commit": {"committer": who}}
         if parts[0] == "pulls":
             return self.prs[int(parts[1])]
+        if parts[:2] == ["actions", "runs"] and int(parts[2]) in self.missing_runs:
+            raise g.Refused(f"GET {path} answered HTTP 404")
         if parts[:2] == ["actions", "runs"] and len(parts) == 3:
             return self.runs.get(int(parts[2]), {})
         if parts[:2] == ["actions", "runs"] and parts[-1] == "jobs":
@@ -208,12 +222,14 @@ class RebaseMerges(GateCase):
     def test_an_approvers_rebase_merge_of_three_commits_is_approved(self):
         self.gh.chain("r3", "r2", "r1", "live")
         self.gh.pr(20, "r3", commits=3, linked=("r1", "r2"))
+        self.gh.by_github("r1", "r2", "r3")
         v, why, _ = self.decide("r3", BASE_COMMIT=S("live"))
         self.assertEqual(v, "true", why)
 
     def test_a_direct_push_just_below_a_rebase_merge_is_still_caught(self):
         self.gh.chain("r3b", "r2b", "r1b", "x", "live")
         self.gh.pr(21, "r3b", commits=3, linked=("r1b", "r2b"))
+        self.gh.by_github("r1b", "r2b", "r3b")
         v, _, bad = self.decide("r3b", BASE_COMMIT=S("live"))
         self.assertEqual(v, "false")
         self.assertEqual([b.split(" ")[0] for b in bad], [S("x")[:7]])
@@ -221,18 +237,38 @@ class RebaseMerges(GateCase):
     def test_the_run_never_extends_past_the_pull_requests_commit_count(self):
         self.gh.chain("r3c", "r2c", "r1c", "live")
         self.gh.pr(22, "r3c", commits=2, linked=("r1c", "r2c"))
+        self.gh.by_github("r1c", "r2c", "r3c")
         self.assertEqual(self.decide("r3c", BASE_COMMIT=S("live"))[0], "false")
 
     def test_a_commit_github_does_not_link_breaks_the_run_and_fails_closed(self):
         self.gh.chain("r3d", "r2d", "r1d", "live")
         self.gh.pr(23, "r3d", commits=3, linked=("r1d",))
+        self.gh.by_github("r1d", "r2d", "r3d")
         self.assertEqual(self.decide("r3d", BASE_COMMIT=S("live"))[0], "false")
 
     def test_a_rebase_merge_by_a_non_approver_flags_every_commit(self):
         self.gh.chain("r2e", "r1e", "live")
         self.gh.pr(24, "r2e", by=WRITER, commits=2, linked=("r1e",))
+        self.gh.by_github("r1e", "r2e")
         v, _, bad = self.decide("r2e", BASE_COMMIT=S("live"))
         self.assertEqual((v, len(bad)), ("false", 2))
+
+
+    def test_a_commit_pushed_earlier_under_a_squash_merge_is_not_carried_along(self):
+        # pass 3: part of a PR pushed straight to main, then the rest squash-merged. GitHub
+        # may link that commit to the PR, but GitHub did not commit it at merge time.
+        self.gh.chain("sq", "early", "live")
+        self.gh.pr(25, "sq", commits=3, linked=("early",))
+        self.gh.by_github("sq")
+        v, _, bad = self.decide("sq", BASE_COMMIT=S("live"))
+        self.assertEqual((v, [b.split(" ")[0] for b in bad]), ("false", [S("early")[:7]]))
+
+    def test_rebased_commits_committed_long_before_the_merge_are_not_carried_along(self):
+        self.gh.chain("r2f", "r1f", "live")
+        self.gh.pr(26, "r2f", commits=2, linked=("r1f",))
+        self.gh.by_github("r2f", at="2026-09-25T10:00:00Z")
+        self.gh.by_github("r1f", at="2026-09-20T10:00:00Z")
+        self.assertEqual(self.decide("r2f", BASE_COMMIT=S("live"))[0], "false")
 
 
 class VerifiedMarkers(GateCase):
@@ -273,6 +309,26 @@ class VerifiedMarkers(GateCase):
         self.gh.marker("w", 84)
         self.gh.marker("x", 85, conclusion="skipped")
         self.assertEqual(self.decide("m34", VERIFIED_CONTEXT=CTX)[0], "false")
+
+    def test_a_status_linking_to_a_run_that_does_not_exist_cannot_switch_off_the_gate(self):
+        # pass 3 #1: one bogus status (a made-up or deleted run) made the whole verdict
+        # "unknown", which only alerts: automatic rollback was switched off by one API call
+        self.gh.chain("m36", "x", "w", "root")
+        self.gh.pr(36, "m36")
+        self.gh.marker("w", 88)
+        self.gh.marker("w", 999999)
+        self.gh.missing_runs.add(999999)
+        self.gh.statuses[S("w")].reverse()  # the bogus one is read first
+        v, _, bad = self.decide("m36", VERIFIED_CONTEXT=CTX)
+        self.assertEqual((v, [b.split(" ")[0] for b in bad]), ("false", [S("x")[:7]]))
+
+    def test_a_genuine_marker_under_a_pile_of_junk_statuses_is_still_found(self):
+        self.gh.chain("m37", "w", "root")
+        self.gh.pr(37, "m37")
+        junk = [{"context": "spam", "state": "success", "creator": {"login": WRITER}, "target_url": ""}] * 250
+        self.gh.statuses[S("w")] = list(junk)
+        self.gh.marker("w", 89)
+        self.assertEqual(self.decide("m37", VERIFIED_CONTEXT=CTX)[0], "true")
 
     def test_a_marker_from_another_workflow_is_ignored(self):
         self.gh.chain("m35", "x", "w", "root")

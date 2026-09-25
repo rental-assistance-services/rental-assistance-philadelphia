@@ -33,7 +33,8 @@ half-way. With --no-put-back nothing restorable is recorded, so a cancel can nev
 bring back the deployment that was being removed.
 
 The live check (--check; --url and --expect-commit are appended) is code from the
-repository, so it runs without any CLOUDFLARE_* variable in its environment.
+repository, so it runs without any CLOUDFLARE_* or ACTIONS_* variable, GITHUB_TOKEN,
+GH_TOKEN or SLACK_WEBHOOK_URL in its environment.
 
 Exit codes: 0 switched and verified (or a dry run that would switch)
             1 refused, or could not switch (production unchanged)
@@ -71,6 +72,9 @@ API = "https://api.cloudflare.com/client/v4/accounts/{acc}/pages/projects/{path}
 ID_RE = re.compile(r"[0-9a-f][0-9a-f-]{7,35}")
 HEX40 = re.compile(r"[0-9a-f]{40}")
 SLEEP = 3  # seconds, times the attempt number, between API retries
+# Never handed to the repository's check (it is code from the commit being judged).
+WITHHELD_PREFIXES = ("CLOUDFLARE_", "ACTIONS_")
+WITHHELD = {"GITHUB_TOKEN", "GH_TOKEN", "SLACK_WEBHOOK_URL"}
 
 
 class Fail(Exception):
@@ -139,7 +143,7 @@ def live(project: str) -> tuple[str, str]:
 def run_check(check: str, url: str, commit: str) -> int:
     cmd = shlex.split(check) + ["--url", url, "--expect-commit", commit]
     say(f"$ {' '.join(cmd)}")
-    env = {k: v for k, v in os.environ.items() if not k.startswith("CLOUDFLARE_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(WITHHELD_PREFIXES) and k not in WITHHELD}
     try:
         return subprocess.run(cmd, env=env, stdout=sys.stderr).returncode
     except OSError as e:
@@ -248,10 +252,6 @@ def main() -> int:
     if a.print_live:
         print(f"{lid} {lcommit}")
         return 0
-    if a.only_if_live_commit and lcommit != a.only_if_live_commit:
-        say(f"production now serves {lcommit[:7] or 'something else'}, not {a.only_if_live_commit[:7]}: "
-            "a newer deployment took over, so nothing is switched")
-        return 7
 
     listing = api("GET", f"{a.project}/deployments?env=production&per_page=25")
     if not listing.get("success") or not isinstance(listing.get("result"), list):
@@ -303,6 +303,15 @@ def main() -> int:
     if tid == lid:
         say("the target is already live; nothing to do")
         return 8
+    if a.only_if_live_commit:
+        if not lcommit:
+            say(f"::error::cannot read which commit production serves ({lid}), so whether a newer "
+                "deployment took over is unknown; nothing switched")
+            return 1
+        if lcommit != a.only_if_live_commit:
+            say(f"production now serves {lcommit[:7]}, not {a.only_if_live_commit[:7]}: a newer deployment "
+                "took over, so nothing is switched")
+            return 7
     if not tcommit:
         say(f"::error::{tid} records no commit, so it cannot be verified; refusing")
         return 1
@@ -336,9 +345,12 @@ def main() -> int:
         except Fail as e:
             say(f"::error::cannot re-read production right before switching ({e}); nothing switched")
             return 1
+        if not lcommit:
+            say("::error::cannot read which commit production serves right before switching; nothing switched")
+            return 1
         if lcommit != a.only_if_live_commit:
-            say(f"production changed to {lcommit[:7] or 'something else'} during the check: a newer "
-                "deployment took over, so nothing is switched")
+            say(f"production changed to {lcommit[:7]} during the check: a newer deployment took over, "
+                "so nothing is switched")
             return 7
 
     if a.no_put_back:

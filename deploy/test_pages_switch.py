@@ -145,6 +145,20 @@ class Selection(SwitchCase):
         self.assertIn("::error::", err)
 
 
+class TheOrderOfQuestions(SwitchCase):
+    def test_a_publish_that_never_went_live_says_the_previous_one_is_still_live(self):
+        # pass 3 N-a: upload reported success but production never moved; "superseded"
+        # (something newer went live) was the wrong answer, "already live" (8) is right
+        self.cf.live = PREV
+        rc, _, _ = self.run_tool("--to", PREV, "--only-if-live-commit", C(3), "--no-put-back")
+        self.assertEqual((rc, self.cf.posts), (8, []))
+
+    def test_an_unreadable_live_commit_is_an_error_not_superseded(self):
+        self.cf.deps[0]["deployment_trigger"]["metadata"]["commit_hash"] = ""
+        rc, _, _ = self.run_tool("--to", PREV, "--only-if-live-commit", C(3), "--no-put-back")
+        self.assertEqual((rc, self.cf.posts), (1, []))
+
+
 class OwnAddressCheck(SwitchCase):
     def test_a_gated_or_stale_target_is_refused_before_anything_changes(self):
         self.checks.own = [1]
@@ -254,10 +268,12 @@ class TheCheckItself(unittest.TestCase):
             seen.update(env or {})
             return mock.Mock(returncode=0)
         with mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret", "CLOUDFLARE_ACCOUNT_ID": "a",
-                                          "PATH": os.environ.get("PATH", "")}), \
+                                          "GITHUB_TOKEN": "g", "GH_TOKEN": "g", "SLACK_WEBHOOK_URL": "s",
+                                          "ACTIONS_RUNTIME_TOKEN": "r", "PATH": os.environ.get("PATH", "")}), \
                 mock.patch.object(ps.subprocess, "run", fake_run), redirect_stderr(io.StringIO()):
             self.assertEqual(ps.run_check("bash deploy/check-live.sh", "https://x.test/", C(1)), 0)
-        self.assertFalse([k for k in seen if k.startswith("CLOUDFLARE_")])
+        self.assertFalse([k for k in seen if k.startswith(("CLOUDFLARE_", "ACTIONS_"))
+                          or k in ("GITHUB_TOKEN", "GH_TOKEN", "SLACK_WEBHOOK_URL")])
         self.assertIn("PATH", seen)
 
     def test_public_verdict_prefers_evidence_over_the_last_attempt(self):

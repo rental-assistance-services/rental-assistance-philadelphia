@@ -29,6 +29,11 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Only the eight known settings, each with a valid value (deploy/config-check.sh).
+if ! bash "$HERE/config-check.sh" >&2; then
+  echo "check-live: deploy/config.env failed its check; no verdict" >&2
+  exit 2
+fi
 # shellcheck disable=SC1091
 . "$HERE/config.env"
 

@@ -105,6 +105,18 @@ d=$(scratch)
 printf 'CHECKS=$(true)\n' >> "$d/deploy/config.env"
 expect_refused "a config.env line that would run a command" bash "$d/deploy/config-check.sh"; rm -rf "$d"
 
+d=$(scratch); printf 'APPROVERS=kyle192003\n' >> "$d/deploy/config.env"
+expect_refused "a config.env line setting something other than a known setting" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
+d=$(scratch); printf 'PATH=deploy:/usr/bin:/bin\n' >> "$d/deploy/config.env"
+expect_refused "a config.env line changing PATH" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
+d=$(scratch); sed -i.bak 's#^PAGES_URL=.*#PAGES_URL=https://rental-assistance-services.pages.dev#' "$d/deploy/config.env"; rm -f "$d/deploy/config.env.bak"
+expect_refused "a PAGES_URL without its trailing slash" bash "$d/deploy/config-check.sh"; rm -rf "$d"
+
+d=$(scratch); printf 'APPROVERS=kyle192003\n' >> "$d/deploy/config.env"
+expect_refused "a build with an unknown setting in config.env" build "$d"; rm -rf "$d"
+
 d=$(scratch)
 (cd "$d" && "${CLEAN_ENV[@]}" CANONICAL_ORIGIN_OVERRIDE=https://www.rentalassistanceservices.com CF_PAGES_BRANCH=main BUILD_COMMIT=$SHA bash deploy/build.sh >/dev/null 2>&1)
 expect_refused "no bare-domain URL left after the www rewrite" grep -rqE 'https://rentalassistanceservices\.com([/"<]|$)' "$d/dist" --include='*.html' --include='*.xml' --include='*.txt'
