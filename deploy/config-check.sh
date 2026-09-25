@@ -31,9 +31,12 @@ fi
 bad() { echo "::error::deploy/config.env: $1"; exit 1; }
 case "${CHECKS:-}" in on|off) ;; *) bad "CHECKS must be on or off" ;; esac
 [ "${PAGES_PROJECT:-}" = "rental-assistance-services" ] || bad "PAGES_PROJECT must be rental-assistance-services"
-# Cloudflare may add a suffix when it creates the project (rental-assistance-services-abc.pages.dev).
-[[ "${PAGES_URL:-}" =~ ^https://rental-assistance-services(-[a-z0-9]+)?\.pages\.dev/$ ]] \
-  || bad "PAGES_URL must be https://rental-assistance-services[-suffix].pages.dev/, with the trailing slash"
+# The exact address, no pattern: anyone can create a Pages project named
+# rental-assistance-services-<anything> in their own account. If Cloudflare gives this
+# project a suffix when it is created, the pull request that sets CHECKS=on changes
+# this pin to the confirmed address, together with PAGES_URL.
+[ "${PAGES_URL:-}" = "https://rental-assistance-services.pages.dev/" ] \
+  || bad "PAGES_URL must be https://rental-assistance-services.pages.dev/ (the pin in deploy/config-check.sh), with the trailing slash"
 case "${PUBLIC_URL:-}" in
   ""|https://www.rentalassistanceservices.com/|https://rentalassistanceservices.com/) ;;
   *) bad "PUBLIC_URL must be empty, https://www.rentalassistanceservices.com/ or https://rentalassistanceservices.com/" ;;

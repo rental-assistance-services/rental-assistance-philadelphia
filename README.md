@@ -183,7 +183,7 @@ which forwards the bare domain to `www` (path and query string kept, so Google A
 | Setting | What it does |
 |---|---|
 | `CHECKS` | `off` until the Cloudflare project is connected and has published `main` once. `deploy/config-check.sh` (run before the file is ever sourced) allows only the settings in this table, checks each value, and refuses `CHECKS=on` without a full `VERIFIED_SINCE` |
-| `PAGES_URL` | the project's own address (always answers) |
+| `PAGES_URL` | the project's own address (always answers). Pinned in `deploy/config-check.sh` to exactly `https://rental-assistance-services.pages.dev/`; if Cloudflare gives the project a suffix, the `CHECKS=on` pull request changes both |
 | `PUBLIC_URL` | the public address the checks hold to account; empty until the domain points at Pages |
 | `VERIFIED_SINCE` | the full id of the commit production serves when the checks go on (the approval checks start from it), set in the same pull request as `CHECKS=on` |
 | `BARE_DOMAIN_FORWARDED` | `yes` once GoDaddy forwards the bare domain; the daily check then tests the forward |
