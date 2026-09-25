@@ -22,7 +22,9 @@ scratch() { # a fresh copy of the site without its history or old builds
   (cd "$ROOT" && tar cf - --exclude=.git --exclude=dist --exclude=node_modules .) | (cd "$d" && tar xf -)
   echo "$d"
 }
-build()  { (cd "$1" && CF_PAGES_BRANCH="${2:-main}" BUILD_COMMIT="${3:-$SHA}" bash deploy/build.sh >/dev/null 2>&1); }
+# CI and Cloudflare set these; a scratch build must decide from its own arguments only.
+CLEAN_ENV=(env -u CF_PAGES_COMMIT_SHA -u CF_PAGES_BRANCH -u GITHUB_SHA -u GITHUB_HEAD_REF -u GITHUB_REF_NAME -u CANONICAL_ORIGIN_OVERRIDE)
+build()  { (cd "$1" && "${CLEAN_ENV[@]}" CF_PAGES_BRANCH="${2:-main}" BUILD_COMMIT="${3:-$SHA}" bash deploy/build.sh >/dev/null 2>&1); }
 verify() { python3 "$1/deploy/verify-bundle.py" "$1/dist" >/dev/null 2>&1; }
 ok()     { echo "  ok    $1"; PASS=$((PASS + 1)); }
 bad()    { echo "  FAIL  $1"; FAIL=$((FAIL + 1)); }
@@ -73,7 +75,7 @@ d=$(scratch); build "$d" some-feature-branch
 expect_ok "a preview build marks every URL noindex" grep -q 'X-Robots-Tag: noindex' "$d/dist/_headers"; rm -rf "$d"
 
 d=$(scratch)
-(cd "$d" && CANONICAL_ORIGIN_OVERRIDE=https://www.rentalassistanceservices.com CF_PAGES_BRANCH=main BUILD_COMMIT=$SHA bash deploy/build.sh >/dev/null 2>&1)
+(cd "$d" && "${CLEAN_ENV[@]}" CANONICAL_ORIGIN_OVERRIDE=https://www.rentalassistanceservices.com CF_PAGES_BRANCH=main BUILD_COMMIT=$SHA bash deploy/build.sh >/dev/null 2>&1)
 expect_refused "no bare-domain URL left after the www rewrite" grep -rqE 'https://rentalassistanceservices\.com([/"<]|$)' "$d/dist" --include='*.html' --include='*.xml' --include='*.txt'
 expect_ok "email addresses are not rewritten" grep -rq 'info@rentalassistanceservices.com' "$d/dist" --include='*.html'
 rm -rf "$d"
