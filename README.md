@@ -1,6 +1,7 @@
 # Rental Assistance Philadelphia — site
 
-Static marketing site. Hosted via GitHub Pages; a merge to `main` publishes it.
+Static marketing site. Moving from GitHub Pages to Cloudflare Pages (see **Hosting and deploys**
+at the end); a merge to `main` by an approver publishes it.
 
 **This repo is the source of truth for the published site.** An older copy lives at
 `Rio/_lanes/tfa-landlord-gtm/artifacts/site-v2.html` in the private 2RD-Automation repo;
@@ -143,3 +144,27 @@ asserts the tenant hotline numbers are identical in all three places they appear
 stale while another is updated. `tests/landlord-check.spec.js` covers the popup: which pages
 carry it, both paths, the progress bar, validation, the conversion rules, the hand-off to
 the long form, and the phone layout. CI runs both on every push and PR to `main`.
+
+## Hosting and deploys
+
+| | |
+|---|---|
+| Domain | `rentalassistanceservices.com`, registered at GoDaddy (2026-06-17); DNS at GoDaddy |
+| Served by | Cloudflare Pages, project `rental-assistance-services` (Abe's Cloudflare account), connected to this repository. Until the switch: GitHub Pages from `main` (the `CNAME` file) |
+| Build | Cloudflare runs `bash deploy/build.sh` (output `dist/`). It publishes only what a browser needs, by file type: never this README, `tests/`, `package.json`, `deploy/` or `.github/` (GitHub Pages served all of them). It stamps every page with the commit (`<meta name="ras-build">`, `/build.json`) and keeps unknown URLs real 404s |
+| Pull requests | Cloudflare builds every branch as a preview (`https://<branch>.rental-assistance-services.pages.dev`, `noindex`) and links it on the pull request. Forms cannot submit from a preview: the intake API only accepts this site's own addresses |
+| Production | A merge to `main`. `.github/workflows/site-checks.yml` then waits for production to serve that commit, checks it (`deploy/check-live.sh`), and checks the merge was made by an approver (RK or Abe). A deployment that fails its check, or that nobody approved, is rolled back through the Pages API in seconds and Slack is told. GitHub's free plan cannot protect `main` on a private repository, so this is the approval |
+| Daily | 11:40 UTC: the full live check and "is production still `main`?". Silent when healthy |
+| Rollback | Actions > Site checks > Run workflow > `rollback` (empty = the deployment before the live one). Or Cloudflare > Workers & Pages > rental-assistance-services > Deployments > the deployment > Rollback |
+| Which version is live | `curl -s https://rental-assistance-services.pages.dev/build.json` (or the public address once it has moved) |
+
+The public address moves to `www.rentalassistanceservices.com`: Cloudflare Pages can serve a bare
+domain only when its DNS is at Cloudflare, and this DNS stays at GoDaddy, which forwards the bare
+domain to `www` (path and query string kept, so Google Ads `?gclid` survives). `deploy/config.env`
+holds the switch: `CHECKS`, `PAGES_URL`, `PUBLIC_URL`, `CANONICAL_ORIGIN` (the build rewrites the
+source's `https://rentalassistanceservices.com` links to it). GitHub Pages is switched off, and this
+repository made private, only after Cloudflare Pages has served the domain for a full day.
+
+Checks by hand, all read-only: `bash deploy/selftest.sh` (the build guards fire),
+`BUILD_COMMIT=$(git rev-parse HEAD) bash deploy/build.sh && python3 deploy/verify-bundle.py dist`,
+`bash deploy/check-live.sh --url <address>`.

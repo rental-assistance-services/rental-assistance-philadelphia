@@ -1,0 +1,306 @@
+name: Site checks
+
+# Who deploys what
+# ----------------
+# Cloudflare Pages builds and publishes this site ITSELF: the Pages project
+# `rental-assistance-services` is connected to this repository and runs
+# `bash deploy/build.sh` on every push. Every branch becomes a preview
+# (https://<branch>.rental-assistance-services.pages.dev, noindex, linked on the
+# pull request by Cloudflare), and `main` becomes production. No deploy depends
+# on GitHub Actions, so no GitHub spending limit can block one.
+#
+# This workflow does what Cloudflare cannot:
+#   after a merge   waits until production serves the merged commit, proves it
+#                   with deploy/check-live.sh, and checks the merge was made by an
+#                   approver. A deployment that fails its check, or that nobody
+#                   approved, is rolled back through the Pages API (seconds) and
+#                   Slack is told. This is the one human approval before
+#                   production: GitHub's free plan cannot protect `main` on a
+#                   private repository.
+#   daily 11:40     the full live check (plus the bare domain's forwarding once
+#                   the public address is www) and "is production still main?".
+#                   Silent when healthy.
+#   Run workflow    action = check | rollback (approvers only).
+#
+# It runs on GitHub's machines in the rental-assistance-services organisation,
+# on that organisation's own free minutes (about two minutes a run).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "40 11 * * *"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "check = run the full live check now; rollback = make an earlier production deployment live"
+        type: choice
+        options: [check, rollback]
+        default: check
+      deployment:
+        description: "rollback only: the Cloudflare deployment id. Empty = the one before the live one."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  APPROVERS: ${{ vars.DEPLOY_APPROVERS || 'ryankyleocampo-github asilber15' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  selftest:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prove the build guards fire
+        run: bash deploy/selftest.sh
+
+  # ---------------------------------------------------------------------------
+  after-deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: pages-ras
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Read deploy/config.env
+        id: cfg
+        run: |
+          set -euo pipefail
+          # sourcing a repo file runs whatever is in it, and this file arrives through pull requests
+          if grep -qvE '^(#.*)?$|^[A-Z_]+=[A-Za-z0-9._/:-]*$' deploy/config.env; then
+            echo "::error::deploy/config.env holds a line that is not a comment or a plain assignment; it will not be sourced"
+            exit 1
+          fi
+          . deploy/config.env
+          {
+            echo "checks=${CHECKS}"
+            echo "project=${PAGES_PROJECT}"
+            echo "pages_url=${PAGES_URL}"
+            echo "public_url=${PUBLIC_URL}"
+          } >> "$GITHUB_OUTPUT"
+          if [ "${CHECKS}" != "on" ]; then
+            echo "::notice::CHECKS=${CHECKS} in deploy/config.env: the Cloudflare Pages project is not connected yet, so there is no deployment to check"
+          fi
+
+      - name: Was this merge approved?
+        if: steps.cfg.outputs.checks == 'on'
+        id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EVENT: push
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: python3 .github/scripts/deploy_gate.py
+
+      - name: Wait until production serves this commit
+        if: steps.cfg.outputs.checks == 'on'
+        id: wait
+        env:
+          PAGES_URL: ${{ steps.cfg.outputs.pages_url }}
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 40); do
+            live=$(curl -sS --proto '=https' -m 20 "${PAGES_URL}build.json?cb=${GITHUB_RUN_ID}-${i}" 2>/dev/null \
+                   | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null || true)
+            if [ "$live" = "$GITHUB_SHA" ]; then
+              echo "production serves ${GITHUB_SHA:0:7} (after about $((i * 15)) s)"
+              echo "landed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            # A newer merge may have overtaken this one: then there is nothing to wait for.
+            git fetch --quiet origin main
+            if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+              echo "::notice::main has moved on past ${GITHUB_SHA:0:7}; the newer run checks production"
+              echo "landed=superseded" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::production did not start serving ${GITHUB_SHA:0:7} within 10 minutes. Cloudflare's build probably failed;"
+          echo "::error::the site is still serving the previous deployment. Workers & Pages > ${{ steps.cfg.outputs.project }} > Deployments shows the build log."
+          echo "landed=false" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Check it, and roll back if it is wrong or unapproved
+        id: verify
+        if: steps.cfg.outputs.checks == 'on' && steps.wait.outputs.landed == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ steps.cfg.outputs.project }}
+          PAGES_URL: ${{ steps.cfg.outputs.pages_url }}
+          PUBLIC_URL: ${{ steps.cfg.outputs.public_url }}
+          APPROVED: ${{ steps.gate.outputs.approved }}
+        run: |
+          set -uo pipefail
+          rc=0
+          bash deploy/check-live.sh --release --url "$PAGES_URL" --expect-commit "$GITHUB_SHA" || rc=$?
+          if [ "$rc" = "0" ] && [ -n "$PUBLIC_URL" ]; then
+            for attempt in 1 2 3 4 5 6; do
+              rc=0
+              bash deploy/check-live.sh --release --url "$PUBLIC_URL" --expect-commit "$GITHUB_SHA" || rc=$?
+              [ "$rc" = "0" ] && break
+              echo "public URL check attempt ${attempt}/6 exited ${rc}"
+              sleep 10
+            done
+          fi
+          if [ "$rc" = "0" ] && [ "$APPROVED" = "true" ]; then
+            echo "verdict=good" >> "$GITHUB_OUTPUT"
+            echo "### Live and approved: ${GITHUB_SHA:0:7}" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$rc" = "2" ]; then
+            echo "verdict=unreachable" >> "$GITHUB_OUTPUT"
+            echo "::error::the site could not be reached; NOT rolling back (unreachable is not evidence of a bad deployment)"
+            exit 1
+          fi
+          why="failed its check"
+          [ "$rc" = "0" ] && why="was not approved (${{ steps.gate.outputs.reason }})"
+          echo "::error::${GITHUB_SHA:0:7} ${why}; rolling production back"
+          if python3 deploy/pages_rollback.py --project "$PROJECT" --before-commit "$GITHUB_SHA" | tee "$RUNNER_TEMP/rb.txt"; then
+            echo "verdict=rolled-back" >> "$GITHUB_OUTPUT"
+          else
+            echo "verdict=rollback-failed" >> "$GITHUB_OUTPUT"
+          fi
+          echo "why=${why}" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Tell Slack
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          LANDED: ${{ steps.wait.outputs.landed }}
+          VERDICT: ${{ steps.verify.outputs.verdict }}
+          WHY: ${{ steps.verify.outputs.why }}
+        run: |
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          case "$LANDED/$VERDICT" in
+            false/*)             TEXT="🔴 RAS site: production did not update to ${GITHUB_SHA:0:7} within 10 minutes (Cloudflare build failed?). The previous version is still live. ${RUN_URL}" ;;
+            */rolled-back)       TEXT="🔴 RAS site: ${GITHUB_SHA:0:7} ${WHY}. Production was rolled back to the previous deployment. ${RUN_URL}" ;;
+            */rollback-failed)   TEXT="🔴 RAS site: ${GITHUB_SHA:0:7} ${WHY} AND the rollback failed. The site may be wrong right now: Cloudflare > Workers & Pages > Deployments > Rollback. ${RUN_URL}" ;;
+            */unreachable)       TEXT="🟠 RAS site could not be reached after deploying ${GITHUB_SHA:0:7}; not rolled back. Check it now. ${RUN_URL}" ;;
+            *)                   TEXT="🔴 RAS site checks failed after ${GITHUB_SHA:0:7}. ${RUN_URL}" ;;
+          esac
+          echo "$TEXT"
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+            PAYLOAD=$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read()}))')
+            curl -sf -m 20 -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" > /dev/null \
+              && echo "Slack alerted" || echo "::warning::Slack alert failed to send"
+          else
+            echo "::warning::SLACK_WEBHOOK_URL is not set; no alert was sent"
+          fi
+
+  # ---------------------------------------------------------------------------
+  daily:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.action == 'check')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Is the live site healthy, and is production still main?
+        id: live
+        run: |
+          set -uo pipefail
+          if grep -qvE '^(#.*)?$|^[A-Z_]+=[A-Za-z0-9._/:-]*$' deploy/config.env; then
+            echo "::error::deploy/config.env holds a line that is not a plain assignment"; exit 1
+          fi
+          . deploy/config.env
+          if [ "${CHECKS}" != "on" ]; then
+            echo "::notice::CHECKS=${CHECKS}: the Cloudflare Pages project is not connected yet; nothing to check"
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          url="${PUBLIC_URL:-$PAGES_URL}"
+          rc=0
+          bash deploy/check-live.sh --url "$url" || rc=$?
+          git fetch --quiet origin main
+          main_sha=$(git rev-parse FETCH_HEAD)
+          live=$(curl -sS --proto '=https' -m 20 "${url}build.json?cb=d-${GITHUB_RUN_ID}" 2>/dev/null \
+                 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null || true)
+          if [ "$live" != "$main_sha" ]; then
+            echo "::error::production serves ${live:-nothing readable}, main is ${main_sha}: a rollback is in place or a build failed"
+            [ "$rc" = "0" ] && rc=1
+          fi
+          exit "$rc"
+      - name: Tell Slack
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          TEXT="🟠 RAS site daily check FAILED: something is off (a page, the bare-domain forward, dev files, or production is not main). ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+            PAYLOAD=$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read()}))')
+            curl -sf -m 20 -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" > /dev/null || true
+          fi
+
+  # ---------------------------------------------------------------------------
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: pages-ras
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - name: Only an approver may roll back
+        id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EVENT: workflow_dispatch
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          python3 .github/scripts/deploy_gate.py
+      - name: Roll back and verify
+        if: steps.gate.outputs.approved == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WANT: ${{ inputs.deployment }}
+        run: |
+          set -uo pipefail
+          . deploy/config.env
+          if [ -n "$WANT" ]; then sel=(--to "$WANT"); else sel=(--previous); fi
+          before=$(python3 deploy/pages_rollback.py --project "$PAGES_PROJECT" --previous --dry-run | sed -n 's/.*live_before=\([^ ]*\).*/\1/p')
+          python3 deploy/pages_rollback.py --project "$PAGES_PROJECT" "${sel[@]}" | tee "$RUNNER_TEMP/rb.txt" || exit 1
+          commit=$(sed -n 's/^target=[^ ]* commit=\([0-9a-f]*\).*/\1/p' "$RUNNER_TEMP/rb.txt")
+          url="${PUBLIC_URL:-$PAGES_URL}"
+          rc=1
+          for attempt in 1 2 3 4 5 6; do
+            sleep 10
+            rc=0
+            bash deploy/check-live.sh --release --url "$url" ${commit:+--expect-commit "$commit"} || rc=$?
+            [ "$rc" = "0" ] && break
+            echo "check attempt ${attempt}/6 exited ${rc}"
+          done
+          if [ "$rc" != "0" ] && [ -n "$before" ]; then
+            echo "::error::the deployment rolled back to does not pass its check; putting ${before} back"
+            python3 deploy/pages_rollback.py --project "$PAGES_PROJECT" --to "$before" || true
+            exit 1
+          fi
+          echo "### Rolled back: production now serves ${commit:0:7}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Refused
+        if: steps.gate.outputs.approved != 'true'
+        run: |
+          echo "::error::only an approver can roll back: ${{ steps.gate.outputs.reason }}"
+          exit 1
