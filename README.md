@@ -204,4 +204,8 @@ two worktrees can test at once.
 
 The four checks that time a 350ms animation frame by frame are tagged `@timing` and get one
 retry. On a busy machine a frame can land a few ms late; a real regression fails both tries.
+The design pictures get one retry too, and allow 0.5% of a page to differ, because even drawn
+in software Chrome shades the odd letter's edge differently on a busy machine. A real design
+change is bigger: one pale tile swapped on `/tenants/` changes 2 to 3% of the page. A change
+smaller than that, such as one small button's colour on a long page, can pass unnoticed.
 CI runs everything except the design pictures on every push and PR to `main`.
