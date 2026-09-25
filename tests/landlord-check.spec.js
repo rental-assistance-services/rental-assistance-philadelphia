@@ -273,7 +273,7 @@ test.describe('address suggestions', () => {
     await photonAnswers(page, []);
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('Block 5 Lot 12 Sampaguita');
-    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(manual(page)).toHaveText('We couldn’t find a match. You can still type your full address yourself.');
     await expect(options(page)).toHaveCount(0);
     await expect(list(page)).not.toContainText('OpenStreetMap');       // nothing of theirs is shown
     // Escape closes the list, not the popup
@@ -294,7 +294,7 @@ test.describe('address suggestions', () => {
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
     await page.waitForTimeout(1500);
     await expect(list(page)).toBeHidden();                           // not straight away
-    await expect(manual(page)).toContainText('you can still type your full address yourself', { timeout: 3000 });
+    await expect(manual(page)).toContainText('You can still type your full address yourself', { timeout: 3000 });
     release();
     await expect(options(page)).toHaveCount(3);
     await expect(manual(page)).toHaveText('Don’t see your address? You can still type it in yourself.');
@@ -304,7 +304,7 @@ test.describe('address suggestions', () => {
     await photonAnswers(page, [], { fail: true });
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th St');
-    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(manual(page)).toHaveText('We couldn’t find a match. You can still type your full address yourself.');
     await expect(options(page)).toHaveCount(0);
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
     await page.fill('#prop-rent', '1150');
@@ -372,7 +372,7 @@ test.describe('address suggestions', () => {
     expect(res.status()).toBe(200);
     expect(await termsSection(page, '7. Your information')).toContain(
       'As you type a property address into one of our forms, what you have typed is sent to Photon, '
-      + 'a free address-search service run by komoot, so it can offer matching addresses \u2014 you can '
+      + 'a free address-search service run by komoot, so it can offer matching addresses. You can '
       + 'always ignore the suggestions and type the address out in full.');
   });
 });
@@ -426,10 +426,10 @@ test.describe('file uploads look like the site', () => {
     await toStep(page, 'Your documents');
     const msg = page.locator('.field:has(#doc-lease) > .errmsg');
     await page.setInputFiles('#doc-lease', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hi') });
-    await expect(msg).toContainText('“notes.txt” isn’t a file we can take — please use PDF, JPG, PNG or HEIC.');
+    await expect(msg).toContainText('“notes.txt” isn’t a file we can take. Please use PDF, JPG, PNG or HEIC.');
     expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
     await page.setInputFiles('#doc-lease', pdf('huge-scan.pdf', 16 * 1024 * 1024));
-    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB — files must be under 15MB.');
+    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB. Files must be under 15MB.');
     expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
     await page.setInputFiles('#doc-lease', pdf('lease.pdf'));
     await expect(msg).toBeHidden();
@@ -642,7 +642,7 @@ test.describe('answers are kept for an hour', () => {
     // picks up where they were
     expect(await currentStep(page)).toBe('The property');
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
-    await expect(note(page)).toContainText('we kept what you typed on this device for an hour');
+    await expect(note(page)).toContainText('We kept what you typed on this device for an hour');
     await back(page).click();
     await expect(page.locator('#owner-name')).toHaveValue('Marcus Reed');
     await expect(page.locator('#owner-entity')).toHaveValue('Reed Property Group LLC');
@@ -767,7 +767,7 @@ test.describe('answers are kept for an hour', () => {
     expect(res.status()).toBe(200);
     expect(await termsSection(page, '7. Your information')).toContain(
       'So you can finish later, the form keeps what you have typed in your own browser for one hour '
-      + 'after your last change \u2014 that copy stays on your device, is sent nowhere, and is cleared '
+      + 'after your last change. That copy stays on your device, is sent nowhere, and is cleared '
       + 'after the hour, when you submit, or when you press Start over.');
   });
 });
@@ -958,7 +958,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     for (const shouty of ['MARCUS REED', 'Marcus REED', 'Keana O’NEIL']) {
       await name.fill('');
       await name.pressSequentially(shouty);
-      await expect(msg).toHaveText('Please type your name normally, not in all capitals — e.g. Marcus Reed.');
+      await expect(msg).toHaveText('Please type your name normally, not in all capitals, e.g. Marcus Reed.');
       await expect(field).not.toHaveClass(/lc-ok/);
     }
     // ...but capitals inside a normal name are fine, and so are suffixes and initials
@@ -1049,7 +1049,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
       return e.defaultPrevented;
     });
     expect(pasted).toBe(true);
-    await expect(cmsg).toContainText('pasting and autofill are turned off');
+    await expect(cmsg).toContainText('Pasting and autofill are turned off');
     // drop
     const dropped = await confirm.evaluate((el) => {
       const e = new Event('drop', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented;

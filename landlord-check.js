@@ -47,8 +47,8 @@
   // The same three lines as the inline tenant panels and /tenants/ — tests/intake-forms.spec.js
   // asserts every copy carries the same numbers. data-no-track keeps them out of phone_click.
   var TENANT_LINES = [
-    { name: 'Eviction Diversion Program — tenant hotline', tel: '+12155239501', label: '215-523-9501',
-      meta: 'City of Philadelphia · Mon–Fri, 9am–4pm' },
+    { name: 'Eviction Diversion Program: tenant hotline', tel: '+12155239501', label: '215-523-9501',
+      meta: 'City of Philadelphia · Monday to Friday, 9am to 4pm' },
     { name: 'Philly Tenant Hotline', tel: '+12674432500', label: '(267) 443-2500',
       meta: 'Free legal help &amp; tenant advocacy' },
     { name: 'PA 211', tel: '211', label: '211', meta: 'Rent, utilities, food and housing referrals' }
@@ -414,7 +414,7 @@
     + '<div class="lc-body">'
     // who you are
     + '<div class="lc-panel" data-lc-panel="role">'
-    + '<h2 class="lc-q" id="lc-title-role">First &mdash; do you own or rent?</h2>'
+    + '<h2 class="lc-q" id="lc-title-role">First, do you own or rent?</h2>'
     + '<p class="lc-sub">We&rsquo;re hired by Philadelphia property owners to get a tenant&rsquo;s back rent paid by the City.</p>'
     + '<div class="lc-roles">'
     + '<button type="button" class="lc-role" data-lc-role="landlord">I own or manage rental property<small>Landlord or property manager</small></button>'
@@ -424,9 +424,9 @@
     + '</div>'
     // tenant — no request of any kind is made on this path
     + '<div class="lc-panel" data-lc-panel="tenant" hidden>'
-    + '<h2 class="lc-q" id="lc-title-tenant">We work for landlords &mdash; but there&rsquo;s free help for you.</h2>'
+    + '<h2 class="lc-q" id="lc-title-tenant">We work for landlords, but there&rsquo;s free help for you.</h2>'
     + '<p class="lc-sub">We&rsquo;re a private service hired by property owners, so there&rsquo;s nothing we can file for you. '
-    + 'The City&rsquo;s Eviction Diversion Program can pay a tenant&rsquo;s back rent &mdash; but <strong>the landlord has to apply</strong>. '
+    + 'The City&rsquo;s Eviction Diversion Program can pay a tenant&rsquo;s back rent, but <strong>the landlord has to apply</strong>. '
     + 'These free lines can explain it so you can raise it with them:</p>'
     + '<ul class="lc-lines" data-lc-tenant-lines>'
     + TENANT_LINES.map(function (l) {
@@ -438,7 +438,7 @@
     + '</div>'
     // the page's form is moved in here
     + '<div class="lc-panel" data-lc-panel="form" hidden>'
-    + '<p class="lc-restored" hidden><span>Welcome back — we kept what you typed on this device for an hour.</span>'
+    + '<p class="lc-restored" hidden><span>Welcome back. We kept what you typed on this device for an hour.</span>'
     + '<button type="button" class="lc-startover" data-lc-startover>Start over</button></p>'
     + '<div class="lc-host" id="lc-title-form"></div>'
     + '<div class="lc-nav"><button type="button" class="lc-btn lc-btn-back" data-lc-back>&larr; Back</button>'
@@ -525,7 +525,7 @@
     // is information only — not an option, so the arrow keys skip it and a click does nothing.
     var MANUAL = {
       more: 'Don’t see your address? You can still type it in yourself.',
-      none: 'We couldn’t find a match — you can still type your full address yourself.'
+      none: 'We couldn’t find a match. You can still type your full address yourself.'
     };
     function manualLine(text) {
       return '<li class="lc-suggest-manual" role="presentation">' + PEN + '<span>' + text + '</span></li>';
@@ -715,9 +715,9 @@
       if (f) {
         var ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
         var problem = allowed.length && allowed.indexOf(ext) === -1
-          ? '“' + f.name + '” isn’t a file we can take — please use ' + types + '.'
+          ? '“' + f.name + '” isn’t a file we can take. Please use ' + types + '.'
           : f.size > MAX_FILE_MB * 1048576
-            ? '“' + f.name + '” is ' + sizeText(f.size) + ' — files must be under ' + MAX_FILE_MB + 'MB.' : '';
+            ? '“' + f.name + '” is ' + sizeText(f.size) + '. Files must be under ' + MAX_FILE_MB + 'MB.' : '';
         if (problem) { input.value = ''; say(field, problem); zone.classList.add('lc-bad'); show(); return; }
       }
       say(field, ''); zone.classList.remove('lc-bad');
@@ -756,7 +756,7 @@
     if (d.length < 8) return { unfinished: true };
     var mm = +d.slice(0, 2), dd = +d.slice(2, 4), yy = +d.slice(4, 8);
     var dt = new Date(yy, mm - 1, dd);
-    if (mm < 1 || mm > 12 || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return { problem: 'That isn’t a real date — use MM/DD/YYYY, e.g. 03/15/2024.' };
+    if (mm < 1 || mm > 12 || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return { problem: 'That isn’t a real date. Use MM/DD/YYYY, e.g. 03/15/2024.' };
     if (yy < 1900) return { problem: 'Please check the year.' };
     if (dt > today()) return { problem: 'The move-in date can’t be in the future.' };
     return { date: dt };
@@ -1287,7 +1287,7 @@
     var NAME_CHARS = /^[\p{L}\p{M}' ’.\-]+$/u;
     // Caps Lock: any part of a name with 2+ letters that are ALL capitals ("MARCUS", "O'NEIL").
     // Mixed case is fine ("McDonald", "DeShawn"), and so are generation suffixes (III, IV).
-    var CAPS_MSG = 'Please type your name normally, not in all capitals — e.g. Marcus Reed.';
+    var CAPS_MSG = 'Please type your name normally, not in all capitals, e.g. Marcus Reed.';
     var SUFFIX = /^(II|III|IV|VI{0,3}|IX)\.?$/;              // generation suffixes: Carter III
     function shouting(v) {
       return v.split(/[\s\-.'’,&]+/).some(function (w) {
@@ -1323,10 +1323,10 @@
       if (!/^[\d\s().+\-]+$/.test(v)) return 'Phone numbers can only use digits, spaces, ( ) and -.';
       var raw = v.replace(/\D/g, ''), d = phoneDigits(v);
       if (raw.length > 11 || (raw.length === 11 && raw[0] !== '1'))
-        return 'That’s too many digits — enter a 10-digit US number, e.g. (215) 555-0123.';
+        return 'That’s too many digits. Enter a 10-digit US number, e.g. (215) 555-0123.';
       if (d.length < 10) return strict ? 'Enter a 10-digit US phone number, e.g. (215) 555-0123.' : null;
-      if (!/^[2-9]/.test(d)) return 'That area code isn’t valid — it can’t start with 0 or 1.';
-      if (!/^[2-9]/.test(d.slice(3))) return 'That number isn’t valid — check the three digits after the area code.';
+      if (!/^[2-9]/.test(d)) return 'That area code isn’t valid. It can’t start with 0 or 1.';
+      if (!/^[2-9]/.test(d.slice(3))) return 'That number isn’t valid. Check the three digits after the area code.';
       if (/^(\d)\1{9}$/.test(d)) return 'That doesn’t look like a real phone number.';
       return null;
     }
@@ -1421,7 +1421,7 @@
     }
     // The point of the retype is a second, independent typing — so it can't be pasted,
     // dropped in, or filled by the browser. Any of those is refused with a line saying why.
-    var NO_FILL = 'Please type your email again — pasting and autofill are turned off here, so a typo can’t slip through.';
+    var NO_FILL = 'Please type your email again. Pasting and autofill are turned off here, so a typo can’t slip through.';
     function guardRetype(c, email) {
       function refuse(e) {
         if (e) e.preventDefault();
