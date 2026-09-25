@@ -176,10 +176,36 @@ npx playwright install --with-deps chromium
 npm test
 ```
 
-Real-browser Playwright suite (`tests/intake-forms.spec.js`) covering both the landlord and
-the tenant path on all five forms, the honeypot, and the conversion-tracking rules. It also
-asserts the tenant hotline numbers are identical in all three places they appear
-(`/tenants/`, and the inline panel on each of the two form pages), so one copy cannot go
-stale while another is updated. `tests/landlord-check.spec.js` covers the popup: which pages
-carry it, both paths, the progress bar, validation, the conversion rules, the hand-off to
-the long form, and the phone layout. CI runs both on every push and PR to `main`.
+Everything runs in a real browser (Playwright) against this folder's own files. The tests
+start their own server, on a port worked out from the folder's path (4200 to 4899), so a
+`npm run dev` on 4173, from this folder or another worktree, is never tested by mistake, and
+two worktrees can test at once.
+
+| Command | When |
+|---|---|
+| `npm test` | Everything below. |
+| `npm run test:update` | A design change is meant: record the new approved pictures. Also once on a fresh checkout, which has none yet. |
+| `npm run test:report` | Open the last run's report: each failure with a trace, and for a design check the approved picture, the new one and the difference. |
+
+- `tests/intake-forms.spec.js`: both the landlord and the tenant path on all five forms, the
+  honeypot, and the conversion-tracking rules. It also asserts the tenant hotline numbers are
+  identical in all three places they appear (`/tenants/`, and the inline panel on each of the
+  two form pages), so one copy cannot go stale while another is updated.
+- `tests/landlord-check.spec.js`: the popup: which pages carry it, both paths, the progress
+  bar, validation, the conversion rules, the hand-off to the long form, and the phone layout.
+- `tests/pages.spec.js` and `tests/seo.spec.js`: every page's layout rules, motion and
+  reduced motion, and what its search result says.
+- `tests/accessibility.spec.js`: every page against WCAG 2.1 A and AA with axe (contrast,
+  labels, headings, alt text). Problems that were already there are listed in `KNOWN` with
+  the reason; fix one and delete its entry (the check says when an entry no longer matches).
+- `tests/design.spec.js`: every page at phone (390px) and desktop (1280px) width, compared
+  with its approved picture. Only on this computer: Windows and GitHub's Linux machines draw
+  text slightly differently, so the pictures are not committed (`.gitignore`).
+
+The four checks that time a 350ms animation frame by frame are tagged `@timing` and get one
+retry. On a busy machine a frame can land a few ms late; a real regression fails both tries.
+The design pictures get one retry too, and allow 0.5% of a page to differ, because even drawn
+in software Chrome shades the odd letter's edge differently on a busy machine. A real design
+change is bigger: one pale tile swapped on `/tenants/` changes 2 to 3% of the page. A change
+smaller than that, such as one small button's colour on a long page, can pass unnoticed.
+CI runs everything except the design pictures on every push and PR to `main`.
