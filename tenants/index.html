@@ -11,7 +11,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Are You a Tenant? Where to Get Help in Philadelphia | Rental Assistance Philadelphia</title>
-<meta name="description" content="Rental Assistance Philadelphia works for property owners, not tenants — we cannot file for you. Here are the free Philadelphia services that help renters directly: the Eviction Diversion Program tenant hotline, the Philly Tenant Hotline, and PA 211.">
+<meta name="description" content="Rental Assistance Philadelphia works for property owners, not tenants. We cannot file for you. Here are the free Philadelphia services that help renters directly: the Eviction Diversion Program tenant hotline, the Philly Tenant Hotline, and PA 211.">
 <link rel="canonical" href="https://rentalassistanceservices.com/tenants/">
 <meta name="robots" content="index,follow">
 <!-- Open Graph -->
@@ -40,18 +40,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link rel="stylesheet" href="/theme.css">
 <script src="/motion.js" defer></script>
 <style>
-:root{--maxw:900px;}   /* a narrower, reading-width page */
+:root{--maxw:1000px;}   /* narrower than the main site's 1140px */
 *{box-sizing:border-box;}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;line-height:1.62;font-size:17px;}
 h1,h2,h3{font-family:var(--serif);color:var(--navy);letter-spacing:-.012em;font-weight:560;margin:0 0 .5em;line-height:1.14;}
 h1{font-size:clamp(1.9rem,4.2vw,2.9rem);}
-h2{font-size:clamp(1.4rem,2.8vw,1.9rem);}
+h2{font-size:clamp(1.5rem,2.8vw,2rem);}
 h3{font-size:1.14rem;}
 p{margin:0 0 1em;}
 a{color:var(--blue-2);}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
-.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--blue-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
+.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--blue-2);margin:0 0 14px;display:flex;align-items:center;gap:11px;}
 .eyebrow::before{content:"";width:26px;height:1px;background:var(--blue);display:inline-block;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.ico{width:24px;height:24px;flex:0 0 auto;}
 
 .topbar{background:var(--navy-3);color:#fff;}
 .topbar .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:14px;padding-bottom:14px;gap:16px;max-width:1140px;flex-wrap:wrap;}
@@ -59,27 +61,160 @@ a{color:var(--blue-2);}
 .brand svg{flex:0 0 auto;}
 .topbar .back{color:var(--blue-soft);text-decoration:none;font-weight:600;font-size:.92rem;}
 
-.hero{background:linear-gradient(180deg,var(--paper-3),var(--paper));border-bottom:1px solid var(--hairline);padding:46px 0 42px;}
-.hero .lead{font-size:1.14rem;color:var(--muted);}
+/* ---------- hero: the message on the left, a house with an "i" on the right ---------- */
+.hero{background:linear-gradient(180deg,var(--paper-3),var(--paper));border-bottom:1px solid var(--hairline);padding:56px 0 52px;overflow:hidden;}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(0,1fr);gap:36px;align-items:center;}
+.hero h1{font-size:clamp(1.9rem,3.7vw,2.6rem);margin-bottom:.45em;}
+.hero .lead{font-size:1.08rem;color:var(--muted);margin:0;}
+.hero-art{display:block;width:100%;max-width:330px;height:auto;justify-self:end;overflow:visible;}
+.ha-glow{filter:blur(18px);}
+.ha-glow.blue{fill:var(--blue-soft);}
+.ha-glow.warm{fill:var(--amber-soft);}
+.ha-glow.green{fill:var(--green-soft);}
+.ha-ring{fill:none;stroke:var(--hairline);stroke-width:1;}
+.ha-paper{fill:#fff;stroke:var(--hairline);stroke-width:1.2;}
+.ha-fold{fill:var(--blue);}
+.ha-line{fill:var(--blue-soft);}
+.ha-shadow{fill:var(--navy);opacity:.09;}
+.ha-chimney{fill:var(--navy-2);}
+.ha-wall{fill:#fff;stroke:var(--hairline);stroke-width:1.2;}
+.ha-roof{fill:none;stroke:var(--blue);stroke-width:18;stroke-linecap:round;stroke-linejoin:round;}
+.ha-window{fill:var(--blue);opacity:.72;}
+.ha-door{fill:var(--navy-2);}
+.ha-knob{fill:#fff;}
+.ha-badge{fill:var(--blue);stroke:#fff;stroke-width:4;filter:drop-shadow(0 8px 14px var(--blue-glow));}
+.ha-i{fill:#fff;}
+@media (max-width:760px){
+  .hero{padding:40px 0 36px;}
+  .hero .wrap{grid-template-columns:1fr;}
+  .hero-art{display:none;}
+}
 
-section.band{padding:52px 0;}
-section.band.alt{background:var(--paper-2);border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);}
+/* ---------- bands: each topic its own section, split by a hairline ---------- */
+section.band{padding:60px 0;}
+section.band + section.band{border-top:1px solid var(--hairline);}
+/* A little soft light at the edges, the same idea as the glow in the hero art. Decoration only. */
+section.band.glow{background:radial-gradient(380px 300px at 104% 10%,var(--blue-soft),transparent 70%),radial-gradient(340px 280px at -6% 92%,var(--amber-soft),transparent 70%);}
+section.band.alt{background:var(--paper-2);}
+.band-lead{font-size:1.04rem;margin:0;}
+@media (max-width:560px){section.band{padding:44px 0;}}
 
-.callout{background:var(--paper-3);border:1px solid var(--hairline);border-left:3px solid var(--blue);border-radius:10px;padding:16px 18px;margin:22px 0;font-size:.97rem;color:var(--navy-2);}
-.callout.green{border-left-color:var(--green);background:var(--green-soft);}
+/* ---------- a note: an icon, a thin rule, then the words ---------- */
+.note{--note-accent:var(--blue-2);--note-soft:var(--blue-soft);--note-line:rgba(42,91,215,.24);
+  display:grid;grid-template-columns:auto 1px minmax(0,1fr);gap:20px;align-items:center;margin:28px 0 0;padding:20px 24px;border-radius:14px;
+  border:1px solid var(--note-line);background:var(--paper-3);background:color-mix(in srgb,var(--note-soft) 42%,#fff);box-shadow:var(--shadow-sm);
+  font-size:.97rem;line-height:1.6;color:var(--navy-2);}
+.note.green{--note-accent:var(--green-deep);--note-soft:var(--green-soft);--note-line:rgba(47,158,94,.3);}
+.note p{margin:0;}
+.note strong{color:var(--navy);}
+.note-icon{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;background:var(--note-soft);color:var(--note-accent);box-shadow:inset 0 0 0 1px var(--note-line);}
+.note-rule{align-self:stretch;background:var(--note-line);}
+@media (max-width:560px){
+  .note{grid-template-columns:auto minmax(0,1fr);align-items:start;gap:14px;padding:18px;}
+  .note-rule{display:none;}
+  .note-icon{width:42px;height:42px;}
+  .note-icon .ico{width:20px;height:20px;}
+}
 
-.res{display:grid;gap:18px;margin-top:26px;}
-.res-card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:22px 22px 20px;box-shadow:var(--shadow-sm);}
+/* ---------- the three help lines ----------
+   Each card: a tinted icon tile; who runs it and what they help with; and a panel with the number
+   to call and the website. The tint tells the three apart at a glance. The tel link's text stays
+   the bare number: tests/intake-forms.spec.js checks it against the inline panels' copies. */
+.res{display:grid;gap:18px;margin-top:30px;}
+.res-card{--accent:var(--blue-2);--soft:var(--blue-soft);
+  display:grid;grid-template-columns:auto minmax(0,1fr) minmax(240px,280px);gap:16px 22px;align-items:start;
+  background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:22px;box-shadow:var(--shadow-sm);}
+.res-card.amber{--accent:var(--amber);--soft:var(--amber-soft);}
+.res-card.violet{--accent:var(--violet);--soft:var(--violet-soft);}
+.res-icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--soft);color:var(--accent);}
+.res-card .who{font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);display:block;margin:2px 0 6px;}
 .res-card h3{margin:0 0 6px;}
-.res-card p{margin:0 0 10px;color:var(--muted);font-size:.97rem;}
-.res-card .who{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--blue-2);display:block;margin-bottom:8px;}
-.res-line{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:baseline;}
-.res-tel{font-weight:700;font-size:1.12rem;color:var(--navy);text-decoration:none;border-bottom:2px solid var(--blue);}
-.res-hours{font-size:.86rem;color:var(--muted-2);}
-.res-url{font-size:.92rem;word-break:break-word;}
+.res-card p{margin:0;color:var(--muted);font-size:.95rem;line-height:1.58;}
+.res-contact{border-radius:12px;padding:0 16px;border:1px solid var(--hairline);border-color:color-mix(in srgb,var(--accent) 16%,transparent);
+  background:var(--paper-3);background:color-mix(in srgb,var(--soft) 45%,#fff);}
+.res-row{display:grid;grid-template-columns:18px minmax(0,1fr);gap:12px;align-items:center;padding:13px 0;}
+.res-row + .res-row{border-top:1px solid var(--hairline);border-top-color:color-mix(in srgb,var(--accent) 14%,transparent);}
+.res-row > .ico{width:18px;height:18px;color:var(--accent);}
+.res-tel{font-weight:700;font-size:1.14rem;color:var(--navy);text-decoration:none;}
+.res-tel:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px;}
+.res-hours{display:block;font-size:.8rem;color:var(--muted);margin-top:1px;}
+.res-url{display:block;font-size:.88rem;line-height:1.4;}
+.res-label{display:block;font-size:.76rem;color:var(--muted);margin-bottom:1px;}
+.res-url a{color:var(--blue-2);font-weight:600;white-space:nowrap;}
+.res-url a .ico{width:13px;height:13px;margin-left:4px;vertical-align:-1px;}
+@media (max-width:820px){
+  .res-card{grid-template-columns:auto minmax(0,1fr);}
+  .res-contact{grid-column:1 / -1;}
+}
+@media (max-width:480px){
+  .res-card{grid-template-columns:1fr;padding:18px;gap:14px;}
+  .res-icon{width:44px;height:44px;border-radius:12px;}
+  .res-icon .ico{width:20px;height:20px;}
+}
 
-.faq h3{margin-bottom:4px;margin-top:26px;}
-.faq p{color:var(--muted);}
+/* ---------- questions: a centred heading, then one card per question ----------
+   Each card: a large tinted icon tile, the question, a chevron, and the answer beneath. All four
+   start open. Closing one fades its answer out and the question grows into the space it leaves;
+   no card changes size, so nothing else on the page moves. A <details> can't do that: closed, it
+   always gives the space back. */
+section.band.faq-band{position:relative;overflow:hidden;
+  background:radial-gradient(460px 420px at -6% 62%,var(--blue-soft),transparent 70%),radial-gradient(460px 420px at 106% 14%,var(--amber-soft),transparent 70%),var(--paper-3);}
+section.band.faq-band::before,section.band.faq-band::after{content:"";position:absolute;width:560px;height:560px;border-radius:50%;border:1px solid rgba(42,91,215,.2);pointer-events:none;}
+section.band.faq-band::before{left:-390px;top:30px;}
+section.band.faq-band::after{right:-410px;top:190px;}
+.faq-band .wrap{position:relative;z-index:1;}
+.sec-head{text-align:center;}
+.sec-head h2{font-size:clamp(1.8rem,3.6vw,2.5rem);margin:0;}
+.eyebrow.center{justify-content:center;}
+.eyebrow.center::before,.eyebrow.center::after{content:"";width:40px;height:1px;background:var(--blue);display:inline-block;}
+
+.tq-list{display:grid;gap:16px;max-width:900px;margin:30px auto 0;}
+/* The card is a two-row grid: the question's row, then the answer's. An invisible copy of the
+   question row (.tq-ghost) always holds row 1 at its open size, and the hidden answer still holds
+   row 2, so the card is the same height open or closed. Closed, the real question spans both rows:
+   bigger, and centred in the space the answer left, with the tile centred beside it. */
+.tq-item{--accent:var(--blue-2);--soft:var(--blue-soft);position:relative;display:grid;background:#fff;
+  border:1px solid var(--hairline);border-radius:var(--rad);box-shadow:var(--shadow-sm);}
+.tq-item.amber{--accent:var(--amber);--soft:var(--amber-soft);}
+.tq-item.green{--accent:var(--green-deep);--soft:var(--green-soft);}
+.tq-item.violet{--accent:var(--violet);--soft:var(--violet-soft);}
+.tq-item:hover{border-color:rgba(42,91,215,.3);}
+/* The tile sits over the button's left padding; clicks go through it to the button. */
+.tq-icon{position:absolute;left:20px;top:20px;width:72px;height:72px;border-radius:16px;display:grid;place-items:center;background:var(--soft);color:var(--accent);pointer-events:none;
+  transition:top var(--dur) var(--ease);}
+.tq-icon .ico{width:32px;height:32px;}
+.tq-ghost,.tq-btn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start;padding:20px 24px 6px 116px;
+  font-family:var(--serif);font-weight:560;font-size:1.3rem;line-height:1.25;letter-spacing:-.012em;}
+.tq-ghost{grid-area:1 / 1;visibility:hidden;pointer-events:none;}
+.tq-q{grid-area:1 / 1;margin:0;line-height:inherit;}
+.tq-btn{width:100%;height:100%;margin:0;border:0;border-radius:var(--rad);background:none;text-align:left;cursor:pointer;color:var(--navy);
+  transition:color var(--dur) var(--ease);}
+.tq-text{display:block;transform-origin:0 0;transition:translate var(--dur) var(--ease),scale var(--dur) var(--ease);}
+.tq-item.is-closed .tq-q{grid-row:1 / span 2;}
+.tq-item.is-closed .tq-btn{align-items:center;padding-bottom:20px;font-size:1.65rem;}
+.tq-item.is-closed .tq-icon{top:calc(50% - 36px);}
+.tq-btn:hover{color:var(--blue-2);}
+.tq-btn:focus-visible{outline:2.5px solid var(--blue);outline-offset:3px;}
+/* The button is only the question's row, so its ring would cut across the card; ring the card. */
+@supports selector(:has(*)){
+  .tq-btn:focus-visible{outline:none;}
+  .tq-item:has(.tq-btn:focus-visible){outline:2.5px solid var(--blue);outline-offset:3px;}
+}
+.tq-chev{width:20px;height:20px;margin-top:4px;color:var(--navy-2);transition:transform var(--dur) var(--ease),translate var(--dur) var(--ease);}
+.tq-btn[aria-expanded="false"] .tq-chev{transform:rotate(-90deg);}
+.tq-item.is-closed .tq-chev{margin-top:0;}
+.tq-a{grid-area:2 / 1;padding:0 60px 22px 116px;transition:opacity var(--dur) var(--ease),visibility var(--dur);}
+.tq-item.is-closed .tq-a{opacity:0;visibility:hidden;}
+.tq-a p{margin:0;color:var(--muted);font-size:1rem;line-height:1.6;}
+@media (max-width:600px){
+  .tq-icon{left:16px;top:16px;width:44px;height:44px;border-radius:12px;}
+  .tq-icon .ico{width:22px;height:22px;}
+  .tq-ghost,.tq-btn{min-height:76px;padding:16px 18px 10px 74px;font-size:1.1rem;}
+  .tq-item.is-closed .tq-btn{padding-bottom:16px;font-size:1.35rem;}
+  .tq-item.is-closed .tq-icon{top:calc(50% - 22px);}
+  .tq-a{padding:0 18px 18px 18px;}
+  section.band.faq-band::before,section.band.faq-band::after{display:none;}
+}
 
 footer{background:var(--navy-3);color:#9FB0C6;padding:40px 0 30px;font-size:.9rem;}
 footer .wrap{max-width:1140px;}
@@ -92,10 +227,11 @@ footer a{color:var(--blue-soft);}
 /* The same entrance as every other page (site.css): the top block rises in as the page opens,
    the rest as it scrolls into view. Only with JS on (html.js), so nothing is ever left hidden. */
 @keyframes rise{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
-.hero .eyebrow,.hero h1,.hero .lead{opacity:0;animation:rise .35s var(--ease) forwards;}
+.hero .eyebrow,.hero h1,.hero .lead,.hero-art{opacity:0;animation:rise .35s var(--ease) forwards;}
 .hero .eyebrow{animation-delay:.05s;}
 .hero h1{animation-delay:.1s;}
 .hero .lead{animation-delay:.16s;}
+.hero-art{animation-delay:.22s;}
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .35s var(--ease),transform .35s var(--ease);}
 .js .reveal.in{opacity:1;transform:none;}
 .reveal[data-d="1"]{transition-delay:.08s;}
@@ -122,91 +258,188 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </svg>
       Rental Assistance Philadelphia
     </a>
-    <a class="back" href="/">&larr; I'm a landlord &mdash; back to the main site</a>
+    <a class="back" href="/">&larr; I'm a landlord: back to the main site</a>
   </div>
 </div>
+
+<!-- Line icons, drawn once and reused below with <use>. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-signpost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M12 3v3"/><path d="M4 6a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h13a2 2 0 0 0 1.15-.37l3.43-2.31a1 1 0 0 0 0-1.64l-3.43-2.31A2 2 0 0 0 17 6z"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  <symbol id="i-file-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5"/><path d="M14 2v6h6v3"/><path d="M8 9h2"/><path d="M8 13h6"/><path d="M8 17h3"/><circle cx="17.5" cy="15.5" r="2.5"/><path d="M13.5 22a4 4 0 0 1 8 0"/></symbol>
+  <symbol id="i-dollar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M12 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-out"viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+</svg>
 
 <main>
 <section class="hero">
   <div class="wrap">
-    <p class="eyebrow">Information for tenants</p>
-    <h1>We work for landlords &mdash; but you're not out of options.</h1>
-    <p class="lead">Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>. We can't file for you, and we don't want you to spend time on a form that won't help. Below are the free Philadelphia services that <em>do</em> help renters directly. Please use them &mdash; they cost nothing, and they are the right people.</p>
+    <div>
+      <p class="eyebrow">Information for tenants</p>
+      <h1>We work for landlords, but you're not out of options.</h1>
+      <p class="lead">Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>. We can't file for you, and we don't want you to spend time on a form that won't help. Below are the free Philadelphia services that <em>do</em> help renters directly. Please use them. They cost nothing, and they are the right people.</p>
+    </div>
+    <!-- A house with an "i" on it: this page is information, not a form. Decoration only. -->
+    <svg class="hero-art" viewBox="0 0 340 270" aria-hidden="true" focusable="false">
+      <circle class="ha-glow warm" cx="262" cy="64" r="58"/>
+      <circle class="ha-glow blue" cx="140" cy="150" r="100"/>
+      <circle class="ha-glow green" cx="300" cy="236" r="40"/>
+      <circle class="ha-ring" cx="318" cy="24" r="118"/>
+      <g transform="rotate(6 252 110)">
+        <rect class="ha-paper" x="196" y="36" width="112" height="146" rx="10"/>
+        <path class="ha-fold" d="M284 36h14a10 10 0 0 1 10 10v14z"/>
+        <rect class="ha-line" x="212" y="62" width="58" height="6" rx="3"/>
+        <rect class="ha-line" x="212" y="78" width="80" height="6" rx="3"/>
+        <rect class="ha-line" x="212" y="94" width="70" height="6" rx="3"/>
+        <rect class="ha-line" x="212" y="110" width="78" height="6" rx="3"/>
+        <rect class="ha-line" x="212" y="126" width="50" height="6" rx="3"/>
+      </g>
+      <ellipse class="ha-shadow" cx="150" cy="248" rx="112" ry="9"/>
+      <rect class="ha-chimney" x="192" y="66" width="20" height="40" rx="3"/>
+      <path class="ha-wall" d="M66 122 150 58l84 64v112a8 8 0 0 1-8 8H74a8 8 0 0 1-8-8z"/>
+      <path class="ha-roof" d="M48 134 150 56l102 78"/>
+      <circle class="ha-window" cx="150" cy="104" r="10"/>
+      <rect class="ha-window" x="86" y="148" width="30" height="28" rx="4"/>
+      <rect class="ha-window" x="86" y="190" width="30" height="28" rx="4"/>
+      <rect class="ha-window" x="184" y="148" width="30" height="28" rx="4"/>
+      <rect class="ha-window" x="184" y="190" width="30" height="28" rx="4"/>
+      <rect class="ha-door" x="134" y="178" width="32" height="64" rx="4"/>
+      <circle class="ha-knob" cx="159" cy="212" r="2.2"/>
+      <circle class="ha-badge" cx="248" cy="214" r="28"/>
+      <circle class="ha-i" cx="248" cy="202" r="3.6"/>
+      <rect class="ha-i" x="244.8" y="209" width="6.4" height="17" rx="3.2"/>
+    </svg>
   </div>
 </section>
 
 <section class="band">
   <div class="wrap">
+    <p class="eyebrow reveal">What to know</p>
     <h2 class="reveal">The one thing worth knowing first</h2>
-    <p class="reveal" data-d="1">Philadelphia's <strong>Eviction Diversion Program</strong> can pay past-due rent directly to your landlord &mdash; up to $3,500, plus two months of future rent. It is real money and it is free to apply for.</p>
-    <div class="callout green reveal" data-d="2">
-      <strong>But the landlord files it, not you.</strong> The City's Eviction Diversion Program application is submitted by the property owner. That is why we can't do it for you &mdash; and it is why the most useful thing you can do is get your landlord to apply. The tenant hotline below can explain the program to you and help you raise it with them.
-    </div>
-
-    <h2 class="reveal" style="margin-top:38px;">Who to call</h2>
-    <div class="res">
-
-      <div class="res-card reveal">
-        <span class="who">City of Philadelphia</span>
-        <h3>Eviction Diversion Program &mdash; tenant hotline</h3>
-        <p>For tenants who want to understand the Eviction Diversion Program, get connected to a housing counselor, or ask about Targeted Financial Assistance.</p>
-        <div class="res-line">
-          <a class="res-tel" href="tel:+12155239501" data-no-track>215-523-9501</a>
-          <span class="res-hours">Monday&ndash;Friday, 9am&ndash;4pm</span>
-        </div>
-        <p class="res-url" style="margin-top:10px;">Program site: <a href="https://eviction-diversion.phila.gov/" target="_blank" rel="noopener">eviction-diversion.phila.gov</a></p>
-      </div>
-
-      <div class="res-card reveal" data-d="1">
-        <span class="who">Free legal help &amp; tenant advocacy</span>
-        <h3>Philly Tenant Hotline</h3>
-        <p>Run by a collaboration of Philadelphia legal-services and tenant-advocacy organizations. Call them about an eviction notice, repairs, your lease, rental assistance, or subsidized housing.</p>
-        <div class="res-line">
-          <a class="res-tel" href="tel:+12674432500" data-no-track>(267) 443-2500</a>
-        </div>
-        <p class="res-url" style="margin-top:10px;">More: <a href="https://phillytenant.org/" target="_blank" rel="noopener">phillytenant.org</a></p>
-      </div>
-
-      <div class="res-card reveal" data-d="2">
-        <span class="who">Statewide referral line</span>
-        <h3>PA 211</h3>
-        <p>Free, confidential referrals for rent, utilities, food, and housing across Pennsylvania. Dial 211 from any phone, or search their directory online.</p>
-        <div class="res-line">
-          <a class="res-tel" href="tel:211" data-no-track>211</a>
-        </div>
-        <p class="res-url" style="margin-top:10px;">Directory: <a href="https://www.pa211.org/" target="_blank" rel="noopener">pa211.org</a></p>
-      </div>
-
-    </div>
-
-    <div class="callout reveal">
-      <strong>If you already have a court date or an eviction notice in hand</strong>, call the Philly Tenant Hotline first &mdash; (267) 443-2500. Free legal help is available to eligible Philadelphia tenants facing eviction, and the earlier you call, the more they can do.
+    <p class="band-lead reveal" data-d="1">Philadelphia's <strong>Eviction Diversion Program</strong> can pay past-due rent directly to your landlord: up to $3,500, plus two months of future rent. It is real money and it is free to apply for.</p>
+    <div class="note green reveal" data-d="2">
+      <span class="note-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-doc"/></svg></span>
+      <span class="note-rule" aria-hidden="true"></span>
+      <p><strong>But the landlord files it, not you.</strong> The City's Eviction Diversion Program application is submitted by the property owner. That is why we can't do it for you, and it is why the most useful thing you can do is get your landlord to apply. The tenant hotline below can explain the program to you and help you raise it with them.</p>
     </div>
   </div>
 </section>
 
-<section class="band alt">
-  <div class="wrap faq">
-    <h2 class="reveal">Questions we get from tenants</h2>
+<section class="band glow">
+  <div class="wrap">
+    <p class="eyebrow reveal">Who to call</p>
+    <h2 class="reveal">Who to call</h2>
+    <div class="res">
 
-    <div class="reveal">
-    <h3>Can you apply for rental assistance for me?</h3>
-    <p>No. We are hired by property owners to prepare and manage their filings. The Eviction Diversion Program application is filed by the landlord, so there is nothing we can file on your behalf.</p>
+      <article class="res-card reveal">
+        <span class="res-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-doc"/></svg></span>
+        <div>
+          <span class="who">City of Philadelphia</span>
+          <h3>Eviction Diversion Program: tenant hotline</h3>
+          <p>For tenants who want to understand the Eviction Diversion Program, get connected to a housing counselor, or ask about Targeted Financial Assistance.</p>
+        </div>
+        <div class="res-contact">
+          <div class="res-row">
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-phone"/></svg>
+            <div><a class="res-tel" href="tel:+12155239501" data-no-track>215-523-9501</a><span class="res-hours">Monday to Friday, 9am to 4pm</span></div>
+          </div>
+          <div class="res-row">
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg>
+            <span class="res-url"><span class="res-label">Program site</span><a href="https://eviction-diversion.phila.gov/" target="_blank" rel="noopener">eviction-diversion.phila.gov<span class="sr-only"> (opens in a new tab)</span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="res-card amber reveal" data-d="1">
+        <span class="res-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-people"/></svg></span>
+        <div>
+          <span class="who">Free legal help &amp; tenant advocacy</span>
+          <h3>Philly Tenant Hotline</h3>
+          <p>Run by a collaboration of Philadelphia legal-services and tenant-advocacy organizations. Call them about an eviction notice, repairs, your lease, rental assistance, or subsidized housing.</p>
+        </div>
+        <div class="res-contact">
+          <div class="res-row">
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-phone"/></svg>
+            <div><a class="res-tel" href="tel:+12674432500" data-no-track>(267) 443-2500</a></div>
+          </div>
+          <div class="res-row">
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg>
+            <span class="res-url"><span class="res-label">More information</span><a href="https://phillytenant.org/" target="_blank" rel="noopener">phillytenant.org<span class="sr-only"> (opens in a new tab)</span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="res-card violet reveal" data-d="2">
+        <span class="res-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-signpost"/></svg></span>
+        <div>
+          <span class="who">Statewide referral line</span>
+          <h3>PA 211</h3>
+          <p>Free, confidential referrals for rent, utilities, food, and housing across Pennsylvania. Dial 211 from any phone, or search their directory online.</p>
+        </div>
+        <div class="res-contact">
+          <div class="res-row">
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-phone"/></svg>
+            <div><a class="res-tel" href="tel:211" data-no-track>211</a></div>
+          </div>
+          <div class="res-row">
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg>
+            <span class="res-url"><span class="res-label">Directory</span><a href="https://www.pa211.org/" target="_blank" rel="noopener">pa211.org<span class="sr-only"> (opens in a new tab)</span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a></span>
+          </div>
+        </div>
+      </article>
+
     </div>
 
-    <div class="reveal">
-    <h3>Can you talk to my landlord for me?</h3>
-    <p>No &mdash; we only act for owners who have engaged us. The Eviction Diversion Program tenant hotline (215-523-9501) can explain the program to you so you can raise it with your landlord yourself.</p>
+    <div class="note reveal">
+      <span class="note-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-scale"/></svg></span>
+      <span class="note-rule" aria-hidden="true"></span>
+      <p><strong>If you already have a court date or an eviction notice in hand</strong>, call the Philly Tenant Hotline first: (267) 443-2500. Free legal help is available to eligible Philadelphia tenants facing eviction, and the earlier you call, the more they can do.</p>
     </div>
+  </div>
+</section>
 
-    <div class="reveal">
-    <h3>Does it cost anything to apply to the City's program?</h3>
-    <p>No. The City's Eviction Diversion Program and Targeted Financial Assistance are free to apply for. Our fee is charged to owners who hire us to handle their paperwork &mdash; never to tenants.</p>
+<section class="band faq-band">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow center reveal">Questions from tenants</p>
+      <h2 class="reveal">Questions we get from tenants</h2>
     </div>
+    <div class="tq-list">
 
-    <div class="reveal">
-    <h3>Is this website the City?</h3>
-    <p>No. Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private company. We are not a government agency, not affiliated with the City of Philadelphia, and not a law firm.</p>
+      <div class="tq-item reveal">
+        <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-file-user"/></svg></span>
+        <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Can you apply for rental assistance for me?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
+        <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a1"><span class="tq-text">Can you apply for rental assistance for me?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
+        <div class="tq-a" id="tq-a1"><p>No. We are hired by property owners to prepare and manage their filings. The Eviction Diversion Program application is filed by the landlord, so there is nothing we can file on your behalf.</p></div>
+      </div>
+
+      <div class="tq-item amber reveal" data-d="1">
+        <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-phone"/></svg></span>
+        <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Can you talk to my landlord for me?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
+        <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a2"><span class="tq-text">Can you talk to my landlord for me?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
+        <div class="tq-a" id="tq-a2"><p>No. We only act for owners who have engaged us. The Eviction Diversion Program tenant hotline (215-523-9501) can explain the program to you so you can raise it with your landlord yourself.</p></div>
+      </div>
+
+      <div class="tq-item green reveal">
+        <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-dollar"/></svg></span>
+        <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Does it cost anything to apply to the City's program?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
+        <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a3"><span class="tq-text">Does it cost anything to apply to the City's program?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
+        <div class="tq-a" id="tq-a3"><p>No. The City's Eviction Diversion Program and Targeted Financial Assistance are free to apply for. Our fee is charged to owners who hire us to handle their paperwork, never to tenants.</p></div>
+      </div>
+
+      <div class="tq-item violet reveal" data-d="1">
+        <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-building"/></svg></span>
+        <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Is this website the City?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
+        <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a4"><span class="tq-text">Is this website the City?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
+        <div class="tq-a" id="tq-a4"><p>No. Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private company. We are not a government agency, not affiliated with the City of Philadelphia, and not a law firm.</p></div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -226,7 +459,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div><a href="/">Landlord site</a> &nbsp;&middot;&nbsp; <a href="/terms.html">Fee &amp; service terms</a></div>
     </div>
     <div class="foot-legal">
-      <p><strong>Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private, independent filing service.</strong> We are <strong>not a government agency and are not affiliated with, endorsed by, or acting on behalf of</strong> the City of Philadelphia, the Philadelphia Housing Development Corporation, or any government entity, and we are not a law firm. We are hired by property owners; we do not represent tenants and do not give legal advice. The services listed on this page are independent of us and we receive nothing from them &mdash; they are listed because they are the right places for a renter to call. Program details reflect the City's Eviction Diversion Program (Ordinance #220655 / Phila. Code &sect; 9-811); verify specifics at the City's official portal. Phone numbers and hours were verified 2026-09-13 and can change &mdash; if one does not work, dial 211.</p>
+      <p><strong>Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private, independent filing service.</strong> We are <strong>not a government agency and are not affiliated with, endorsed by, or acting on behalf of</strong> the City of Philadelphia, the Philadelphia Housing Development Corporation, or any government entity, and we are not a law firm. We are hired by property owners; we do not represent tenants and do not give legal advice. The services listed on this page are independent of us and we receive nothing from them. They are listed because they are the right places for a renter to call. Program details reflect the City's Eviction Diversion Program (Ordinance #220655 / Phila. Code &sect; 9-811); verify specifics at the City's official portal. Phone numbers and hours were verified 2026-09-13 and can change. If one does not work, dial 211.</p>
     </div>
   </div>
 </footer>
@@ -241,6 +474,33 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
   }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
   els.forEach(function(el){ io.observe(el); });
+})();
+/* The questions: each button fades its answer out or back in, and the question grows into the
+   space the answer leaves (or shrinks back). The card keeps its size, so nothing else on the page
+   moves. The question and chevron glide rather than jump: each is measured before and after the
+   switch, started where it was, and let go (FLIP). Without JS all four stay open. */
+(function(){
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  document.querySelectorAll('.tq-btn').forEach(function(btn){
+    var item = btn.closest('.tq-item');
+    var moving = [btn.querySelector('.tq-text'), btn.querySelector('.tq-chev')];
+    btn.addEventListener('click', function(){
+      var open = btn.getAttribute('aria-expanded') !== 'true';
+      var before = moving.map(function(el){ return { r: el.getBoundingClientRect(), f: parseFloat(getComputedStyle(el).fontSize) }; });
+      btn.setAttribute('aria-expanded', String(open));
+      item.classList.toggle('is-closed', !open);
+      if (still.matches) return;
+      moving.forEach(function(el, i){
+        var r = el.getBoundingClientRect();
+        // Pause only the glide; the chevron's quarter-turn keeps running.
+        el.style.transition = i === 0 ? 'none' : 'transform var(--dur) var(--ease)';
+        el.style.translate = (before[i].r.left - r.left) + 'px ' + (before[i].r.top - r.top) + 'px';
+        if (i === 0) el.style.scale = String(before[i].f / parseFloat(getComputedStyle(el).fontSize));
+      });
+      void btn.offsetWidth;
+      moving.forEach(function(el){ el.style.transition = el.style.translate = el.style.scale = ''; });
+    });
+  });
 })();
 </script>
 </body>

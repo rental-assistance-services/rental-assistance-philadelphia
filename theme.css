@@ -31,6 +31,13 @@
   --green:#2F9E5E;
   --green-deep:#207044;
   --green-soft:#DDEFE3;
+  /* Two accent tints used only on /tenants/, so its three help lines read as three different
+     places to call. Both pass 4.5:1 as small text on white, on their -soft tile, and on the panel
+     mixed from it. Blue and green remain the site's colours everywhere else. */
+  --amber:#8F4E0E;
+  --amber-soft:#FBE5CF;
+  --violet:#5536BE;
+  --violet-soft:#E6E0FA;
   --hairline:rgba(14,34,72,.18);
   --hairline-ink:rgba(143,178,255,.18);
   --muted:#4A5468;
