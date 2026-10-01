@@ -47,6 +47,19 @@ const PENDING = new Map([
   ['/terms.html', 'needs Kean: terms.html is off-limits to the SEO tasks; cites Ordinance #220655'],
 ]);
 
+// Every page that talks about back rent, the Eviction Diversion Program or Targeted Financial
+// Assistance sells the filing, so its legal block carries the fee and says the City option is free
+// to apply for directly. The ads page, the tenant page and the terms are reviewed on their own.
+const SELLS = /back rent|eviction diversion|targeted financial assistance/i;
+const FEE = '33% of the funds the City pays';
+const FREE = /directly with the City yourself/i;
+const DISCLOSURE_OUT = new Set(['/back-rent/index.html', '/tenants/index.html', '/terms.html']);
+// TODO(Task 2): the guide index gets both lines in 8cf63b7 on seo/task-2-guide-links; delete this
+// entry once that lands.
+const DISCLOSURE_PENDING = new Map([
+  ['/blog/index.html', 'Task 2 (8cf63b7)'],
+]);
+
 /** Every page of the site, as the path it is served at (same walk as tests/seo.spec.js). */
 function sitePages(dir = ROOT, out = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
@@ -119,5 +132,14 @@ for (const url of sitePages()) {
     if (!legal.includes('9-811')) return;
     expect(legal.includes(ORDINANCE), `${url} legal block must cite ${ORDINANCE}`).toBe(true);
     expect(legal, `${url} legal block still cites the 2022 amendment as the ordinance`).not.toMatch(/Ordinance #220655/);
+  });
+
+  if (DISCLOSURE_OUT.has(url)) continue;
+  const held = DISCLOSURE_PENDING.get(url) || pending;
+  (held ? test.fixme : test)(`${url}: a page about back rent carries the fee and free-to-apply lines${held ? ` (TODO: ${held})` : ''}`, async ({ page }) => {
+    const { all, legal } = await textOf(page, url);
+    if (!SELLS.test(all)) return;
+    expect(legal.includes(FEE), `${url} legal block must state the fee: "${FEE}"`).toBe(true);
+    expect(legal, `${url} legal block must say the City option can be applied for directly`).toMatch(FREE);
   });
 }
