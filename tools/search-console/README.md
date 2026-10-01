@@ -52,7 +52,29 @@ Never commit a CSV of real queries, a filled-in report, an API key or an OAuth t
    listed is a candidate for a copy change, never for a form.
 
 Options: `--out <dir>` writes somewhere other than `tools/data/`; `--rules <file>` tries an edited
-copy of the rules.
+copy of the rules. Give one Queries.csv only; a Pages.csv always goes after `--pages` (a second
+file on its own is refused, with nothing written).
+
+## Steps once Search Console access is granted
+
+Signed in as the shared development identity named in the brief:
+
+1. **Verification.** Settings > Ownership verification. Which `google*.html` stub belongs to
+   which account (`google9d1d722c7ac2f4d2.html`, `googleeed2c6ea94980975.html`) is read there,
+   and only there: the repo's history does not say. Note each stub's status and any other owners
+   or users. Add no new verification file. If the property is not verified, verify it with the
+   existing HTML-file method; https://rentalassistanceservices.com/<stub>.html must return 200.
+2. **Sitemap.** Sitemaps: submit `https://rentalassistanceservices.com/sitemap.xml`. Record the
+   status and the discovered pages (13 today, 15 after Task 5).
+3. **Coverage.** Indexing > Pages > "Why pages aren't indexed": each reason, its count and example
+   URLs into section 3 of the template. `/back-rent/` (canonical elsewhere) and `/terms.html`
+   (noindex) are excluded on purpose.
+4. **Queries.** Performance, Last 3 months, Web: note the property's total clicks and impressions,
+   export, unzip into `tools/data/`, and run step 2 of "Run it" above.
+5. **Tenant pages.** Step 3 of "Run it": the tenant regex filter, a second export into
+   `tools/data/tenant/`, and the `--pages ... --pages-tenant-filtered` run.
+6. **Report.** Fill every `[[FILL: ...]]` slot in `tools/data/report-draft.md` and paste it into the
+   Task 7 section of the brief doc. Nothing from `tools/data/` is committed.
 
 ## How a query is classed
 

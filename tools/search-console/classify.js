@@ -342,17 +342,27 @@ function assertSafeOut(dir) {
 
 function parseArgs(argv) {
   const opts = { out: DATA_DIR, rules: RULES_FILE, pagesTenantFiltered: false };
+  const positional = [];
+  const valueOf = (i, flag) => {
+    const v = argv[i];
+    if (v === undefined || v.startsWith('--')) throw new Error(`${flag} needs a value`);
+    return v;
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--pages') opts.pages = argv[++i];
-    else if (a === '--out') opts.out = argv[++i];
-    else if (a === '--rules') opts.rules = argv[++i];
+    if (a === '--pages') opts.pages = valueOf(++i, a);
+    else if (a === '--out') opts.out = valueOf(++i, a);
+    else if (a === '--rules') opts.rules = valueOf(++i, a);
     else if (a === '--pages-tenant-filtered') opts.pagesTenantFiltered = true;
     else if (a === '--tenant-regex') opts.tenantRegex = true;
     else if (a === '-h' || a === '--help') opts.help = true;
     else if (a.startsWith('--')) throw new Error(`unknown option ${a}`);
-    else opts.queries = a;
+    else positional.push(a);
   }
+  // A second file is almost always Pages.csv given without --pages. Taking either one as the
+  // queries would write a wrong report that looks right, so refuse before writing anything.
+  if (positional.length > 1) throw new Error('one Queries.csv; pass Pages.csv with --pages');
+  opts.queries = positional[0];
   return opts;
 }
 
