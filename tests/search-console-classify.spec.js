@@ -13,6 +13,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'search-console');
@@ -152,6 +153,26 @@ test('the command line will not write query data anywhere in the repo but tools/
   expect(run(path.join(ROOT, 'tests', 'fixtures'))).toThrow(/refusing to write query data/);
   expect(() => sc.assertSafeOut(path.join(ROOT, 'tools', 'data', 'sub'))).not.toThrow();
   expect(fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8').split(/\r?\n/)).toContain('tools/data/');
+});
+
+test('a Pages.csv given without --pages is refused, not read as the queries', () => {
+  // It used to be taken as the Queries file, last one winning: a wrong report with no error.
+  const dataDir = path.join(ROOT, 'tools', 'data');
+  const snapshot = () => (fs.existsSync(dataDir)
+    ? fs.readdirSync(dataDir).map((f) => `${f}:${fs.statSync(path.join(dataDir, f)).mtimeMs}`).sort() : null);
+  const before = snapshot();
+  const res = spawnSync(process.execPath, ['tools/search-console/classify.js',
+    'tests/fixtures/search-console-queries.csv', 'tests/fixtures/search-console-query-pages.csv'],
+  { cwd: ROOT, encoding: 'utf8' });
+  expect(res.status).not.toBe(0);
+  expect(res.stderr).toContain('one Queries.csv; pass Pages.csv with --pages');
+  expect(res.stdout).toBe('');
+  expect(snapshot()).toEqual(before);
+  // A flag's value is not a second file.
+  const ok = sc.run([path.join(FIXTURES, 'search-console-queries.csv'),
+    '--pages', path.join(FIXTURES, 'search-console-query-pages.csv'),
+    '--out', tmp(), '--rules', path.join(TOOL, 'rules.json')], quiet);
+  expect(ok.summary.totals.all.queries).toBe(15);
 });
 
 test('the tenant regex for the Search Console filter matches the tenant phrases and is RE2-safe', () => {
