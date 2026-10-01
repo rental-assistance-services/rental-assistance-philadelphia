@@ -158,5 +158,10 @@ for (const file of OWNED) {
       /within 30 days/i, /not a limit on who qualifies/i, /220655/]) {
       expect(html, `${file} still says ${re}`).not.toMatch(re);
     }
+    // The City does not let a landlord "settle at the cap": the claim must be $3,500 or less, with
+    // any excess waived. Form markup is left out here because the forms are not this test's to
+    // change (index.html's intake help text still says it; flagged for Kean).
+    const outsideForms = html.replace(/<form[\s\S]*?<\/form>/g, '');
+    expect(outsideForms, `${file} says a landlord settles at the cap`).not.toMatch(/\bsettles?\b/i);
   });
 }
