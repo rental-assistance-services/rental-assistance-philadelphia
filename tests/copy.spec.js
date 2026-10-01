@@ -5,7 +5,8 @@
  * sentence, so this does. A long dash is reworded with a comma, full stop, colon or brackets,
  * never swapped for a hyphen. Hyphens inside words are fine.
  *
- * Checked: the rendered visible text, <title>, the meta, og: and twitter: descriptions, and every
+ * Checked: the rendered visible text, <title>, the meta description, og: and twitter: titles and
+ * descriptions, and every
  * string value in every JSON-LD block (Google shows those too). Exempt: HTML comments, scripts
  * other than JSON-LD, and CSS, which no visitor reads.
  *
@@ -63,7 +64,9 @@ for (const url of sitePages()) {
         'visible text': document.body.innerText,
         '<title>': document.title,
         'meta description': meta('meta[name="description"]'),
+        'og:title': meta('meta[property="og:title"]'),
         'og:description': meta('meta[property="og:description"]'),
+        'twitter:title': meta('meta[name="twitter:title"]'),
         'twitter:description': meta('meta[name="twitter:description"]'),
         jsonld: [...document.querySelectorAll('script[type="application/ld+json"]')]
           .map((s) => s.textContent),
