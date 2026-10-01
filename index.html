@@ -9,7 +9,7 @@
   Shared: Client Portal (#portal), FAQ (#faq), Apply (#apply), Contact (#contact).
 
   PLACEHOLDER TOKENS TO FILL BEFORE LAUNCH:
-    - phone / email       placeholder (215) 402-6882 / info@rentalassistanceservices.com in CTA + footer + JSON-LD
+    - email               placeholder info@rentalassistanceservices.com in CTA + footer + JSON-LD (phone (215) 402-6882 is live: Dialpad 'Rental Services' line)
     - form action="#"     wire ALL FOUR forms to real endpoints (see per-form WIRING comments):
                             #intake-form  (back rent / TFA — multipart, file uploads)
                             #license-form (rental license)
@@ -104,6 +104,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     {"@type": "Offer", "name": "Rental License", "description": "We get Philadelphia landlords a valid Rental License from Licenses & Inspections (L&I) end to end: setting up the Business Tax Account (BIRT), the Commercial Activity License where required, and the Certificate of Rental Suitability."},
     {"@type": "Offer", "name": "City Tax Compliance", "description": "We get Philadelphia landlords current on city taxes and filings (BIRT and related) so they can obtain or renew a Rental License: setting up a Business Tax Account, filing outstanding returns, and clearing tax holds and liens that block licensing."}
   ]
+}
+</script>
+<!-- LocalBusiness JSON-LD: the same business as #org, as a local service provider. No street
+     address on purpose: the site publishes none, so the structured data does not either. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "@id": "https://rentalassistanceservices.com/#localbusiness",
+  "name": "Rental Assistance Philadelphia",
+  "legalName": "Rental Assistance Services LLC",
+  "url": "https://rentalassistanceservices.com/",
+  "telephone": "+1-215-402-6882",
+  "areaServed": {"@type": "City", "name": "Philadelphia", "containedInPlace": {"@type": "State", "name": "Pennsylvania"}},
+  "priceRange": "Success fee only",
+  "parentOrganization": {"@id": "https://rentalassistanceservices.com/#org"}
 }
 </script>
 
