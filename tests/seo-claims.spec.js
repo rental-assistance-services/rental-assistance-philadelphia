@@ -52,7 +52,7 @@ const PENDING = new Map([
 // to apply for directly. The ads page, the tenant page and the terms are reviewed on their own.
 const SELLS = /back rent|eviction diversion|targeted financial assistance/i;
 const FEE = '33% of the funds the City pays';
-const FREE = /directly with the City yourself/i;
+const FREE = /Eviction Diversion Program \/ Targeted Financial Assistance directly with the City yourself at no cost/;
 const DISCLOSURE_OUT = new Set(['/back-rent/index.html', '/tenants/index.html', '/terms.html']);
 // TODO(Task 2): the guide index gets both lines in 8cf63b7 on seo/task-2-guide-links; delete this
 // entry once that lands.
@@ -140,6 +140,6 @@ for (const url of sitePages()) {
     const { all, legal } = await textOf(page, url);
     if (!SELLS.test(all)) return;
     expect(legal.includes(FEE), `${url} legal block must state the fee: "${FEE}"`).toBe(true);
-    expect(legal, `${url} legal block must say the City option can be applied for directly`).toMatch(FREE);
+    expect(legal, `${url} legal block must say the City program can be applied for directly at no cost`).toMatch(FREE);
   });
 }
