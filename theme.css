@@ -146,3 +146,8 @@ body{animation:page-in var(--dur) var(--ease) both;}
 .tenant-panel a{color:var(--blue-2);}
 .tenant-panel .tp-tel{color:var(--navy);}
 
+/* Task 3: section labels promoted from <p class="eyebrow"> to <h2 class="eyebrow">.
+   On the licensing band, ".band.hub-clear h2{color:#fff}" would otherwise beat the label colour. */
+.band.hub-clear .eyebrow.on-ink{color:var(--blue-bright);}
+.eyebrow.spaced{margin-top:48px;}
+
