@@ -5,3 +5,4 @@ blob-report/
 .playwright/
 # Design-check pictures belong to the computer that took them (tests/design.spec.js).
 tests/*-snapshots/
+tools/data/
