@@ -34,7 +34,7 @@ test('every page loads /motion.js, and defers it', () => {
     page: '/' + path.relative(ROOT, f),
     tag: (fs.readFileSync(f, 'utf8').match(/<script[^>]*\/motion\.js[^>]*><\/script>/) || [])[0] || null,
   }));
-  expect(found.length).toBe(15);                                    // a new page must be counted
+  expect(found.length).toBe(17);                                    // a new page must be counted
   expect(found.filter((f) => !f.tag).map((f) => f.page)).toEqual([]);            // none missing it
   expect(found.filter((f) => !/\sdefer(\s|>|=)/.test(f.tag)).map((f) => f.page)).toEqual([]);
 });
