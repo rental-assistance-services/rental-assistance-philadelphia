@@ -151,3 +151,5 @@ body{animation:page-in var(--dur) var(--ease) both;}
 .band.hub-clear .eyebrow.on-ink{color:var(--blue-bright);}
 .eyebrow.spaced{margin-top:48px;}
 
+/* Independent-service disclosure under the hero lead on the back-rent landing pages (Google Ads policy). */
+.hero-disclosure{margin:14px 0 0;font-size:.9rem;line-height:1.5;color:var(--muted-2);max-width:48ch;padding-left:12px;border-left:2px solid var(--blue);}
