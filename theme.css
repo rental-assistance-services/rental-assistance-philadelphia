@@ -1,0 +1,148 @@
+/* Rental Assistance Philadelphia — the global theme. Every page links this first: the five main
+   pages (then /site.css), /back-rent/, /tenants/, /terms.html and the blog (then their own <style>).
+   Change a colour, a font or a timing HERE and the whole site follows; a page's own <style> only
+   overrides the odd token it genuinely needs different (e.g. /tenants/' narrower --maxw).
+
+   Palette — two colours: premium blue (a deep navy for dark bands, a royal blue for every accent)
+   on the warm light paper. Green is kept only where it means something went right: a field that
+   passes, a submitted form, a case that got paid.
+
+   Motion — one timing, 350ms, for everything that moves:
+   - Opening a page (a load, a reload, a new tab): the page fades in.
+   - Moving between pages: nothing waits — the link is followed at once. Where the browser has
+     cross-document view transitions the old page cross-fades into the new with the top bar held
+     still; elsewhere the new page simply fades in.
+   - The top menu's highlight SLIDES from the page you left to the page you clicked, as the new
+     page opens (never on hover) — see .nav-pill in /site.css and /motion.js.
+   - Everything else (sections revealing, the menu, FAQ answers, the popup) uses --dur too. */
+:root{
+  --ink:#0B1733;
+  --navy:#0E2248;
+  --navy-2:#173272;
+  --navy-3:#081735;
+  --paper:#F6F1E7;
+  --paper-2:#EFE7D6;
+  --paper-3:#FBF7EE;
+  --blue:#2A5BD7;
+  --blue-2:#1B3FA0;            /* text and links on the light paper */
+  --blue-soft:#DCE6FB;         /* tints; also links on the navy */
+  --blue-bright:#8FB2FF;       /* accents and small text on the navy */
+  --blue-glow:rgba(42,91,215,.34);
+  --green:#2F9E5E;
+  --green-deep:#207044;
+  --green-soft:#DDEFE3;
+  /* Two accent tints used only on /tenants/, so its three help lines read as three different
+     places to call. Both pass 4.5:1 as small text on white, on their -soft tile, and on the panel
+     mixed from it. Blue and green remain the site's colours everywhere else. */
+  --amber:#8F4E0E;
+  --amber-soft:#FBE5CF;
+  --violet:#5536BE;
+  --violet-soft:#E6E0FA;
+  --hairline:rgba(14,34,72,.18);
+  --hairline-ink:rgba(143,178,255,.18);
+  --muted:#4A5468;
+  --muted-2:#667085;
+  --on-ink:#C9D5EA;
+  --on-ink-2:#9DB0CF;
+  --shadow-sm:0 1px 2px rgba(14,34,72,.06), 0 2px 8px rgba(14,34,72,.05);
+  --shadow-md:0 2px 4px rgba(14,34,72,.07), 0 14px 40px rgba(14,34,72,.10);
+  --shadow-lg:0 8px 24px rgba(14,34,72,.14), 0 30px 70px rgba(14,34,72,.20);
+  --shadow-blue:0 1px 0 rgba(255,255,255,.22) inset, 0 8px 22px rgba(42,91,215,.34);
+  --ink-grad:radial-gradient(1100px 520px at 85% -10%, rgba(42,91,215,.38), transparent 60%), radial-gradient(800px 420px at -10% 110%, rgba(42,91,215,.22), transparent 60%), linear-gradient(180deg, #0F2550, #0A1C40) #0C1F45;   /* a solid navy under the glow */
+  --maxw:1140px;
+  --rad:16px;
+  --serif:"Fraunces", Georgia, "Times New Roman", serif;
+  --sans:"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono:"Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --dur:350ms;
+  interpolate-size:allow-keywords;   /* lets things like the FAQ answers animate to their own height */
+}
+::selection{background:var(--blue-soft);color:var(--navy);}
+
+/* ---------- opening a page: fade in ----------
+   Opacity only: a transform on <body> would become the containing block for the sticky masthead
+   and the fixed popup. */
+@keyframes page-in{from{opacity:0;}to{opacity:1;}}
+body{animation:page-in var(--dur) var(--ease) both;}
+
+/* ---------- moving between pages: cross-fade, top bar held still ---------- */
+@view-transition{navigation:auto;}
+.masthead,.topbar{view-transition-name:site-bar;}
+::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation-duration:350ms;animation-timing-function:cubic-bezier(.22,.61,.36,1);}
+
+@media (prefers-reduced-motion:reduce){
+  @view-transition{navigation:none;}
+  body{animation:none;}
+  /* The blanket stop, here rather than in /site.css, because only five of the fifteen pages
+     link /site.css and all fifteen link this file. While it lived there, /tenants/,
+     /terms.html and the blog kept animating under "reduce": the tenant panel, the chosen-line
+     and the 350ms transitions on .rg-btn / .role-gate below all carried on moving. */
+  *,*::before,*::after{animation-duration:.001ms !important;animation-delay:0ms !important;transition-duration:.001ms !important;}
+}
+
+/* ================= The form's shared pieces =================
+   One look for every form on the site, wherever it appears: the "landlord or tenant?" gate in front
+   of each form on the page (the five main pages and /back-rent/), the same question in the popup
+   (/landlord-check.js), and the tenant panel. Defined once, here. */
+
+/* A choice card — "I own or manage rental property" / "I rent my home" — in the gate and in the
+   popup alike: an icon tile (a house for the owner, a key for the tenant), the answer, and an arrow
+   that slides on hover, like the homepage's service cards. */
+.rg-btn,.lc-role{position:relative;display:block;width:100%;min-height:74px;text-align:left;font-family:var(--sans);font-size:1rem;font-weight:680;line-height:1.25;color:var(--navy);
+  padding:16px 48px 16px 72px;border-radius:10px;border:1.5px solid var(--hairline);background:linear-gradient(180deg,#fff,var(--paper-3));box-shadow:var(--shadow-sm);cursor:pointer;
+  transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease);}
+.rg-btn::before,.lc-role::before{content:"";position:absolute;left:16px;top:50%;width:42px;height:42px;margin-top:-21px;border-radius:10px;
+  background:var(--blue-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231B3FA0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5 12 3l9 7.5'/%3E%3Cpath d='M5 9.5V21h14V9.5'/%3E%3Cpath d='M10 21v-6h4v6'/%3E%3C/svg%3E") center/21px no-repeat;
+  box-shadow:inset 0 0 0 1px rgba(42,91,215,.18);transition:background-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);}
+.rg-btn[data-role="tenant"]::before,.lc-role[data-lc-role="tenant"]::before{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231B3FA0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='15' r='4'/%3E%3Cpath d='m10.8 12.2 8.7-8.7'/%3E%3Cpath d='m16.5 6.5 2.5 2.5'/%3E%3Cpath d='m14 9 2 2'/%3E%3C/svg%3E");}
+.rg-btn::after,.lc-role::after{content:"\2192";content:"\2192" / "";position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:1.1rem;font-weight:600;color:var(--blue);transition:transform var(--dur) var(--ease);}
+.rg-btn:hover,.lc-role:hover{border-color:var(--blue);box-shadow:0 14px 30px rgba(42,91,215,.14),0 0 0 3px rgba(42,91,215,.08);transform:translateY(-2px);}
+.rg-btn:hover::before,.lc-role:hover::before{background-color:#CFDDFB;box-shadow:inset 0 0 0 1px rgba(42,91,215,.34);}
+.rg-btn:hover::after,.lc-role:hover::after{transform:translate(4px,-50%);}
+/* A real outline, not only the halo: the glow is rgba(42,91,215,.24) over the paper, which
+   measures 1.41:1 — under the 3:1 a focus indicator needs — and both it and the border colour
+   are thrown away in forced-colors mode, where the indicator then disappears altogether. An
+   outline survives: forced colors repaints outline-color with a system colour. 2.5px at 3px
+   offset is what every other focusable thing on the site already gets (site.css:46). */
+.rg-btn:focus-visible,.lc-role:focus-visible{outline:2.5px solid var(--blue);outline-offset:3px;border-color:var(--blue);box-shadow:0 0 0 4px rgba(42,91,215,.24);}
+.rg-btn .rg-small,.lc-role small{display:block;font-weight:500;font-size:.84rem;color:var(--muted-2);margin-top:4px;}
+
+/* ---------- landlord / tenant gate ----------
+   Every lead form on this site is answered by a service sold to PROPERTY OWNERS.
+   Tenants were arriving from search and from paid ads, filling these forms, and
+   being booked as landlord leads and as Google Ads conversions. The gate makes the
+   visitor say which they are before any form is reachable, and sends tenants to the
+   free services that can actually help them. See /tenants/. */
+.role-gate{position:relative;overflow:hidden;background:linear-gradient(180deg,#fff,var(--paper-3));border:1px solid var(--hairline);border-radius:var(--rad);padding:26px 24px 22px;margin:0 0 22px;box-shadow:var(--shadow-md);
+  transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),padding var(--dur) var(--ease),box-shadow var(--dur) var(--ease);}
+.role-gate::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--blue),var(--blue-bright));}
+.role-gate .rg-q{font-family:var(--serif);font-size:1.32rem;font-weight:450;letter-spacing:-.012em;color:var(--navy);margin:0 0 6px;line-height:1.2;}
+.role-gate .rg-sub{color:var(--muted);font-size:.94rem;margin:0 0 18px;line-height:1.55;}
+.rg-btns{display:grid;grid-template-columns:1fr;gap:10px;}
+.role-gate .rg-note{color:var(--muted-2);font-size:.82rem;margin:16px 0 0;line-height:1.5;}
+.role-gate.chosen{background:var(--blue-soft);border-color:rgba(42,91,215,.26);box-shadow:none;padding:14px 18px;}
+.role-gate.chosen::before{display:none;}
+.role-gate.chosen .rg-q,.role-gate.chosen .rg-sub,.role-gate.chosen .rg-btns,.role-gate.chosen .rg-note{display:none;}
+.rg-chosen-line{display:none;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;font-weight:600;color:var(--blue-2);font-size:.94rem;margin:0;}
+.role-gate.chosen .rg-chosen-line{display:flex;animation:page-in var(--dur) var(--ease) both;}
+.rg-change{background:none;border:none;padding:0;font:inherit;font-weight:600;color:var(--blue-2);text-decoration:underline;cursor:pointer;}
+
+/* ---------- tenant panel — shown in place of the form when the visitor says they rent ---------- */
+.tenant-panel{position:relative;overflow:hidden;background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:28px 26px 22px;box-shadow:var(--shadow-md);animation:page-in var(--dur) var(--ease) both;}
+.tenant-panel::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--blue),var(--blue-bright));}
+.tenant-panel h3{font-family:var(--serif);font-size:1.3rem;font-weight:480;color:var(--navy);margin:0 0 8px;}
+.tenant-panel p{color:var(--muted);font-size:.97rem;}
+.tp-list{list-style:none;padding:0;margin:18px 0 0;display:grid;gap:14px;}
+.tp-list li{border-top:1px solid var(--hairline);padding-top:14px;}
+.tp-list li:first-child{border-top:none;padding-top:0;}
+.tp-name{font-weight:700;color:var(--navy);display:block;}
+.tp-tel{font-weight:700;font-size:1.08rem;color:var(--navy);text-decoration:none;border-bottom:2px solid var(--blue);}
+.tp-meta{color:var(--muted-2);font-size:.86rem;}
+.tp-more{margin-top:20px;font-size:.94rem;}
+/* The #apply section restyles links; without this the one link out of the panel renders
+   as dark body text and stops reading as a link. */
+.tenant-panel a{color:var(--blue-2);}
+.tenant-panel .tp-tel{color:var(--navy);}
+

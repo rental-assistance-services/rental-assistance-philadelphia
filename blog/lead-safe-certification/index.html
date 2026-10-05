@@ -37,22 +37,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Public+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
+<script src="/motion.js" defer></script>
 <style>
-:root{
-  --ink:#11161C; --navy:#14233A; --navy-2:#1B3050; --navy-3:#0E1A2C;
-  --paper:#F6F1E7; --paper-2:#EFE7D6; --paper-3:#FBF7EE;
-  --brass:#C8A24A; --brass-2:#A9853A; --brass-soft:#E8D9B4;
-  --green:#2F9E5E; --green-deep:#207044; --green-soft:#DDEFE3;
-  --hairline:rgba(20,35,58,.20); --muted:#4C5667; --muted-2:#6A7384;
-  --shadow-sm:0 1px 2px rgba(20,35,58,.06), 0 2px 8px rgba(20,35,58,.05);
-  --shadow-md:0 2px 4px rgba(20,35,58,.07), 0 14px 40px rgba(20,35,58,.10);
-  --shadow-lg:0 8px 24px rgba(20,35,58,.14), 0 30px 70px rgba(20,35,58,.18);
-  --maxw:1140px; --rad:14px;
-  --serif:"Fraunces", Georgia, "Times New Roman", serif;
-  --sans:"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --mono:"Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --ease:cubic-bezier(.22,.61,.36,1);
-}
 *{box-sizing:border-box;}
 html{scroll-behavior:smooth;}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.62;font-size:17px;}
@@ -61,46 +48,46 @@ h1{font-size:clamp(2.1rem,4.6vw,3.2rem);}
 h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-top:1.4em;}
 h3{font-size:1.22rem;margin-top:1.3em;}
 p{margin:0 0 1em;}
-a{color:var(--brass-2);}
+a{color:var(--blue-2);}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
-.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--brass-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
-.eyebrow::before{content:"";width:26px;height:1px;background:var(--brass);display:inline-block;}
+.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.26em;font-size:.7rem;font-weight:500;color:var(--blue-2);margin:0 0 16px;display:inline-flex;align-items:center;gap:11px;}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--blue);display:inline-block;}
 .topbar{background:var(--navy-3);color:#fff;}
 .topbar .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:14px;padding-bottom:14px;gap:16px;}
 .brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-weight:560;font-size:1.05rem;color:#fff;text-decoration:none;}
 .brand svg{flex:0 0 auto;}
 .topbar .tel{color:#fff;text-decoration:none;font-weight:600;font-size:1.02rem;white-space:nowrap;}
-.topbar .tel span{color:var(--brass-soft);font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;display:block;font-weight:500;}
+.topbar .tel span{color:var(--blue-soft);font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;display:block;font-weight:500;}
 .arthead{background:linear-gradient(180deg,var(--paper-3),var(--paper));border-bottom:1px solid var(--hairline);padding:40px 0 34px;}
 .crumbs{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);margin-bottom:18px;}
 .crumbs a{color:var(--muted-2);text-decoration:none;}
-.crumbs a:hover{color:var(--brass-2);}
+.crumbs a:hover{color:var(--blue-2);}
 .artmeta{font-family:var(--mono);font-size:.74rem;letter-spacing:.06em;color:var(--muted-2);margin-top:14px;}
 .artbody{padding:46px 0 20px;}
 .artbody .wrap{max-width:760px;}
 .artbody h2{border-top:1px solid var(--hairline);padding-top:1.1em;}
 .lead-p{font-size:1.16rem;color:var(--muted);}
-.toc{background:var(--paper-3);border:1px solid var(--hairline);border-left:4px solid var(--brass);border-radius:12px;padding:20px 24px;margin:8px 0 30px;}
-.toc h4{font-family:var(--mono);font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;color:var(--brass-2);margin:0 0 12px;}
+.toc{background:var(--paper-3);border:1px solid var(--hairline);border-left:4px solid var(--blue);border-radius:12px;padding:20px 24px;margin:8px 0 30px;}
+.toc h4{font-family:var(--mono);font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-2);margin:0 0 12px;}
 .toc ol{margin:0;padding-left:20px;}
 .toc li{margin-bottom:7px;}
 .toc a{color:var(--navy-2);text-decoration:none;}
-.toc a:hover{color:var(--brass-2);}
+.toc a:hover{color:var(--blue-2);}
 .callout{background:var(--green-soft);border:1px solid rgba(47,158,94,.3);border-left:4px solid var(--green);border-radius:11px;padding:18px 22px;margin:22px 0;color:var(--ink);font-size:.98rem;}
 .callout strong{color:var(--green-deep);}
-.callout.brass{background:rgba(200,162,74,.12);border-color:rgba(200,162,74,.42);border-left-color:var(--brass);}
-.callout.brass strong{color:var(--brass-2);}
+.callout.blue{background:rgba(42,91,215,.12);border-color:rgba(42,91,215,.42);border-left-color:var(--blue);}
+.callout.blue strong{color:var(--blue-2);}
 .steps-ol{counter-reset:step;list-style:none;padding:0;margin:24px 0;}
 .steps-ol li{position:relative;padding:0 0 22px 58px;}
-.steps-ol li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:40px;height:40px;border-radius:11px;background:var(--navy);color:var(--brass);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:1.15rem;}
+.steps-ol li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:40px;height:40px;border-radius:11px;background:var(--navy);color:var(--blue-bright);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:1.15rem;}
 .steps-ol li strong{color:var(--navy);}
 .steps-ol li h3{margin:2px 0 6px;}
 .faq-q{font-family:var(--serif);font-weight:560;color:var(--navy);font-size:1.15rem;margin:1.4em 0 .3em;}
 .cta-inline{background:var(--navy);color:#fff;border-radius:var(--rad);padding:28px 30px;margin:36px 0;box-shadow:var(--shadow-md);}
 .cta-inline h3{color:#fff;margin:0 0 8px;}
 .cta-inline p{color:#B7C3D6;margin:0 0 18px;}
-.btn-solid{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:10px;background:linear-gradient(180deg,var(--brass),var(--brass-2));color:#1a1205;font-weight:700;font-size:1rem;text-decoration:none;}
-.btn-ghost{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;border:1.5px solid var(--brass);background:transparent;color:#fff;font-weight:700;font-size:1rem;text-decoration:none;margin-left:10px;}
+.btn-solid{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:10px;background:linear-gradient(180deg,var(--blue),var(--blue-2));color:#FFFFFF;font-weight:700;font-size:1rem;text-decoration:none;}
+.btn-ghost{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;border:1.5px solid var(--blue);background:transparent;color:#fff;font-weight:700;font-size:1rem;text-decoration:none;margin-left:10px;}
 .cta-band{background:var(--navy);color:#fff;padding:58px 0;text-align:center;}
 .cta-band h2{color:#fff;border:0;}
 .cta-band p{color:#B7C3D6;max-width:48ch;margin-left:auto;margin-right:auto;}
@@ -108,14 +95,14 @@ a{color:var(--brass-2);}
 .related{background:var(--paper-2);border-top:1px solid var(--hairline);padding:46px 0;}
 .related h2{margin-top:0;}
 .rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
-.rel-card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:22px;box-shadow:var(--shadow-sm);text-decoration:none;display:block;transition:transform .2s var(--ease),box-shadow .2s var(--ease);}
+.rel-card{background:#fff;border:1px solid var(--hairline);border-radius:var(--rad);padding:22px;box-shadow:var(--shadow-sm);text-decoration:none;display:block;transition:transform .35s var(--ease),box-shadow .35s var(--ease);}
 .rel-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);}
 .rel-card h3{margin:0 0 6px;font-size:1.08rem;color:var(--navy);}
 .rel-card p{margin:0;color:var(--muted);font-size:.92rem;}
 footer{background:var(--navy-3);color:#9FB0C6;padding:40px 0 30px;font-size:.9rem;}
 footer .ftop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:20px;align-items:center;margin-bottom:22px;}
 footer .fbrand{display:flex;align-items:center;gap:11px;font-family:var(--serif);color:#fff;font-size:1.05rem;}
-footer a{color:var(--brass-soft);}
+footer a{color:var(--blue-soft);}
 .foot-legal{border-top:1px solid rgba(255,255,255,.12);padding-top:20px;line-height:1.6;}
 .foot-legal strong{color:#C7D2E2;}
 @media(max-width:880px){ .rel-grid{grid-template-columns:1fr;} }
@@ -129,13 +116,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="wrap">
     <a class="brand" href="https://rentalassistanceservices.com/">
       <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="30" height="30" rx="8" fill="#0E1A2C"/>
-        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#C8A24A" stroke-width="1.4"/>
-        <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#C8A24A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="1" y="1" width="30" height="30" rx="8" fill="#081735"/>
+        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#7EA3FF" stroke-width="1.4"/>
+        <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#7EA3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       Rental Assistance Philadelphia
     </a>
-    <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;"><a href="/tenants/" style="color:#E8D9B4;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap;">Are you a tenant?</a><a class="tel" href="tel:+12154026882"><span>Speak with us</span>(215) 402-6882</a></span>
+    <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;"><a href="/tenants/" style="color:#DCE6FB;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap;">Are you a tenant?</a><a class="tel" href="tel:+12154026882"><span>Speak with us</span>(215) 402-6882</a></span>
   </div>
 </div>
 
@@ -150,9 +137,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <article class="artbody">
   <div class="wrap">
-    <p class="lead-p">If you rent out an older home in Philadelphia, lead-paint compliance is one of the requirements most likely to catch you off guard. The City requires many rental properties to show they are <strong>lead-safe</strong> (or lead-free) &mdash; certified by an independent, qualified inspector &mdash; as a condition of renting. Here's a plain-English overview of how it works and where to confirm the details for your property.</p>
+    <p class="lead-p">If you rent out an older home in Philadelphia, lead-paint compliance is one of the requirements most likely to catch you off guard. The City requires many rental properties to show they are <strong>lead-safe</strong> (or lead-free), certified by an independent, qualified inspector, as a condition of renting. Here's a plain-English overview of how it works and where to confirm the details for your property.</p>
 
-    <div class="callout brass"><strong>Read this first.</strong> Lead rules are detailed and have changed over time, and the exact obligation depends on your property's age and circumstances. This guide is a general orientation, not a substitute for the City's official lead-disclosure and certification requirements. Always confirm your specific obligation with the City of Philadelphia before relying on anything here.</div>
+    <div class="callout blue"><strong>Read this first.</strong> Lead rules are detailed and have changed over time, and the exact obligation depends on your property's age and circumstances. This guide is a general orientation, not a substitute for the City's official lead-disclosure and certification requirements. Always confirm your specific obligation with the City of Philadelphia before relying on anything here.</div>
 
     <div class="toc">
       <h4>What's on this page</h4>
@@ -167,17 +154,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
 
     <h2 id="what">What lead-safe certification is</h2>
-    <p>Lead-based paint was common in homes built before 1978, and it remains a serious health hazard &mdash; especially for young children. To protect tenants, Philadelphia requires <strong>all rental properties built before 1978</strong> (even if renovated) to demonstrate that they are either <strong>lead-free</strong> (no lead-based paint present) or <strong>lead-safe</strong> (any lead-based paint is intact and not a hazard), verified by a qualified, independent, <strong>EPA-certified dust-wipe technician</strong>. The result is a <strong>4-year certificate</strong> (required to be renewed every 4 years) that the landlord keeps and provides as part of the leasing process for existing and any new tenants.</p>
+    <p>Lead-based paint was common in homes built before 1978, and it remains a serious health hazard, especially for young children. To protect tenants, Philadelphia requires <strong>all rental properties built before 1978</strong> (even if renovated) to demonstrate that they are either <strong>lead-free</strong> (no lead-based paint present) or <strong>lead-safe</strong> (any lead-based paint is intact and not a hazard), verified by a qualified, independent, <strong>EPA-certified dust-wipe technician</strong>. The result is a <strong>4-year certificate</strong> (required to be renewed every 4 years) that the landlord keeps and provides as part of the leasing process for existing and any new tenants.</p>
 
     <h2 id="who">Who it generally applies to</h2>
-    <p>The requirement is based on the age of the building (according to City of Philadelphia records) and applies to residential rentals. Specifically, any property <strong>built before 1978</strong> &mdash; which represents most of Philadelphia's rental properties &mdash; falls under the "Lead Law." The Lead Law was set by City ordinance (originally in 2012, amended in 2020) and has expanded over time, so the safest approach is to assume your rental property requires a lead certification. The program is administered by the <strong>Public Health Department</strong>.</p>
+    <p>The requirement is based on the age of the building (according to City of Philadelphia records) and applies to residential rentals. Specifically, any property <strong>built before 1978</strong>, which represents most of Philadelphia's rental properties, falls under the "Lead Law." The Lead Law was set by City ordinance (originally in 2012, amended in 2020) and has expanded over time, so the safest approach is to assume your rental property requires a lead certification. The program is administered by the <strong>Public Health Department</strong>.</p>
     <p>If your property was built <em>after</em> 1978, there is still a requirement to complete the necessary paperwork with the Public Health Department to obtain an <strong>exemption</strong>.</p>
 
     <h2 id="how">How a property gets certified</h2>
     <ol class="steps-ol">
       <li>
         <h3>Engage a qualified, independent technician</h3>
-        <p>Certification must come from an <strong>EPA-licensed, independent dust-wipe technician</strong> or an <strong>EPA-certified risk assessor</strong> &mdash; not a self-assessment. They evaluate the property for lead-based paint and lead hazards.</p>
+        <p>Certification must come from an <strong>EPA-licensed, independent dust-wipe technician</strong> or an <strong>EPA-certified risk assessor</strong>, not a self-assessment. They evaluate the property for lead-based paint and lead hazards.</p>
       </li>
       <li>
         <h3>Address any hazards found</h3>
@@ -190,31 +177,31 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </ol>
 
     <h2 id="license">How it ties to your rental license</h2>
-    <p>Lead compliance doesn't stand alone &mdash; it sits alongside the rest of your Philadelphia licensing obligations. To legally rent, you need a valid Rental License (built on your Business Tax Account and, for most landlords, a Commercial Activity License), a Certificate of Rental Suitability for each new tenant, and to be current on city taxes and clear of open code violations. Lead-safe certification is part of operating a compliant, legally rentable property where it applies.</p>
+    <p>Lead compliance doesn't stand alone. It sits alongside the rest of your Philadelphia licensing obligations. To legally rent, you need a valid Rental License (built on your Business Tax Account and, for most landlords, a Commercial Activity License), a Certificate of Rental Suitability for each new tenant, and to be current on city taxes and clear of open code violations. Lead-safe certification is part of operating a compliant, legally rentable property where it applies.</p>
 
     <div class="cta-inline">
       <h3>Getting compliant across the board?</h3>
-      <p>If you're sorting out your rental license, taxes, and the rest of Philadelphia's compliance maze, we can map exactly what your property needs and handle the licensing chain with the City &mdash; so you're cleared to operate.</p>
+      <p>If you're sorting out your rental license, taxes, and the rest of Philadelphia's compliance maze, we can map exactly what your property needs and handle the licensing chain with the City, so you're cleared to operate.</p>
       <a class="btn-solid" href="https://rentalassistanceservices.com/services/licensing/">Map my compliance &rarr;</a>
       <a class="btn-ghost" href="tel:+12154026882">Call (215) 402-6882</a>
     </div>
 
     <h2 id="cost">The cost of non-compliance</h2>
-    <p>Failing to meet Philadelphia's lead requirements can expose a landlord to fines and enforcement, and &mdash; like other compliance gaps &mdash; can undermine your standing if you ever need to enforce an eviction. Beyond the legal exposure, the underlying risk is real: lead hazards can seriously harm tenants, especially children. Compliance protects them and you.</p>
+    <p>Failing to meet Philadelphia's lead requirements can expose a landlord to fines and enforcement, and, like other compliance gaps, can undermine your standing if you ever need to enforce an eviction. Beyond the legal exposure, the underlying risk is real: lead hazards can seriously harm tenants, especially children. Compliance protects them and you.</p>
 
     <h2 id="faq">Common questions</h2>
 
     <p class="faq-q">Does every Philadelphia rental need a lead certificate?</p>
-    <p>The requirement is based on age (built before 1978) and applies only to residential rentals &mdash; even a renovated property still needs a lead certification. If your property has both residential and commercial space (like a storefront), only the residential dwellings need to be certified. For a multi-unit property, <strong>each residential unit is tested and reported separately</strong> &mdash; a duplex needs 2 lead certifications, a triplex needs 3. Any property built after 1978 still requires an <strong>exemption</strong> filed with the Public Health Department.</p>
+    <p>The requirement is based on age (built before 1978) and applies only to residential rentals. Even a renovated property still needs a lead certification. If your property has both residential and commercial space (like a storefront), only the residential dwellings need to be certified. For a multi-unit property, <strong>each residential unit is tested and reported separately</strong>: a duplex needs 2 lead certifications, a triplex needs 3. Any property built after 1978 still requires an <strong>exemption</strong> filed with the Public Health Department.</p>
 
     <p class="faq-q">Can I certify the property myself?</p>
     <p>No. Lead-safe or lead-free certification must come from an EPA-licensed, independent dust-wipe technician or an EPA-certified risk assessor.</p>
 
     <p class="faq-q">How does this fit with my rental license?</p>
-    <p>It's part of the same compliance picture. You still need your Business Tax Account, Commercial Activity License (where required), Rental License, and a Certificate of Rental Suitability for each new tenant &mdash; lead compliance sits alongside those.</p>
+    <p>It's part of the same compliance picture. You still need your Business Tax Account, Commercial Activity License (where required), Rental License, and a Certificate of Rental Suitability for each new tenant. Lead compliance sits alongside those.</p>
 
     <p class="faq-q">Can you help me get compliant?</p>
-    <p>We handle the licensing and city-tax side of Philadelphia compliance &mdash; the Business Tax Account, Commercial Activity License, Rental License, and Certificate of Rental Suitability &mdash; and can point you to what your property needs on the lead side. Start with a free review and we'll map it out.</p>
+    <p>We handle the licensing and city-tax side of Philadelphia compliance (the Business Tax Account, Commercial Activity License, Rental License, and Certificate of Rental Suitability) and can point you to what your property needs on the lead side. Start with a free review and we'll map it out.</p>
   </div>
 </article>
 
@@ -245,9 +232,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="ftop">
       <div class="fbrand">
         <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect x="1" y="1" width="30" height="30" rx="8" fill="#0E1A2C"/>
-          <rect x="1" y="1" width="30" height="30" rx="8" stroke="#C8A24A" stroke-width="1.4"/>
-          <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#C8A24A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="1" y="1" width="30" height="30" rx="8" fill="#081735"/>
+          <rect x="1" y="1" width="30" height="30" rx="8" stroke="#7EA3FF" stroke-width="1.4"/>
+          <path d="M9.5 16.4l4.3 4.4 8.7-9.2" stroke="#7EA3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Rental Assistance Philadelphia
       </div>
@@ -258,7 +245,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
     </div>
     <div class="foot-legal">
-      <p>Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private, independent filing service <strong>hired by property owners</strong>. We do not represent tenants and cannot file on a tenant's behalf &mdash; tenants, please see <a href="/tenants/">where to get help</a>. We are <strong>not a government agency and are not affiliated with, endorsed by, or acting on behalf of</strong> the City of Philadelphia, the Department of Public Health, the Department of Licenses &amp; Inspections, or any government entity, and we are not a law firm. This guide is general information, not legal, health, or environmental advice. Philadelphia's lead-paint and lead-certification requirements are detailed and change over time; the exact obligation for your property depends on its age and circumstances &mdash; verify specifics at the City's official channels or with a qualified, certified lead inspector. Results vary by case.</p>
+      <p>Rental Assistance Philadelphia is a brand of Rental Assistance Services LLC, a private, independent filing service <strong>hired by property owners</strong>. We do not represent tenants and cannot file on a tenant's behalf. Tenants, please see <a href="/tenants/">where to get help</a>. We are <strong>not a government agency and are not affiliated with, endorsed by, or acting on behalf of</strong> the City of Philadelphia, the Department of Public Health, the Department of Licenses &amp; Inspections, or any government entity, and we are not a law firm. This guide is general information, not legal, health, or environmental advice. Philadelphia's lead-paint and lead-certification requirements are detailed and change over time; the exact obligation for your property depends on its age and circumstances. Verify specifics at the City's official channels or with a qualified, certified lead inspector. Results vary by case.</p>
     </div>
   </div>
 </footer>
