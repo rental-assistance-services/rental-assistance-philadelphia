@@ -7,9 +7,12 @@
     "dev": "node tests/static-server.js",
     "start": "node tests/static-server.js",
     "test": "playwright test",
-    "test:headed": "playwright test --headed"
+    "test:headed": "playwright test --headed",
+    "test:update": "playwright test tests/design.spec.js --update-snapshots",
+    "test:report": "playwright show-report .playwright/report"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.49.0"
   }
 }
