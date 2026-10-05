@@ -154,7 +154,8 @@ const OWNED = ['index.html', 'services/back-rent/index.html', 'services/licensin
 for (const file of OWNED) {
   test(`/${file}: no claim the City's pages contradict`, () => {
     const html = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    for (const re of [/eligibility ceiling/i, /you still qualify/i, /still qualifies/i, /60-day/i, /moratorium/i,
+    // The Certificate of Rental Suitability guide's real 60-day rule is allowed; only the old TFA 60-day claim is banned.
+    for (const re of [/eligibility ceiling/i, /you still qualify/i, /still qualifies/i, /60-day (moratorium|protection|period|tfa)/i, /moratorium/i,
       /within 30 days/i, /not a limit on who qualifies/i, /220655/]) {
       expect(html, `${file} still says ${re}`).not.toMatch(re);
     }
