@@ -485,8 +485,7 @@
      dataLayer event on submit so a GTM container can fire a Google
      Ads conversion later. Safe/no-op until GTM is added.
      GTM container GTM-KCNCLC5Z installed in <head> + <body> (2026-06-22).
-     Remaining: build the lead_submit -> Google Ads conversion tag inside
-     GTM once the Google Ads conversion action exists.
+     GTM container carries the lead_submit -> Google Ads conversion tag (verified 2026-10-06).
      ============================================================ */
 (function () {
   window.dataLayer = window.dataLayer || [];
