@@ -234,16 +234,21 @@ test.describe('address suggestions', () => {
     await expect(page.locator('.field:has(#prop-zip)')).toHaveClass(/lc-ok/);
     // and that is what the form sends
     const sent = await page.locator('#intake-form').evaluate((f) => {
-      const d = new FormData(f); return [d.get('property_address'), d.get('property_zip')];
+      const d = new FormData(f); return [d.get('property_street'), d.get('property_zip')];
     });
     expect(sent).toEqual(['1932 North 5th Street', '19122']);
     // a place outside the US has no 5-digit ZIP: the street box takes its street, and the ZIP
-    // the visitor already has is left alone rather than overwritten with "1100"
+    // box is emptied, so the first pick's 19122 and its check can't sit behind a different address
     await page.locator('#prop-address').fill('');
     await page.locator('#prop-address').pressSequentially('12 Rizal');
     await options(page).nth(2).click();
     await expect(page.locator('#prop-address')).toHaveValue('12 Rizal Street');
-    await expect(page.locator('#prop-zip')).toHaveValue('19122');
+    await expect(page.locator('#prop-zip')).toHaveValue('');
+    await expect(page.locator('.field:has(#prop-zip)')).not.toHaveClass(/lc-ok/);
+    await page.fill('#prop-rent', '1150');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property this application is for');
+    await expect(page.locator('.field:has(#prop-zip) > .errmsg')).toHaveText('Enter the 5-digit ZIP code.');
   });
 
   test('a typed unit or apartment is never lost: it moves to the Unit / Apt number box', async ({ page }) => {
@@ -682,7 +687,7 @@ test.describe('answers are kept for an hour', () => {
     await page.fill('#prop-address', '1932 N 5th St');
     await page.fill('#prop-zip', '19122');
     await expect.poll(async () => (await draft(page))?.values?.property_zip).toBe('19122');
-    expect((await draft(page)).values.property_address).toBe('1932 N 5th St');
+    expect((await draft(page)).values.property_street).toBe('1932 N 5th St');
     await page.reload();
     await openApply(page);
     // picks up where they were
@@ -806,7 +811,7 @@ test.describe('answers are kept for an hour', () => {
     await SECTION_FILL['About the landlord or property manager'](page);
     await next(page).click();
     await SECTION_FILL['The property this application is for'](page);
-    await expect.poll(async () => (await draft(page))?.values?.property_address).toBe('1932 N 5th St');
+    await expect.poll(async () => (await draft(page))?.values?.property_street).toBe('1932 N 5th St');
     expect(await draft(page)).toMatchObject({ values: { owner_name: 'Marcus Reed',
       owner_email: 'landlord@example.com', owner_phone: '(215) 555-0123' } });
     const res = await page.goto('/terms.html');
@@ -967,17 +972,18 @@ test.describe('landlord — the homepage application, inside the popup', () => {
   });
 
   // Adam, 2026-10-14: "we're going to need to make these fonts a little bit bigger, the average
-  // person behind on rent is older." Nothing a visitor reads in the popup is under .9rem (14.4px);
-  // only the progress bar's small capitals in the header, which this does not walk, go below.
+  // person behind on rent is older." Nothing a visitor reads in the popup is under .9rem (14.4px),
+  // except the header's two small-capital step names (.lc-count, .lc-lbl), never under .74rem.
   test('no text in the popup is smaller than .9rem, on any step', async ({ page }) => {
     const tooSmall = () => page.evaluate(() => {
       const out = [];
-      const walk = document.createTreeWalker(document.querySelector('[data-landlord-check] .lc-body'), NodeFilter.SHOW_TEXT);
+      const walk = document.createTreeWalker(document.querySelector('[data-landlord-check] .lc-dialog'), NodeFilter.SHOW_TEXT);
       for (let n = walk.nextNode(); n; n = walk.nextNode()) {
         const el = n.parentElement;
         if (!n.textContent.trim() || !el.getClientRects().length) continue;           // not on screen
         const px = parseFloat(getComputedStyle(el).fontSize);
-        if (px < 14.39) out.push(`${el.className || el.tagName} ${px}px "${n.textContent.trim().slice(0, 40)}"`);
+        const floor = el.closest('.lc-count, .lc-lbl') ? 0.74 * 16 : 0.9 * 16;
+        if (px < floor - 0.01) out.push(`${el.className || el.tagName} ${px}px "${n.textContent.trim().slice(0, 40)}"`);
       }
       return out;
     });
@@ -991,6 +997,12 @@ test.describe('landlord — the homepage application, inside the popup', () => {
       await SECTION_FILL[name](page);
       if (name !== APPLY_STEPS[APPLY_STEPS.length - 1]) await next(page).click();
     }
+    // a two-step form shows the step names as labels under the bar instead of the count line
+    await page.goto('/back-rent/index.html');
+    await page.locator('a[href="#form-card"]').first().evaluate((a) => a.click());
+    await expect(page.locator('[data-landlord-check] #backrent-form')).toBeVisible();
+    await expect(page.locator('[data-lc-dot] .lc-lbl').first()).toBeVisible();
+    expect(await tooSmall(), '/back-rent/').toEqual([]);
   });
 
   test('a field is not marked wrong until the visitor has typed in it', async ({ page }) => {
@@ -1434,8 +1446,10 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(seen[0].contentType).toMatch(/^multipart\/form-data/);
     expect(seen[0].postData).toContain('Marcus Reed');
     expect(seen[0].postData).toMatch(/name="visitor_role"\r\n\r\nlandlord/);
-    // the street and its ZIP go as two fields, and the number of units is no longer asked
-    expect(seen[0].postData).toMatch(/name="property_address"\r\n\r\n1932 N 5th St\r\n/);
+    // the CRM still gets the whole address in property_address, "street, ZIP"; the street and
+    // the ZIP also go on their own, and the number of units is no longer asked
+    expect(seen[0].postData).toMatch(/name="property_address"\r\n\r\n1932 N 5th St, 19122\r\n/);
+    expect(seen[0].postData).toMatch(/name="property_street"\r\n\r\n1932 N 5th St\r\n/);
     expect(seen[0].postData).toMatch(/name="property_zip"\r\n\r\n19122\r\n/);
     expect(seen[0].postData).not.toContain('name="owner_units"');
     const booked = await leads(page);

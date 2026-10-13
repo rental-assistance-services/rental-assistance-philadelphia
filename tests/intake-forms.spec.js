@@ -171,7 +171,40 @@ test.describe('#apply form (the one that was dead)', () => {
     expect(seen[0].contentType).toMatch(/^multipart\/form-data; boundary=/);
     // The role the visitor chose rides along, so the CRM can filter landlord leads.
     expect(seen[0].postData).toContain('landlord');
+    // The CRM stores property_address as sent and shows it on the lead, so it is still the
+    // whole address, "street, ZIP"; the two boxes also go on their own. Units are not asked.
+    expect(seen[0].postData).toMatch(/name="property_address"\r\n\r\nTest Value, 19122\r\n/);
+    expect(seen[0].postData).toMatch(/name="property_street"\r\n\r\nTest Value\r\n/);
+    expect(seen[0].postData).toMatch(/name="property_zip"\r\n\r\n19122\r\n/);
+    expect(seen[0].postData).not.toContain('name="owner_units"');
   });
+
+  test('without the popup script, the form on the page checks the ZIP and still sends the whole address',
+    async ({ page }) => {
+      // If /landlord-check.js fails to load, the gate shows the application on the page and
+      // site.js alone validates and submits it.
+      await page.route('**/landlord-check.js', (route) => route.abort());
+      const seen = await stubEndpoint(page, { ok: true, contact_id: CONTACT_ID, files_uploaded: 0,
+        documents: { stored: [], rejected: [] } });
+      await page.goto('/index.html');
+      await chooseRole(page, '#intake-form', 'landlord');
+      await expect(page.locator('#intake-form')).toBeVisible();
+      await expect(page.locator('[data-landlord-check]')).toHaveCount(0);
+      const zip = page.locator('#prop-zip');
+      for (const bad of ['abcde', '191']) {
+        await zip.fill(bad);
+        await zip.blur();
+        await expect(zip, `"${bad}" is not a ZIP`).toHaveClass(/err/);
+      }
+      await zip.fill('19122');
+      await zip.blur();
+      await expect(zip).not.toHaveClass(/err/);
+      await fillApplyForm(page);
+      await page.fill('#prop-address', '  1932 N 5th St ');
+      await page.click('#intake-form button[type=submit]');
+      await expect.poll(() => seen.length, { timeout: 10000 }).toBe(1);
+      expect(seen[0].postData).toMatch(/name="property_address"\r\n\r\n1932 N 5th St, 19122\r\n/);
+    });
 
   test('shows the reference number the server returned, not an invented one', async ({ page }) => {
     await stubEndpoint(page, { ok: true, contact_id: CONTACT_ID, files_uploaded: 0,

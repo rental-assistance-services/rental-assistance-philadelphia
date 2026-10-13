@@ -144,11 +144,11 @@
     + 'transition:background .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
     + '.lc-steps li.is-done .lc-seg{background:var(--blue-bright,#8FB2FF);}'
     + '.lc-steps li.is-current .lc-seg{background:linear-gradient(90deg,var(--blue-bright,#8FB2FF),#fff);box-shadow:0 0 12px rgba(143,178,255,.6);}'
-    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.1em;'
+    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.74rem;letter-spacing:.1em;'
     + 'text-transform:uppercase;color:rgba(201,213,234,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .35s var(--lc-ease);}'
     + '.lc-steps li.is-current .lc-lbl{color:#fff;font-weight:600;}'
     + '.lc-steps li.is-done .lc-lbl{color:var(--on-ink,#C9D5EA);}'
-    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
+    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
     // More steps than fit as labels: segments only, and the current step named underneath.
     + '.lc-head.lc-many .lc-lbl{display:none;}.lc-head.lc-many .lc-count{display:block;}'
     + '.lc-head.lc-off .lc-steps{opacity:.35;}'
@@ -185,7 +185,8 @@
     + 'box-shadow:0 1px 2px rgba(14,34,72,.04);transition:border-color .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
     // Type sizes in the popup: nothing a visitor reads is under .9rem (Adam, 2026-10-14: "we're
     // going to need to make these fonts a little bit bigger, the average person behind on rent
-    // is older"). Only the progress bar's and the calendar's small capitals go below, to .7rem.
+    // is older"). Only the small capitals go below: the step name in the header (.lc-count .8rem,
+    // .lc-lbl .74rem) and the calendar's weekday row (.7rem).
     + '.lc-host .field > label{font-weight:680;color:var(--lc-navy);font-size:1rem;margin-bottom:7px;}'
     + '.lc-host .help{font-size:.92rem;}'
     + '.lc-host .note,.lc-host .form-note,.lc-host .muted{font-size:.92rem;}'
@@ -348,7 +349,6 @@
     // The two answers are the site-wide choice cards (.lc-role in /theme.css — the same as the
     // gate's buttons on the page).
     + '.lc-roles{display:grid;gap:10px;}'
-    + '.lc-roles .lc-role small{font-size:.92rem;}'
     + '.lc-note{color:var(--lc-muted-2);font-size:.9rem;line-height:1.5;margin:16px 0 0;}'
     + '.lc-lines{list-style:none;padding:0;margin:0 0 18px;display:grid;gap:12px;}'
     + '.lc-lines li{border-top:1px solid var(--lc-hair);padding-top:12px;}'
@@ -467,9 +467,10 @@
      simply behaves like a plain text box. OpenStreetMap's licence requires the attribution
      line at the foot of the list.
 
-     Units: anything typed that names a unit, apartment, suite or "#…" is never thrown away
-     when a suggestion replaces the text. It moves to the "Unit / Apt number" box if the form
-     has one, and otherwise stays at the front of the address. */
+     Units: when a suggestion replaces the text, anything typed that names a unit, apartment,
+     suite or "#…" is moved to the "Unit / Apt number" box if the form has one, and otherwise
+     stays at the front of the address. Any other text typed ahead of the street is replaced
+     by the pick. */
   var PHOTON = 'https://photon.komoot.io/api/';
   var BIAS = { lat: 39.9526, lon: -75.1652 };             // City Hall, Philadelphia
   var UNIT_RE = /(?:\b(?:unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
@@ -497,8 +498,8 @@
     var region = us ? (US_STATES[p.state] || p.state || '') : (p.state || '');
     var tail = [region, p.postcode].filter(Boolean).join(' ');
     var line2 = [place, tail].filter(Boolean).join(', ') + (us || !p.country ? '' : ', ' + p.country);
-    // Only a US ZIP fills the ZIP box (ZIP+4 is cut to its five digits); anything else leaves
-    // the box as it is, for the visitor to fill in.
+    // Only a US ZIP fills the ZIP box (ZIP+4 is cut to its five digits); anything else empties
+    // it, for the visitor to fill in.
     var post = String(p.postcode || '').trim();
     var zip = us && /^\d{5}(?:-\d{4})?$/.test(post) ? post.slice(0, 5) : '';
     return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), street: line1, zip: zip,
@@ -623,7 +624,9 @@
       input.value = value;
       input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
       filling = false;
-      if (zipBox && s.zip) {
+      // The ZIP always follows the pick: a pick with no US ZIP empties the box, so a ZIP (and
+      // its green check) left by an earlier pick can't stay behind a different address.
+      if (zipBox) {
         zipBox.value = s.zip;
         zipBox.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
       }
@@ -1105,7 +1108,9 @@
         observer.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         // Capture, so it runs before the page's own submit handler and can hold it back.
         form.addEventListener('submit', guardSubmit, true);
-        form.querySelectorAll('input[name="property_address"]').forEach(addressAssist);
+        // The street box: property_street on the homepage application (its property_address is
+        // a hidden field site.js composes on submit), property_address on /back-rent/.
+        form.querySelectorAll('input[name="property_street"], input[name="property_address"]:not([type="hidden"])').forEach(addressAssist);
         form.querySelectorAll('.file-field input[type="file"]').forEach(fileAssist);
         form.querySelectorAll('input[type="date"]').forEach(dateAssist);
       }
@@ -1407,13 +1412,16 @@
       if (!isEntry(el)) return;
       // The pages skip an EMPTY optional field, so an error from an earlier value would stay.
       if (!el.required && !val(el)) clearErr(el);
-      // Names and phones: the popup's rules are stricter than the page's and decide on their
-      // own once there is a value (the page's phone check would flag an unfinished number
-      // mid-typing). An empty required field keeps the page's own wording.
+      // Names, phones and the ZIP: the popup's rules are stricter than the page's and decide on
+      // their own once there is a value (the page's phone and ZIP checks would flag an
+      // unfinished number mid-typing). An empty required field keeps the page's own wording.
       if (ownsRules(el) && val(el)) { clearErr(el); var q = popupProblem(el, strict); if (q) showErr(el, q); return; }
       if (!hasErr(el)) { var p = popupProblem(el, strict); if (p) showErr(el, p); }
     }
-    function ownsRules(el) { return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.hasAttribute('data-lc-date'); }
+    function ownsRules(el) {
+      return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.name === 'property_zip'
+        || el.hasAttribute('data-lc-date');
+    }
     function verified(el) { return el.getAttribute('data-lc-verified-for') === val(el).toLowerCase() && !!val(el); }
     function refreshTick(el) {
       var f = el.closest('.field');
