@@ -86,7 +86,7 @@ body{animation:page-in var(--dur) var(--ease) both;}
    of each form on the page (the five main pages and /back-rent/), the same question in the popup
    (/landlord-check.js), and the tenant panel. Defined once, here. */
 
-/* A choice card — "I own or manage rental property" / "I rent my home" — in the gate and in the
+/* A choice card — "I am the landlord" / "I am the tenant" — in the gate and in the
    popup alike: an icon tile (a house for the owner, a key for the tenant), the answer, and an arrow
    that slides on hover, like the homepage's service cards. */
 .rg-btn,.lc-role{position:relative;display:block;width:100%;min-height:74px;text-align:left;font-family:var(--sans);font-size:1rem;font-weight:680;line-height:1.25;color:var(--navy);

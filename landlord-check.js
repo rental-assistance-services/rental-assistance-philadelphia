@@ -3,9 +3,9 @@
 
    WHY: this site sells a filing service to PROPERTY OWNERS, but its brand and the search
    terms it ranks for ("rental assistance philadelphia") read as tenant-side, so most
-   visitors are tenants. The popup asks "own or rent?" before any form is shown, and then
-   IS the form: a landlord fills in the page's real application inside it, one section per
-   step, with a progress bar across the top.
+   visitors are tenants. The popup asks "are you the landlord or the tenant?" before any form
+   is shown, and then IS the form: a landlord fills in the page's real application inside it,
+   one section per step, with a progress bar across the top.
 
    WHAT OPENS IT
    - A first visit to any landing page (once per browser; the answer or a dismissal is
@@ -173,7 +173,7 @@
     // the first half of it, or the space pops open and the text fades into it afterwards.
     + '.lc-host .errmsg.show,.lc-host .field.show-err .errmsg{max-height:2.9em;margin-top:6px;opacity:1;transform:none;visibility:visible;'
     + 'transition:max-height .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,visibility 0s;}'
-    // Inputs, in the site's own control language — the same as the "own or rent?" buttons and
+    // Inputs, in the site's own control language — the same as the landlord / tenant buttons and
     // the gates in front of each form: white fill, 1.5px hairline border, 10px corners, a
     // blue focus ring. The page's inputs used a cream fill that vanished on the cream dialog,
     // a green focus ring, and a GOLD outline for an error whose message is red.
@@ -414,11 +414,11 @@
     + '<div class="lc-body">'
     // who you are
     + '<div class="lc-panel" data-lc-panel="role">'
-    + '<h2 class="lc-q" id="lc-title-role">First, do you own or rent?</h2>'
+    + '<h2 class="lc-q" id="lc-title-role">First, are you the landlord or the tenant?</h2>'
     + '<p class="lc-sub">We&rsquo;re hired by Philadelphia property owners to get a tenant&rsquo;s back rent paid by the City.</p>'
     + '<div class="lc-roles">'
-    + '<button type="button" class="lc-role" data-lc-role="landlord">I own or manage rental property<small>Landlord or property manager</small></button>'
-    + '<button type="button" class="lc-role" data-lc-role="tenant">I rent my home<small>Tenant</small></button>'
+    + '<button type="button" class="lc-role" data-lc-role="landlord">I am the landlord<small>I own or manage the rental property</small></button>'
+    + '<button type="button" class="lc-role" data-lc-role="tenant">I am the tenant<small>I rent my home</small></button>'
     + '</div>'
     + '<p class="lc-note">Rental Assistance Philadelphia is a private filing service hired by owners. We are not the City and we do not represent tenants.</p>'
     + '</div>'
