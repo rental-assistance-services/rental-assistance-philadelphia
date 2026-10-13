@@ -448,8 +448,11 @@
 
   /* ---------- address suggestions (Photon) ----------
      As the visitor types the property address, up to five real addresses are offered under
-     the box; picking one fills in the whole address. Typing it out by hand still works — this
-     only ever suggests.
+     the box. Picking one fills in the address: on a form with a ZIP box (the homepage
+     application) the street box gets the street only ("1932 North 5th Street") and the ZIP
+     box gets the postcode; on a form without one (/back-rent/) the street box gets the whole
+     address, city, state and ZIP included. The list itself always shows the whole address.
+     Typing it out by hand still works — this only ever suggests.
 
      Source: Photon (photon.komoot.io), a free address search over OpenStreetMap data — no
      account, no key, CORS-open, built for search-as-you-type. Results are BIASED towards
@@ -458,13 +461,12 @@
      simply behaves like a plain text box. OpenStreetMap's licence requires the attribution
      line at the foot of the list.
 
-     Blocks and lots: anything typed that names a block, lot, unit, apartment, suite or "#…"
-     is never thrown away when a suggestion replaces the text. It moves to the
-     "Unit / Apt / Block & Lot" box if the form has one, and otherwise stays at the front of
-     the address. */
+     Units: anything typed that names a unit, apartment, suite or "#…" is never thrown away
+     when a suggestion replaces the text. It moves to the "Unit / Apt number" box if the form
+     has one, and otherwise stays at the front of the address. */
   var PHOTON = 'https://photon.komoot.io/api/';
   var BIAS = { lat: 39.9526, lon: -75.1652 };             // City Hall, Philadelphia
-  var UNIT_RE = /(?:\b(?:blk|block|lot|phase|unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
+  var UNIT_RE = /(?:\b(?:unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
   var US_STATES = { Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA', Colorado: 'CO',
     Connecticut: 'CT', Delaware: 'DE', 'District of Columbia': 'DC', Florida: 'FL', Georgia: 'GA', Hawaii: 'HI',
     Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA', Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME',
@@ -478,7 +480,8 @@
 
   var PEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.8"/></svg>';
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  // One Photon result -> what the list shows and what the box is filled with.
+  // One Photon result -> what the list shows and what the boxes are filled with: `value` is
+  // the whole address (a form with no ZIP box), `street` and `zip` are its two parts.
   function describe(p) {
     var street = p.street || (p.type === 'street' ? p.name : '') || p.name || '';
     if (!street) return null;
@@ -488,7 +491,12 @@
     var region = us ? (US_STATES[p.state] || p.state || '') : (p.state || '');
     var tail = [region, p.postcode].filter(Boolean).join(' ');
     var line2 = [place, tail].filter(Boolean).join(', ') + (us || !p.country ? '' : ', ' + p.country);
-    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), exact: !!p.housenumber };
+    // Only a US ZIP fills the ZIP box (ZIP+4 is cut to its five digits); anything else leaves
+    // the box as it is, for the visitor to fill in.
+    var post = String(p.postcode || '').trim();
+    var zip = us && /^\d{5}(?:-\d{4})?$/.test(post) ? post.slice(0, 5) : '';
+    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), street: line1, zip: zip,
+      exact: !!p.housenumber };
   }
 
   function addressAssist(input) {
@@ -586,9 +594,12 @@
     function choose(i) {
       var s = items[i];
       if (!s) return;
-      // Keep every block / lot / unit the visitor typed — never lose it to the suggestion.
+      // Keep every unit / apartment the visitor typed — never lose it to the suggestion.
       var kept = (input.value.match(UNIT_RE) || []).map(function (t) { return t.trim(); });
-      var value = s.value;
+      // A form with a ZIP box takes the street here and the ZIP there; one without keeps the
+      // whole address in this box, as it always has.
+      var zipBox = input.form && input.form.querySelector('[name="property_zip"]');
+      var value = zipBox ? s.street : s.value;
       if (kept.length) {
         var unit = input.form && input.form.querySelector('[name="property_unit"]');
         if (unit) {
@@ -599,13 +610,17 @@
             unit.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
           }
         } else {
-          value = kept.join(' ') + ', ' + s.value;
+          value = kept.join(' ') + ', ' + value;
         }
       }
       filling = true;
       input.value = value;
       input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
       filling = false;
+      if (zipBox && s.zip) {
+        zipBox.value = s.zip;
+        zipBox.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+      }
       close();
       track('address_suggestion', { form_id: input.form ? input.form.id : '', exact: s.exact });
       input.setSelectionRange(value.length, value.length);
@@ -1249,9 +1264,10 @@
        A field that has been typed into and passes turns its asterisk into a green check.
 
        On top of the page's rules the popup adds a few of its own (popupProblem): a length
-       cap on the owner's name, and — for a form the page never validates live, the case-review
-       form — required / email / phone checks. And a required email must be typed twice: a
-       confirm box fades up beneath it, and the email is only "Verified" once both match. */
+       cap on the owner's name, five digits for the property's ZIP code, and — for a form the
+       page never validates live, the case-review form — required / email / phone checks. And
+       a required email must be typed twice: a confirm box fades up beneath it, and the email
+       is only "Verified" once both match. */
     var validating = false;
     var NAME_FIELDS = { owner_name: true, name: true };   // the owner's full name, on every form
     function val(el) { return String(el.value || '').trim(); }
@@ -1353,6 +1369,13 @@
       while (pos < out.length && seen < want) { if (/\d/.test(out[pos])) seen++; pos++; }
       if (document.activeElement === el) { try { el.setSelectionRange(pos, pos); } catch (e) {} }
     }
+    // The property's ZIP code: five digits. Anything but a digit is wrong the moment it is
+    // typed; too few digits only once the visitor leaves the box or presses Next.
+    var ZIP_MSG = 'Enter the 5-digit ZIP code.';
+    function zipProblem(v, strict) {
+      if (!/^\d+$/.test(v) || v.length > 5) return ZIP_MSG;
+      return v.length < 5 && strict ? ZIP_MSG : null;
+    }
     function formatPhone(el) {
       var d = phoneDigits(val(el));
       if (d.length === 10 && !phoneProblem(val(el), true)) el.value = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
@@ -1364,6 +1387,7 @@
       if (el.hasAttribute('data-lc-date')) return dateProblem(v, strict);
       if (NAME_FIELDS[el.name]) return nameProblem(v, strict);
       if (el.name === 'tenant_name') return tenantNameProblem(v);
+      if (el.name === 'property_zip') return zipProblem(v, strict);
       if (el.type === 'tel') return phoneProblem(v, strict);
       if (el.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address.';
       return null;

@@ -303,26 +303,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       -->
       <form id="intake-form" class="intake reveal" data-d="2" action="#" method="post" enctype="multipart/form-data" novalidate hidden>
         <fieldset class="fs" style="border:none;">
-          <div class="fs-head"><span class="fs-step">1</span><h3>About you (the owner)</h3></div>
+          <div class="fs-head"><span class="fs-step">1</span><h3>About the landlord or property manager</h3></div>
           <p class="fs-sub">Who we're filing on behalf of.</p>
           <div class="row">
             <div class="field"><label for="owner-name">Full name <span class="req">*</span></label><input id="owner-name" name="owner_name" type="text" autocomplete="name" placeholder="Marcus Reed" required><p class="errmsg">Please enter your full name.</p></div>
-            <div class="field"><label for="owner-entity">Owning entity / LLC</label><input id="owner-entity" name="owner_entity" type="text" placeholder="Reed Property Group LLC"><p class="help">Leave blank if you own in your personal name.</p></div>
+            <div class="field"><label for="owner-entity">Owner name / owning entity</label><input id="owner-entity" name="owner_entity" type="text" placeholder="Reed Property Group LLC"><p class="help">The person or LLC that owns the property, if that is not you.</p></div>
           </div>
           <div class="row">
             <div class="field"><label for="owner-email">Email <span class="req">*</span></label><input id="owner-email" name="owner_email" type="email" autocomplete="email" placeholder="you@email.com" required><p class="errmsg">Enter a valid email address.</p></div>
             <div class="field"><label for="owner-phone">Phone <span class="req">*</span></label><input id="owner-phone" name="owner_phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(215) 555-0123" required><p class="errmsg">Enter a valid phone number (at least 10 digits).</p></div>
           </div>
-          <div class="field"><label for="owner-units">Number of rental units you own <span class="req">*</span></label><input id="owner-units" name="owner_units" type="number" min="1" step="1" inputmode="numeric" placeholder="3" required><p class="errmsg">Enter the number of units (1 or more).</p></div>
         </fieldset>
         <fieldset class="fs">
-          <div class="fs-head"><span class="fs-step">2</span><h3>The property</h3></div>
+          <div class="fs-head"><span class="fs-step">2</span><h3>The property this application is for</h3></div>
           <p class="fs-sub">The rental this application is for.</p>
-          <div class="field"><label for="prop-address">Property address <span class="req">*</span></label><input id="prop-address" name="property_address" type="text" autocomplete="street-address" placeholder="1932 N 5th St, Philadelphia, PA 19122" required><p class="errmsg">Enter the property address.</p></div>
+          <div class="field"><label for="prop-address">Street address <span class="req">*</span></label><input id="prop-address" name="property_address" type="text" autocomplete="street-address" placeholder="1932 N 5th St" required><p class="errmsg">Enter the street address.</p></div>
           <div class="row">
-            <div class="field"><label for="prop-unit">Unit / Apt / Block &amp; Lot</label><input id="prop-unit" name="property_unit" type="text" placeholder="Unit B, Apt 3, or Block 5 Lot 12"><p class="help">Leave blank for a single-family / whole-home rental.</p></div>
-            <div class="field"><label for="prop-rent">Monthly rent <span class="req">*</span></label><input id="prop-rent" name="monthly_rent" type="number" min="1" step="1" inputmode="numeric" placeholder="1150" required><p class="errmsg">Enter the monthly rent amount.</p></div>
+            <div class="field"><label for="prop-zip">ZIP code <span class="req">*</span></label><input id="prop-zip" name="property_zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" placeholder="19122" required><p class="errmsg">Enter the 5-digit ZIP code.</p></div>
+            <div class="field"><label for="prop-unit">Unit / Apt number</label><input id="prop-unit" name="property_unit" type="text" placeholder="Unit B or Apt 3"><p class="help">If applicable. Leave blank for a single-family rental.</p></div>
           </div>
+          <div class="field"><label for="prop-rent">Monthly rent <span class="req">*</span></label><input id="prop-rent" name="monthly_rent" type="number" min="1" step="1" inputmode="numeric" placeholder="1150" required><p class="errmsg">Enter the monthly rent amount.</p></div>
         </fieldset>
         <fieldset class="fs">
           <div class="fs-head"><span class="fs-step">3</span><h3>The tenant</h3></div>
