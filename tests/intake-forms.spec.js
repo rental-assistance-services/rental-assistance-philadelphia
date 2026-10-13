@@ -106,6 +106,7 @@ async function fillApplyForm(page) {
       if (el.type === 'tel') return set(el, '2155550123');
       if (el.type === 'number') return set(el, '1');
       if (el.type === 'date') return set(el, '2026-01-01');
+      if (el.name === 'property_zip') return set(el, '19122');            // five digits
       if (el.required) set(el, 'Test Value');
     });
     // The popup asks for the owner's email twice before it counts as verified: leave the
@@ -415,6 +416,26 @@ test.describe('landlord / tenant gate', () => {
       });
   }
 
+  test('every gate on the site asks the same question with the same two answers', async ({ page }) => {
+    // Adam, 2026-10-14: plain words, "landlord" and "tenant", the same everywhere.
+    const PAGES = ['/index.html', '/services/back-rent/index.html', '/services/licensing/index.html',
+      '/portal/index.html', '/faq/index.html', '/back-rent/index.html'];
+    for (const url of PAGES) {
+      await page.goto(url);
+      const gates = page.locator('[data-role-gate]');
+      expect(await gates.count(), `${url} has no gate`).toBeGreaterThan(0);
+      for (const gate of await gates.all()) {
+        await expect(gate.locator('.rg-q')).toHaveText('First, are you the landlord or the tenant?');
+        const landlord = gate.locator('.rg-btn[data-role="landlord"]');
+        const tenant = gate.locator('.rg-btn[data-role="tenant"]');
+        await expect(landlord).toHaveText('I am the landlordI own or manage the rental property');
+        await expect(landlord.locator('.rg-small')).toHaveText('I own or manage the rental property');
+        await expect(tenant).toHaveText('I am the tenantI rent my home');
+        await expect(tenant.locator('.rg-small')).toHaveText('I rent my home');
+      }
+    }
+  });
+
   test('the two landlord-by-definition intakes carry the role without a gate',
     async ({ page }) => {
       // A rental license and a city business-tax account are issued to the OWNER, so
@@ -480,7 +501,7 @@ test.describe('the tenant page and the panels agree', () => {
     // blog, which has no inline panel to borrow from.
     await page.goto('/index.html');
     await page.locator('#nav-links a.cta').evaluate((a) => a.click());
-    await page.getByRole('button', { name: /I rent my home/ }).click();
+    await page.locator('[data-landlord-check]').getByRole('button', { name: /^I am the tenant/ }).click();
     for (const line of TENANT_LINES) {
       await expect(tenantScreen(page).locator(`a[href="${line.tel}"]`)).toHaveText(line.label);
     }
