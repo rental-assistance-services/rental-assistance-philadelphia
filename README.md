@@ -41,14 +41,24 @@ CRM row so landlord leads can be filtered.
 
 ### The popup every lead form lives in (`landlord-check.js`)
 
-Forms are filled in a popup, never on the page. It asks "own or rent?" first, with a progress
-bar across the top, and then shows the page's **own** form — moved into the popup, not copied,
-so validation, uploads, the submit handler, the confirmation and conversion tracking are the
-code above, unchanged. The homepage application's seven sections become seven steps
-(Who you are → About you → The property → The tenant → The money owed → Your documents →
-Eviction-diversion status → Fee & finish); each step is checked with the form's own validation
-before Next. The case-review forms (`#contact-form`, `/back-rent/`'s `#backrent-form`) are one
-step. Closing the popup puts the form back where it was, hidden, keeping what was typed.
+Forms are filled in a popup, never on the page. It asks "are you the landlord or the tenant?"
+first, with a progress bar across the top, and then shows the page's **own** form — moved into
+the popup, not copied, so validation, uploads, the submit handler, the confirmation and
+conversion tracking are the code above, unchanged. On the homepage application the role
+question is step 1 and the form's seven sections are steps 2 to 8 (Who you are → About the
+landlord or property manager → The property this application is for → The tenant → The money
+owed → Your documents → Eviction-diversion status → Fee & finish); each section is checked with
+the form's own validation before Next. The case-review forms (`#contact-form`, `/back-rent/`'s
+`#backrent-form`) are one step. Closing the popup puts the form back where it was, hidden,
+keeping what was typed.
+
+The first two steps of the application ask about the landlord or property manager (full name,
+the owner's name or owning entity if that is someone else, email typed twice, phone) and the
+property (street address, ZIP code, unit or apartment number if there is one, monthly rent).
+The street and the ZIP go as their own fields, `property_street` and `property_zip`, and
+`site.js` also joins them into `property_address` ("1932 N 5th St, 19122", or just the street
+with no ZIP) just before sending, because that is the field the CRM stores and shows on the
+lead. The number of rental units the owner has is not asked.
 
 Fields are checked live once someone types in them (never for a field merely tabbed past);
 a field that passes turns its asterisk into a green check. A wrong value (a digit in a name, a
@@ -63,20 +73,31 @@ when the visitor leaves the field or presses Next.
 - **Email:** typed twice. A "Retype email to confirm" card opens beneath it; the retype box
   refuses paste, drop and browser / password-manager autofill, so it is a genuine second
   typing. Next / submit stay held until the two match and the email shows "Verified".
+- **ZIP code:** the property's, five digits. A letter shows at once; too few digits when the
+  visitor leaves the box or presses Next. The form on the page checks it too (its `pattern`),
+  for a visitor whose browser never loaded the popup.
 Inside the popup, inputs use the site's control style (white, 1.5px border, 10px corners,
 blue focus, red error) and error messages fade up over 350ms while opening their own space.
+Text in the popup is set larger than on the page, for older visitors: labels 1rem, typed
+answers 1.05rem, and nothing a visitor reads under .9rem. Only the small capitals go below: the
+step name in the header (.8rem, or .74rem under each bar on a short form) and the calendar's
+weekday row (.7rem).
 
-**Address suggestions.** The property-address box suggests real addresses as the visitor
-types (3+ characters), from **Photon** (`photon.komoot.io`, free, no key, OpenStreetMap data —
-the attribution line in the list is required by its licence). Results are biased towards
+**Address suggestions.** The street-address box suggests real addresses as the visitor types
+(3+ characters), from **Photon** (`photon.komoot.io`, free, no key, OpenStreetMap data; the
+attribution line in the list is required by its licence). Results are biased towards
 Philadelphia but not limited to it. Arrow keys / Enter / click pick one; Escape closes the list.
-Anything typed that names a block, lot, unit, apartment, suite or `#…` is kept: it moves to the
-"Unit / Apt / Block & Lot" box (homepage) or stays at the front of the address (`/back-rent/`,
-which has no unit box). Photon is a shared public server with no uptime promise, so the list
-always tells the visitor typing it by hand is fine: "Don't see your address? You can still type
-it in yourself." under the suggestions, and "We couldn't find a match — you can still type your
-full address yourself." on its own when nothing matches, Photon is down, or it hasn't answered
-within 2.5s. What the visitor types is sent to Photon as they type.
+The list shows each whole address. On the homepage application, picking one puts only the
+street (house number and street name, e.g. `1932 North 5th Street`) in the street box and the
+ZIP in the ZIP code box; a suggestion without a 5-digit US ZIP empties the ZIP box.
+`/back-rent/` has no ZIP box, so there the whole address, city, state and ZIP included, goes in
+its one address box. Anything typed that names a unit, apartment, suite or `#…` is kept: it
+moves to the "Unit / Apt number" box (homepage) or stays at the front of the address
+(`/back-rent/`, which has no unit box). Photon is a shared public server with no uptime promise,
+so the list always tells the visitor typing it by hand is fine: "Don't see your address? You
+can still type it in yourself." under the suggestions, and "We couldn't find a match. You can
+still type your full address yourself." on its own when nothing matches, Photon is down, or it
+hasn't answered within 2.5s. What the visitor types is sent to Photon as they type.
 
 **Uploads and the date, in the site's style.** Each document upload is a drop box (white card,
 blue dashed border, "Drag a file here or browse", the accepted types and the 15MB limit); a chosen

@@ -99,6 +99,7 @@
     else if(input.type === 'email' && val){ ok = emailOk(val); }
     else if(input.type === 'tel' && val){ ok = phoneOk(val); }
     else if(input.type === 'number' && val){ ok = !isNaN(Number(val)) && Number(val) >= (Number(input.min)||0); }
+    else if(input.type === 'text' && input.pattern && val){ ok = new RegExp('^(?:' + input.pattern + ')$').test(val); }
     setErr(field, !ok);
     return ok;
   }
@@ -215,6 +216,15 @@
       // Build the payload. The back-rent intake has file uploads -> multipart;
       // license/tax are field-only -> JSON. Both carry form_type + the honeypot
       // (hp_x7f2) + any utm_* params so the server can segment + attribute.
+      // The application asks for the street and the ZIP in two boxes, but the CRM stores
+      // property_address as sent and shows it on the lead, so it still gets the whole thing:
+      // "1932 N 5th St, 19122", or just the street when there is no ZIP.
+      var street = form.querySelector('[name="property_street"]');
+      var fullAddr = form.querySelector('input[type="hidden"][name="property_address"]');
+      if(street && fullAddr){
+        var zipBox = form.querySelector('[name="property_zip"]');
+        fullAddr.value = [street.value.trim(), zipBox ? zipBox.value.trim() : ''].filter(Boolean).join(', ');
+      }
       var btn = form.querySelector('button[type="submit"]');
       var hasFiles = !!form.querySelector('input[type="file"]');
       var body, headers = null;

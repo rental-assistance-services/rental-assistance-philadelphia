@@ -3,9 +3,9 @@
 
    WHY: this site sells a filing service to PROPERTY OWNERS, but its brand and the search
    terms it ranks for ("rental assistance philadelphia") read as tenant-side, so most
-   visitors are tenants. The popup asks "own or rent?" before any form is shown, and then
-   IS the form: a landlord fills in the page's real application inside it, one section per
-   step, with a progress bar across the top.
+   visitors are tenants. The popup asks "are you the landlord or the tenant?" before any form
+   is shown, and then IS the form: a landlord fills in the page's real application inside it,
+   one section per step, with a progress bar across the top.
 
    WHAT OPENS IT
    - A first visit to any landing page (once per browser; the answer or a dismissal is
@@ -144,11 +144,11 @@
     + 'transition:background .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
     + '.lc-steps li.is-done .lc-seg{background:var(--blue-bright,#8FB2FF);}'
     + '.lc-steps li.is-current .lc-seg{background:linear-gradient(90deg,var(--blue-bright,#8FB2FF),#fff);box-shadow:0 0 12px rgba(143,178,255,.6);}'
-    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.62rem;letter-spacing:.1em;'
+    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.74rem;letter-spacing:.1em;'
     + 'text-transform:uppercase;color:rgba(201,213,234,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .35s var(--lc-ease);}'
     + '.lc-steps li.is-current .lc-lbl{color:#fff;font-weight:600;}'
     + '.lc-steps li.is-done .lc-lbl{color:var(--on-ink,#C9D5EA);}'
-    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
+    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
     // More steps than fit as labels: segments only, and the current step named underneath.
     + '.lc-head.lc-many .lc-lbl{display:none;}.lc-head.lc-many .lc-count{display:block;}'
     + '.lc-head.lc-off .lc-steps{opacity:.35;}'
@@ -173,7 +173,7 @@
     // the first half of it, or the space pops open and the text fades into it afterwards.
     + '.lc-host .errmsg.show,.lc-host .field.show-err .errmsg{max-height:2.9em;margin-top:6px;opacity:1;transform:none;visibility:visible;'
     + 'transition:max-height .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,visibility 0s;}'
-    // Inputs, in the site's own control language — the same as the "own or rent?" buttons and
+    // Inputs, in the site's own control language — the same as the landlord / tenant buttons and
     // the gates in front of each form: white fill, 1.5px hairline border, 10px corners, a
     // blue focus ring. The page's inputs used a cream fill that vanished on the cream dialog,
     // a green focus ring, and a GOLD outline for an error whose message is red.
@@ -181,9 +181,15 @@
     // (focus, valid, error) can each override the base look in the order they are written.
     + '.lc-host .field :where(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){'
     // display:block drops the empty text-line space an inline input leaves beneath itself.
-    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1rem;color:var(--lc-ink);'
+    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1.05rem;color:var(--lc-ink);'
     + 'box-shadow:0 1px 2px rgba(14,34,72,.04);transition:border-color .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
-    + '.lc-host .field > label{font-weight:680;color:var(--lc-navy);font-size:.9rem;margin-bottom:7px;}'
+    // Type sizes in the popup: nothing a visitor reads is under .9rem (Adam, 2026-10-14: "we're
+    // going to need to make these fonts a little bit bigger, the average person behind on rent
+    // is older"). Only the small capitals go below: the step name in the header (.lc-count .8rem,
+    // .lc-lbl .74rem) and the calendar's weekday row (.7rem).
+    + '.lc-host .field > label{font-weight:680;color:var(--lc-navy);font-size:1rem;margin-bottom:7px;}'
+    + '.lc-host .help{font-size:.92rem;}'
+    + '.lc-host .note,.lc-host .form-note,.lc-host .muted{font-size:.92rem;}'
     + '.lc-host .field input::placeholder,.lc-host .field textarea::placeholder{color:var(--lc-muted-2);opacity:.7;}'
     + '.lc-host .field :where(input,select,textarea):hover{border-color:rgba(42,91,215,.5);}'
     + '.lc-host .field :where(input,select,textarea):focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 4px rgba(42,91,215,.16);}'
@@ -195,7 +201,7 @@
     + 'border-color:#B4432F;box-shadow:0 0 0 3px rgba(180,67,47,.13);}'
     // No bottom margin: the site's paragraph margin would otherwise leave a blank band under
     // every field even while its (collapsed) message is hidden.
-    + '.lc-host .errmsg{color:#9A3B33;font-size:.84rem;margin-bottom:0;}'
+    + '.lc-host .errmsg{color:#9A3B33;font-size:.92rem;margin-bottom:0;}'
     // A two-column row stacks on a phone; its row gap PLUS each field's own bottom margin
     // doubled the space between those fields. The field margin alone spaces them evenly.
     + '.lc-host .row,.lc-host .row2{row-gap:0;}'
@@ -215,9 +221,9 @@
     + '.lc-drop-txt{min-width:0;flex:1;}'
     + '.lc-drop-main{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
     + '.lc-drop-main u{color:var(--lc-blue-2);text-underline-offset:2px;}'
-    + '.lc-drop-sub{display:block;font-size:.8rem;color:var(--lc-muted-2);margin-top:2px;}'
+    + '.lc-drop-sub{display:block;font-size:.9rem;color:var(--lc-muted-2);margin-top:2px;}'
     + '.lc-drop-remove{position:relative;z-index:2;flex:none;background:none;border:1.5px solid var(--lc-hair);border-radius:8px;'
-    + 'padding:6px 12px;font:inherit;font-size:.84rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
+    + 'padding:6px 12px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
     + '.lc-drop-remove:hover{border-color:#B4432F;color:#9A3B33;}'
     + '.lc-drop-remove[hidden]{display:none;}'
     // The date: a text box with a calendar button, and the site-styled calendar floating by it.
@@ -243,7 +249,7 @@
     // The browser's own select arrow is wide and grey; a slim blue chevron takes its place,
     // which also leaves room for "September" and the year in a compact header.
     + '.lc-host .field .lc-cal-sel{flex:1;min-width:0;-webkit-appearance:none;appearance:none;padding:5px 20px 5px 8px;'
-    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.82rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
+    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
     + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%231B3FA0\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 7px center;}'
     + '.lc-host .field .lc-cal-sel:focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 3px rgba(42,91,215,.24);}'
     + '.lc-cal-nav{flex:none;width:26px;height:28px;border:none;border-radius:7px;background:transparent;font-size:1.2rem;line-height:1;'
@@ -251,11 +257,11 @@
     + '.lc-cal-nav:hover:not([disabled]){background:rgba(42,91,215,.13);}'
     + '.lc-cal-nav[disabled]{opacity:.3;cursor:default;}'
     + '.lc-cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;}'
-    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;'
+    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;'
     + 'color:var(--lc-muted-2);font-weight:600;padding:2px 0 4px;}'
     + '.lc-cal-grid td{padding:1px;text-align:center;}'
     + '.lc-day{width:100%;height:30px;border:none;border-radius:7px;background:transparent;font:inherit;'
-    + 'font-size:.82rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
+    + 'font-size:.9rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
     + '.lc-day:hover:not([disabled]){background:rgba(42,91,215,.13);}'
     + '.lc-day.lc-out{color:var(--lc-muted-2);opacity:.55;}'
     + '.lc-day.lc-today{box-shadow:inset 0 0 0 1.5px var(--lc-blue);font-weight:700;}'
@@ -263,10 +269,10 @@
     + '.lc-day[disabled]{opacity:.25;cursor:default;}'
     + '.lc-day:focus-visible{outline:2.5px solid var(--lc-blue);outline-offset:1px;}'
     + '.lc-cal-foot{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--lc-hair);}'
-    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.8rem;font-weight:650;color:var(--lc-blue-2);cursor:pointer;border-radius:6px;}'
+    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-blue-2);cursor:pointer;border-radius:6px;}'
     + '.lc-cal-link:hover{background:rgba(42,91,215,.13);}'
     // Smaller screens: a touch narrower and tighter still, and never wider than the field.
-    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.8rem;}}'
+    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.9rem;}}'
     // Once a field is filled in and passes, its asterisk turns into a green check (and a field
     // with no asterisk gets the check after its label). It fades up like everything else.
     // The icon is exactly 1em and sits on the text's own bottom edge (vertical-align:text-bottom),
@@ -298,7 +304,7 @@
     // (it overlays rather than pushing them), fading down over 350ms ease-in.
     // "Welcome back" line shown when a saved draft was put back.
     + '.lc-restored{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 20px;'
-    + 'padding:11px 15px;border-radius:12px;background:var(--blue-soft,#DCE6FB);border-left:3px solid var(--lc-blue);font-size:.86rem;color:var(--lc-navy);'
+    + 'padding:11px 15px;border-radius:12px;background:var(--blue-soft,#DCE6FB);border-left:3px solid var(--lc-blue);font-size:.92rem;color:var(--lc-navy);'
     + 'animation:lc-up .35s ease-in both;}'
     + '.lc-restored[hidden]{display:none;}'
     + '.lc-startover{background:none;border:none;padding:0;font:inherit;font-weight:650;color:var(--lc-blue-2);'
@@ -313,19 +319,19 @@
     + '.lc-suggest [role=option]:hover,.lc-suggest [role=option][aria-selected=true]{background:rgba(42,91,215,.13);}'
     + '.lc-sg-pin{flex:none;color:var(--lc-blue-2);margin-top:2px;display:inline-flex;}'
     + '.lc-sg-1{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;line-height:1.3;}'
-    + '.lc-sg-2{display:block;font-size:.82rem;color:var(--lc-muted-2);line-height:1.35;}'
+    + '.lc-sg-2{display:block;font-size:.9rem;color:var(--lc-muted-2);line-height:1.35;}'
     + '.lc-suggest-manual{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;margin-top:4px;border-top:1px solid var(--lc-hair);'
-    + 'font-size:.86rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
+    + 'font-size:.92rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
     + '.lc-suggest-manual svg{flex:none;color:var(--lc-blue-2);margin-top:1px;}'
     + '.lc-suggest.lc-only-manual .lc-suggest-manual{margin-top:0;border-top:none;}'
-    + '.lc-suggest-note{font-size:.7rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
+    + '.lc-suggest-note{font-size:.9rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
     + '@keyframes lc-down{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}'
     // On a phone the sheet ends at the screen's bottom edge, so a floating list would be cut
     // off there. It sits in the flow instead: the fields below move down, the sheet grows and
     // scrolls, and every suggestion (and the credit line) can be reached.
     + '@media (max-width:640px){.lc-suggest{position:static;}}'
     + '.lc-host .lc-confirm.show .lc-confirm-in{padding:11px 10px 10px;}'
-    + '.lc-host .lc-confirm label{display:block;font-size:.8rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
+    + '.lc-host .lc-confirm label{display:block;font-size:.9rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
     + '.lc-host .field .lc-confirm input{padding:11px 13px;}'
     // Chrome gives an autofilled field :-webkit-autofill but fires no reliable event; a
     // 1ms animation on that state is the event guardRetype() listens for.
@@ -334,22 +340,22 @@
     // Verified: a green pill after the email's label (its asterisk has already become a check).
     + '.lc-host .field.lc-verified > label::after,.lc-host .field.lc-verified.lc-ok > label:not(:has(.req))::after{'
     + 'content:"Verified";display:inline-block;width:auto;height:auto;margin-left:8px;padding:2px 9px;'
-    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.72rem;font-weight:700;'
+    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.9rem;line-height:1.3;font-weight:700;'
     + 'letter-spacing:.03em;vertical-align:1px;animation:lc-up .35s ease-in both;}'
     + '.lc-panel[hidden]{display:none;}'
     // Headings as the site sets them: light Fraunces, tight tracking.
     + '.lc-q{font-family:var(--lc-serif);font-size:1.65rem;font-weight:420;letter-spacing:-.018em;color:var(--lc-navy);line-height:1.15;margin:0 0 8px;}'
-    + '.lc-sub{color:var(--lc-muted);font-size:.95rem;line-height:1.55;margin:0 0 20px;}'
+    + '.lc-sub{color:var(--lc-muted);font-size:1.02rem;line-height:1.55;margin:0 0 20px;}'
     // The two answers are the site-wide choice cards (.lc-role in /theme.css — the same as the
     // gate's buttons on the page).
     + '.lc-roles{display:grid;gap:10px;}'
-    + '.lc-note{color:var(--lc-muted-2);font-size:.82rem;line-height:1.5;margin:16px 0 0;}'
+    + '.lc-note{color:var(--lc-muted-2);font-size:.9rem;line-height:1.5;margin:16px 0 0;}'
     + '.lc-lines{list-style:none;padding:0;margin:0 0 18px;display:grid;gap:12px;}'
     + '.lc-lines li{border-top:1px solid var(--lc-hair);padding-top:12px;}'
     + '.lc-lines li:first-child{border-top:none;padding-top:0;}'
     + '.lc-lines b{display:block;color:var(--lc-navy);font-size:.95rem;}'
     + '.lc-lines a{font-weight:700;color:var(--lc-navy);text-decoration:none;border-bottom:2px solid var(--lc-blue);}'
-    + '.lc-lines span{color:var(--lc-muted-2);font-size:.84rem;margin-left:6px;}'
+    + '.lc-lines span{color:var(--lc-muted-2);font-size:.92rem;margin-left:6px;}'
     // Buttons as the site's: the blue gradient with its glow (.btn-blue), and the ghost (.btn-ghost).
     + '.lc-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--lc-sans);font-weight:680;'
     + 'font-size:1rem;line-height:1;padding:15px 26px;border-radius:10px;border:1.5px solid transparent;cursor:pointer;text-decoration:none;'
@@ -374,7 +380,7 @@
     // which counts "Who you are" as step 1. The bar is the one numbering in the popup.
     + '.lc-host .fs-step{display:none;}'
     + '.lc-host .fs h3{font-family:var(--lc-serif);font-size:1.55rem;font-weight:420;letter-spacing:-.016em;line-height:1.15;color:var(--lc-navy);}'
-    + '.lc-host .fs-sub{color:var(--lc-muted);font-size:.95rem;margin:4px 0 22px;}'
+    + '.lc-host .fs-sub{color:var(--lc-muted);font-size:1.02rem;margin:4px 0 22px;}'
     // The contact form's confirmation is styled for the dark band it normally sits in (white
     // text, set inline). On the light dialog that would be invisible, so re-colour it here.
     + '.lc-host .callout.on-ink{background:#DDEFE3;border-color:rgba(47,158,94,.3);border-left-color:var(--lc-green);color:var(--lc-ink);}'
@@ -414,11 +420,11 @@
     + '<div class="lc-body">'
     // who you are
     + '<div class="lc-panel" data-lc-panel="role">'
-    + '<h2 class="lc-q" id="lc-title-role">First, do you own or rent?</h2>'
+    + '<h2 class="lc-q" id="lc-title-role">First, are you the landlord or the tenant?</h2>'
     + '<p class="lc-sub">We&rsquo;re hired by Philadelphia property owners to get a tenant&rsquo;s back rent paid by the City.</p>'
     + '<div class="lc-roles">'
-    + '<button type="button" class="lc-role" data-lc-role="landlord">I own or manage rental property<small>Landlord or property manager</small></button>'
-    + '<button type="button" class="lc-role" data-lc-role="tenant">I rent my home<small>Tenant</small></button>'
+    + '<button type="button" class="lc-role" data-lc-role="landlord">I am the landlord<small>I own or manage the rental property</small></button>'
+    + '<button type="button" class="lc-role" data-lc-role="tenant">I am the tenant<small>I rent my home</small></button>'
     + '</div>'
     + '<p class="lc-note">Rental Assistance Philadelphia is a private filing service hired by owners. We are not the City and we do not represent tenants.</p>'
     + '</div>'
@@ -448,8 +454,11 @@
 
   /* ---------- address suggestions (Photon) ----------
      As the visitor types the property address, up to five real addresses are offered under
-     the box; picking one fills in the whole address. Typing it out by hand still works — this
-     only ever suggests.
+     the box. Picking one fills in the address: on a form with a ZIP box (the homepage
+     application) the street box gets the street only ("1932 North 5th Street") and the ZIP
+     box gets the postcode; on a form without one (/back-rent/) the street box gets the whole
+     address, city, state and ZIP included. The list itself always shows the whole address.
+     Typing it out by hand still works — this only ever suggests.
 
      Source: Photon (photon.komoot.io), a free address search over OpenStreetMap data — no
      account, no key, CORS-open, built for search-as-you-type. Results are BIASED towards
@@ -458,13 +467,13 @@
      simply behaves like a plain text box. OpenStreetMap's licence requires the attribution
      line at the foot of the list.
 
-     Blocks and lots: anything typed that names a block, lot, unit, apartment, suite or "#…"
-     is never thrown away when a suggestion replaces the text. It moves to the
-     "Unit / Apt / Block & Lot" box if the form has one, and otherwise stays at the front of
-     the address. */
+     Units: when a suggestion replaces the text, anything typed that names a unit, apartment,
+     suite or "#…" is moved to the "Unit / Apt number" box if the form has one, and otherwise
+     stays at the front of the address. Any other text typed ahead of the street is replaced
+     by the pick. */
   var PHOTON = 'https://photon.komoot.io/api/';
   var BIAS = { lat: 39.9526, lon: -75.1652 };             // City Hall, Philadelphia
-  var UNIT_RE = /(?:\b(?:blk|block|lot|phase|unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
+  var UNIT_RE = /(?:\b(?:unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
   var US_STATES = { Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA', Colorado: 'CO',
     Connecticut: 'CT', Delaware: 'DE', 'District of Columbia': 'DC', Florida: 'FL', Georgia: 'GA', Hawaii: 'HI',
     Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA', Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME',
@@ -478,7 +487,8 @@
 
   var PEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.8"/></svg>';
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  // One Photon result -> what the list shows and what the box is filled with.
+  // One Photon result -> what the list shows and what the boxes are filled with: `value` is
+  // the whole address (a form with no ZIP box), `street` and `zip` are its two parts.
   function describe(p) {
     var street = p.street || (p.type === 'street' ? p.name : '') || p.name || '';
     if (!street) return null;
@@ -488,7 +498,12 @@
     var region = us ? (US_STATES[p.state] || p.state || '') : (p.state || '');
     var tail = [region, p.postcode].filter(Boolean).join(' ');
     var line2 = [place, tail].filter(Boolean).join(', ') + (us || !p.country ? '' : ', ' + p.country);
-    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), exact: !!p.housenumber };
+    // Only a US ZIP fills the ZIP box (ZIP+4 is cut to its five digits); anything else empties
+    // it, for the visitor to fill in.
+    var post = String(p.postcode || '').trim();
+    var zip = us && /^\d{5}(?:-\d{4})?$/.test(post) ? post.slice(0, 5) : '';
+    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), street: line1, zip: zip,
+      exact: !!p.housenumber };
   }
 
   function addressAssist(input) {
@@ -586,9 +601,12 @@
     function choose(i) {
       var s = items[i];
       if (!s) return;
-      // Keep every block / lot / unit the visitor typed — never lose it to the suggestion.
+      // Keep every unit / apartment the visitor typed — never lose it to the suggestion.
       var kept = (input.value.match(UNIT_RE) || []).map(function (t) { return t.trim(); });
-      var value = s.value;
+      // A form with a ZIP box takes the street here and the ZIP there; one without keeps the
+      // whole address in this box, as it always has.
+      var zipBox = input.form && input.form.querySelector('[name="property_zip"]');
+      var value = zipBox ? s.street : s.value;
       if (kept.length) {
         var unit = input.form && input.form.querySelector('[name="property_unit"]');
         if (unit) {
@@ -599,13 +617,19 @@
             unit.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
           }
         } else {
-          value = kept.join(' ') + ', ' + s.value;
+          value = kept.join(' ') + ', ' + value;
         }
       }
       filling = true;
       input.value = value;
       input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
       filling = false;
+      // The ZIP always follows the pick: a pick with no US ZIP empties the box, so a ZIP (and
+      // its green check) left by an earlier pick can't stay behind a different address.
+      if (zipBox) {
+        zipBox.value = s.zip;
+        zipBox.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+      }
       close();
       track('address_suggestion', { form_id: input.form ? input.form.id : '', exact: s.exact });
       input.setSelectionRange(value.length, value.length);
@@ -1084,7 +1108,9 @@
         observer.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         // Capture, so it runs before the page's own submit handler and can hold it back.
         form.addEventListener('submit', guardSubmit, true);
-        form.querySelectorAll('input[name="property_address"]').forEach(addressAssist);
+        // The street box: property_street on the homepage application (its property_address is
+        // a hidden field site.js composes on submit), property_address on /back-rent/.
+        form.querySelectorAll('input[name="property_street"], input[name="property_address"]:not([type="hidden"])').forEach(addressAssist);
         form.querySelectorAll('.file-field input[type="file"]').forEach(fileAssist);
         form.querySelectorAll('input[type="date"]').forEach(dateAssist);
       }
@@ -1249,9 +1275,10 @@
        A field that has been typed into and passes turns its asterisk into a green check.
 
        On top of the page's rules the popup adds a few of its own (popupProblem): a length
-       cap on the owner's name, and — for a form the page never validates live, the case-review
-       form — required / email / phone checks. And a required email must be typed twice: a
-       confirm box fades up beneath it, and the email is only "Verified" once both match. */
+       cap on the owner's name, five digits for the property's ZIP code, and — for a form the
+       page never validates live, the case-review form — required / email / phone checks. And
+       a required email must be typed twice: a confirm box fades up beneath it, and the email
+       is only "Verified" once both match. */
     var validating = false;
     var NAME_FIELDS = { owner_name: true, name: true };   // the owner's full name, on every form
     function val(el) { return String(el.value || '').trim(); }
@@ -1353,6 +1380,13 @@
       while (pos < out.length && seen < want) { if (/\d/.test(out[pos])) seen++; pos++; }
       if (document.activeElement === el) { try { el.setSelectionRange(pos, pos); } catch (e) {} }
     }
+    // The property's ZIP code: five digits. Anything but a digit is wrong the moment it is
+    // typed; too few digits only once the visitor leaves the box or presses Next.
+    var ZIP_MSG = 'Enter the 5-digit ZIP code.';
+    function zipProblem(v, strict) {
+      if (!/^\d+$/.test(v) || v.length > 5) return ZIP_MSG;
+      return v.length < 5 && strict ? ZIP_MSG : null;
+    }
     function formatPhone(el) {
       var d = phoneDigits(val(el));
       if (d.length === 10 && !phoneProblem(val(el), true)) el.value = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
@@ -1364,6 +1398,7 @@
       if (el.hasAttribute('data-lc-date')) return dateProblem(v, strict);
       if (NAME_FIELDS[el.name]) return nameProblem(v, strict);
       if (el.name === 'tenant_name') return tenantNameProblem(v);
+      if (el.name === 'property_zip') return zipProblem(v, strict);
       if (el.type === 'tel') return phoneProblem(v, strict);
       if (el.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address.';
       return null;
@@ -1377,13 +1412,16 @@
       if (!isEntry(el)) return;
       // The pages skip an EMPTY optional field, so an error from an earlier value would stay.
       if (!el.required && !val(el)) clearErr(el);
-      // Names and phones: the popup's rules are stricter than the page's and decide on their
-      // own once there is a value (the page's phone check would flag an unfinished number
-      // mid-typing). An empty required field keeps the page's own wording.
+      // Names, phones and the ZIP: the popup's rules are stricter than the page's and decide on
+      // their own once there is a value (the page's phone and ZIP checks would flag an
+      // unfinished number mid-typing). An empty required field keeps the page's own wording.
       if (ownsRules(el) && val(el)) { clearErr(el); var q = popupProblem(el, strict); if (q) showErr(el, q); return; }
       if (!hasErr(el)) { var p = popupProblem(el, strict); if (p) showErr(el, p); }
     }
-    function ownsRules(el) { return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.hasAttribute('data-lc-date'); }
+    function ownsRules(el) {
+      return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.name === 'property_zip'
+        || el.hasAttribute('data-lc-date');
+    }
     function verified(el) { return el.getAttribute('data-lc-verified-for') === val(el).toLowerCase() && !!val(el); }
     function refreshTick(el) {
       var f = el.closest('.field');
