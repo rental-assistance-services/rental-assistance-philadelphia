@@ -144,11 +144,11 @@
     + 'transition:background .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
     + '.lc-steps li.is-done .lc-seg{background:var(--blue-bright,#8FB2FF);}'
     + '.lc-steps li.is-current .lc-seg{background:linear-gradient(90deg,var(--blue-bright,#8FB2FF),#fff);box-shadow:0 0 12px rgba(143,178,255,.6);}'
-    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.62rem;letter-spacing:.1em;'
+    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.1em;'
     + 'text-transform:uppercase;color:rgba(201,213,234,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .35s var(--lc-ease);}'
     + '.lc-steps li.is-current .lc-lbl{color:#fff;font-weight:600;}'
     + '.lc-steps li.is-done .lc-lbl{color:var(--on-ink,#C9D5EA);}'
-    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
+    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
     // More steps than fit as labels: segments only, and the current step named underneath.
     + '.lc-head.lc-many .lc-lbl{display:none;}.lc-head.lc-many .lc-count{display:block;}'
     + '.lc-head.lc-off .lc-steps{opacity:.35;}'
@@ -181,9 +181,14 @@
     // (focus, valid, error) can each override the base look in the order they are written.
     + '.lc-host .field :where(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){'
     // display:block drops the empty text-line space an inline input leaves beneath itself.
-    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1rem;color:var(--lc-ink);'
+    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1.05rem;color:var(--lc-ink);'
     + 'box-shadow:0 1px 2px rgba(14,34,72,.04);transition:border-color .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
-    + '.lc-host .field > label{font-weight:680;color:var(--lc-navy);font-size:.9rem;margin-bottom:7px;}'
+    // Type sizes in the popup: nothing a visitor reads is under .9rem (Adam, 2026-10-14: "we're
+    // going to need to make these fonts a little bit bigger, the average person behind on rent
+    // is older"). Only the progress bar's and the calendar's small capitals go below, to .7rem.
+    + '.lc-host .field > label{font-weight:680;color:var(--lc-navy);font-size:1rem;margin-bottom:7px;}'
+    + '.lc-host .help{font-size:.92rem;}'
+    + '.lc-host .note,.lc-host .form-note,.lc-host .muted{font-size:.92rem;}'
     + '.lc-host .field input::placeholder,.lc-host .field textarea::placeholder{color:var(--lc-muted-2);opacity:.7;}'
     + '.lc-host .field :where(input,select,textarea):hover{border-color:rgba(42,91,215,.5);}'
     + '.lc-host .field :where(input,select,textarea):focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 4px rgba(42,91,215,.16);}'
@@ -195,7 +200,7 @@
     + 'border-color:#B4432F;box-shadow:0 0 0 3px rgba(180,67,47,.13);}'
     // No bottom margin: the site's paragraph margin would otherwise leave a blank band under
     // every field even while its (collapsed) message is hidden.
-    + '.lc-host .errmsg{color:#9A3B33;font-size:.84rem;margin-bottom:0;}'
+    + '.lc-host .errmsg{color:#9A3B33;font-size:.92rem;margin-bottom:0;}'
     // A two-column row stacks on a phone; its row gap PLUS each field's own bottom margin
     // doubled the space between those fields. The field margin alone spaces them evenly.
     + '.lc-host .row,.lc-host .row2{row-gap:0;}'
@@ -215,9 +220,9 @@
     + '.lc-drop-txt{min-width:0;flex:1;}'
     + '.lc-drop-main{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
     + '.lc-drop-main u{color:var(--lc-blue-2);text-underline-offset:2px;}'
-    + '.lc-drop-sub{display:block;font-size:.8rem;color:var(--lc-muted-2);margin-top:2px;}'
+    + '.lc-drop-sub{display:block;font-size:.9rem;color:var(--lc-muted-2);margin-top:2px;}'
     + '.lc-drop-remove{position:relative;z-index:2;flex:none;background:none;border:1.5px solid var(--lc-hair);border-radius:8px;'
-    + 'padding:6px 12px;font:inherit;font-size:.84rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
+    + 'padding:6px 12px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
     + '.lc-drop-remove:hover{border-color:#B4432F;color:#9A3B33;}'
     + '.lc-drop-remove[hidden]{display:none;}'
     // The date: a text box with a calendar button, and the site-styled calendar floating by it.
@@ -243,7 +248,7 @@
     // The browser's own select arrow is wide and grey; a slim blue chevron takes its place,
     // which also leaves room for "September" and the year in a compact header.
     + '.lc-host .field .lc-cal-sel{flex:1;min-width:0;-webkit-appearance:none;appearance:none;padding:5px 20px 5px 8px;'
-    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.82rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
+    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
     + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%231B3FA0\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 7px center;}'
     + '.lc-host .field .lc-cal-sel:focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 3px rgba(42,91,215,.24);}'
     + '.lc-cal-nav{flex:none;width:26px;height:28px;border:none;border-radius:7px;background:transparent;font-size:1.2rem;line-height:1;'
@@ -251,11 +256,11 @@
     + '.lc-cal-nav:hover:not([disabled]){background:rgba(42,91,215,.13);}'
     + '.lc-cal-nav[disabled]{opacity:.3;cursor:default;}'
     + '.lc-cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;}'
-    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;'
+    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;'
     + 'color:var(--lc-muted-2);font-weight:600;padding:2px 0 4px;}'
     + '.lc-cal-grid td{padding:1px;text-align:center;}'
     + '.lc-day{width:100%;height:30px;border:none;border-radius:7px;background:transparent;font:inherit;'
-    + 'font-size:.82rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
+    + 'font-size:.9rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
     + '.lc-day:hover:not([disabled]){background:rgba(42,91,215,.13);}'
     + '.lc-day.lc-out{color:var(--lc-muted-2);opacity:.55;}'
     + '.lc-day.lc-today{box-shadow:inset 0 0 0 1.5px var(--lc-blue);font-weight:700;}'
@@ -263,10 +268,10 @@
     + '.lc-day[disabled]{opacity:.25;cursor:default;}'
     + '.lc-day:focus-visible{outline:2.5px solid var(--lc-blue);outline-offset:1px;}'
     + '.lc-cal-foot{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--lc-hair);}'
-    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.8rem;font-weight:650;color:var(--lc-blue-2);cursor:pointer;border-radius:6px;}'
+    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-blue-2);cursor:pointer;border-radius:6px;}'
     + '.lc-cal-link:hover{background:rgba(42,91,215,.13);}'
     // Smaller screens: a touch narrower and tighter still, and never wider than the field.
-    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.8rem;}}'
+    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.9rem;}}'
     // Once a field is filled in and passes, its asterisk turns into a green check (and a field
     // with no asterisk gets the check after its label). It fades up like everything else.
     // The icon is exactly 1em and sits on the text's own bottom edge (vertical-align:text-bottom),
@@ -298,7 +303,7 @@
     // (it overlays rather than pushing them), fading down over 350ms ease-in.
     // "Welcome back" line shown when a saved draft was put back.
     + '.lc-restored{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 20px;'
-    + 'padding:11px 15px;border-radius:12px;background:var(--blue-soft,#DCE6FB);border-left:3px solid var(--lc-blue);font-size:.86rem;color:var(--lc-navy);'
+    + 'padding:11px 15px;border-radius:12px;background:var(--blue-soft,#DCE6FB);border-left:3px solid var(--lc-blue);font-size:.92rem;color:var(--lc-navy);'
     + 'animation:lc-up .35s ease-in both;}'
     + '.lc-restored[hidden]{display:none;}'
     + '.lc-startover{background:none;border:none;padding:0;font:inherit;font-weight:650;color:var(--lc-blue-2);'
@@ -313,19 +318,19 @@
     + '.lc-suggest [role=option]:hover,.lc-suggest [role=option][aria-selected=true]{background:rgba(42,91,215,.13);}'
     + '.lc-sg-pin{flex:none;color:var(--lc-blue-2);margin-top:2px;display:inline-flex;}'
     + '.lc-sg-1{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;line-height:1.3;}'
-    + '.lc-sg-2{display:block;font-size:.82rem;color:var(--lc-muted-2);line-height:1.35;}'
+    + '.lc-sg-2{display:block;font-size:.9rem;color:var(--lc-muted-2);line-height:1.35;}'
     + '.lc-suggest-manual{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;margin-top:4px;border-top:1px solid var(--lc-hair);'
-    + 'font-size:.86rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
+    + 'font-size:.92rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
     + '.lc-suggest-manual svg{flex:none;color:var(--lc-blue-2);margin-top:1px;}'
     + '.lc-suggest.lc-only-manual .lc-suggest-manual{margin-top:0;border-top:none;}'
-    + '.lc-suggest-note{font-size:.7rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
+    + '.lc-suggest-note{font-size:.9rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
     + '@keyframes lc-down{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}'
     // On a phone the sheet ends at the screen's bottom edge, so a floating list would be cut
     // off there. It sits in the flow instead: the fields below move down, the sheet grows and
     // scrolls, and every suggestion (and the credit line) can be reached.
     + '@media (max-width:640px){.lc-suggest{position:static;}}'
     + '.lc-host .lc-confirm.show .lc-confirm-in{padding:11px 10px 10px;}'
-    + '.lc-host .lc-confirm label{display:block;font-size:.8rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
+    + '.lc-host .lc-confirm label{display:block;font-size:.9rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
     + '.lc-host .field .lc-confirm input{padding:11px 13px;}'
     // Chrome gives an autofilled field :-webkit-autofill but fires no reliable event; a
     // 1ms animation on that state is the event guardRetype() listens for.
@@ -334,22 +339,23 @@
     // Verified: a green pill after the email's label (its asterisk has already become a check).
     + '.lc-host .field.lc-verified > label::after,.lc-host .field.lc-verified.lc-ok > label:not(:has(.req))::after{'
     + 'content:"Verified";display:inline-block;width:auto;height:auto;margin-left:8px;padding:2px 9px;'
-    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.72rem;font-weight:700;'
+    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.9rem;line-height:1.3;font-weight:700;'
     + 'letter-spacing:.03em;vertical-align:1px;animation:lc-up .35s ease-in both;}'
     + '.lc-panel[hidden]{display:none;}'
     // Headings as the site sets them: light Fraunces, tight tracking.
     + '.lc-q{font-family:var(--lc-serif);font-size:1.65rem;font-weight:420;letter-spacing:-.018em;color:var(--lc-navy);line-height:1.15;margin:0 0 8px;}'
-    + '.lc-sub{color:var(--lc-muted);font-size:.95rem;line-height:1.55;margin:0 0 20px;}'
+    + '.lc-sub{color:var(--lc-muted);font-size:1.02rem;line-height:1.55;margin:0 0 20px;}'
     // The two answers are the site-wide choice cards (.lc-role in /theme.css — the same as the
     // gate's buttons on the page).
     + '.lc-roles{display:grid;gap:10px;}'
-    + '.lc-note{color:var(--lc-muted-2);font-size:.82rem;line-height:1.5;margin:16px 0 0;}'
+    + '.lc-roles .lc-role small{font-size:.92rem;}'
+    + '.lc-note{color:var(--lc-muted-2);font-size:.9rem;line-height:1.5;margin:16px 0 0;}'
     + '.lc-lines{list-style:none;padding:0;margin:0 0 18px;display:grid;gap:12px;}'
     + '.lc-lines li{border-top:1px solid var(--lc-hair);padding-top:12px;}'
     + '.lc-lines li:first-child{border-top:none;padding-top:0;}'
     + '.lc-lines b{display:block;color:var(--lc-navy);font-size:.95rem;}'
     + '.lc-lines a{font-weight:700;color:var(--lc-navy);text-decoration:none;border-bottom:2px solid var(--lc-blue);}'
-    + '.lc-lines span{color:var(--lc-muted-2);font-size:.84rem;margin-left:6px;}'
+    + '.lc-lines span{color:var(--lc-muted-2);font-size:.92rem;margin-left:6px;}'
     // Buttons as the site's: the blue gradient with its glow (.btn-blue), and the ghost (.btn-ghost).
     + '.lc-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--lc-sans);font-weight:680;'
     + 'font-size:1rem;line-height:1;padding:15px 26px;border-radius:10px;border:1.5px solid transparent;cursor:pointer;text-decoration:none;'
@@ -374,7 +380,7 @@
     // which counts "Who you are" as step 1. The bar is the one numbering in the popup.
     + '.lc-host .fs-step{display:none;}'
     + '.lc-host .fs h3{font-family:var(--lc-serif);font-size:1.55rem;font-weight:420;letter-spacing:-.016em;line-height:1.15;color:var(--lc-navy);}'
-    + '.lc-host .fs-sub{color:var(--lc-muted);font-size:.95rem;margin:4px 0 22px;}'
+    + '.lc-host .fs-sub{color:var(--lc-muted);font-size:1.02rem;margin:4px 0 22px;}'
     // The contact form's confirmation is styled for the dark band it normally sits in (white
     // text, set inline). On the light dialog that would be invisible, so re-colour it here.
     + '.lc-host .callout.on-ink{background:#DDEFE3;border-color:rgba(47,158,94,.3);border-left-color:var(--lc-green);color:var(--lc-ink);}'
