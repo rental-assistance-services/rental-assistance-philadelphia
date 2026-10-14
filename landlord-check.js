@@ -49,10 +49,11 @@
   var TTL_DAYS = { landlord: 90, tenant: 90, dismissed: 30 };
 
   // The tenant application is a PREVIEW (Adam asked for it 2026-10-14; Abe sees it before it goes
-  // live). ON only for a tab opened with ?tenant-preview=1, remembered in sessionStorage for the
-  // rest of that tab, and OFF again with ?tenant-preview=0. Never on by hostname. Off, every page
-  // behaves exactly as it did before the preview existed. site.js reads the same key and refuses
-  // to handle the tenant form while it is off.
+  // live). ON only for a tab opened with ?tenant-preview=1 on a page that loads this script (not
+  // /tenants/ or /terms.html), remembered in sessionStorage for the rest of that tab, and OFF again
+  // with ?tenant-preview=0. Never on by hostname. Off, every page behaves exactly as it did before
+  // the preview existed. This is the ONE place the switch is worked out: site.js reads the result
+  // from window.rasTenantPreview and refuses to submit the tenant form unless it is true.
   var PREVIEW_KEY = 'ras_tenant_preview';
   var TENANT_PREVIEW = (function () {
     var q = null;
@@ -64,6 +65,7 @@
     if (q === '1' || q === '0') return q === '1';
     try { return sessionStorage.getItem(PREVIEW_KEY) === '1'; } catch (e) { return false; }
   })();
+  window.rasTenantPreview = TENANT_PREVIEW;
   var TENANT_FORM = 'tenant-form';          // the homepage's tenant application (PREVIEW only)
 
   // Links that jump to a lead form, and which kind of form each one means.

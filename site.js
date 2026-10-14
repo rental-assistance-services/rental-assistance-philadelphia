@@ -495,17 +495,15 @@
    *
    * Adam (2026-10-14) asked for a tenant path: a tenant who has their landlord's details starts
    * an application that is forwarded to the landlord to finish. Abe sees it before it goes live,
-   * so it sits behind the switch in landlord-check.js (TENANT_PREVIEW, same sessionStorage key
-   * as below). It SENDS NOTHING: no fetch, no CRM row, no rasTrackLead, no lead_submit, and the
-   * form has no action. Submitting validates, then shows the confirmation with a banner saying
-   * nothing was sent. With the switch off the form is unreachable, and this refuses it anyway.
+   * so it sits behind the switch in landlord-check.js (TENANT_PREVIEW), which publishes it as
+   * window.rasTenantPreview. It SENDS NOTHING: no fetch, no CRM row, no rasTrackLead, no
+   * lead_submit, and the form has no action. Submitting validates, then shows the confirmation
+   * with a banner saying nothing was sent. With the switch off the form is unreachable, and the
+   * submit is refused anyway (the field checks below are still bound, as on any form).
+   * The switch is read at submit time, not here: this file is a plain script at the end of the
+   * body and runs BEFORE the deferred landlord-check.js, which sets window.rasTenantPreview
+   * before any submit can happen. No landlord-check.js means no switch, so nothing is handled.
    */
-  function tenantPreviewOn(){
-    var q = null;
-    try { q = new URLSearchParams(location.search).get('tenant-preview'); } catch(e){}
-    if(q === '1' || q === '0') return q === '1';
-    try { return sessionStorage.getItem('ras_tenant_preview') === '1'; } catch(e){ return false; }
-  }
   (function(){
     var form = document.getElementById('tenant-form');
     if(!form) return;
@@ -529,7 +527,7 @@
     });
     form.addEventListener('submit', function(e){
       e.preventDefault();                      // never a native submit: this form sends nothing
-      if(!tenantPreviewOn()){ return; }        // switch off: refused outright
+      if(window.rasTenantPreview !== true){ return; }   // switch off (or no popup script): refused
       var firstBad = null;
       form.querySelectorAll('input,select,textarea').forEach(function(el){
         if(el.name === 'hp_x7f2' || el.type === 'hidden') return;
