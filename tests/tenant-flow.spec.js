@@ -539,6 +539,20 @@ test.describe('switch on: sending sends nothing', () => {
     expect(hosts).toEqual(['photon.komoot.io']);
   });
 
+  test('the popup reports no "submit" anywhere on the tenant path', async ({ page }) => {
+    await page.goto(ON);
+    await tenant(page).click();
+    await notYet(page).click();
+    await startApp(page).click();
+    await fillUntil(page, null);
+    await page.click('#tenant-form button[type=submit]');
+    await expect(page.locator('.tenant-sent')).toBeVisible();
+    await expect(page.locator('.lc-count')).toHaveText('Done');
+    const lc = await page.evaluate(() => (window.dataLayer || []).filter((d) => d.event === 'landlord_check'));
+    expect(lc.length).toBeGreaterThan(0);                            // the popup does report, just not this
+    expect(lc.filter((d) => d.lc_action === 'submit')).toEqual([]);
+  });
+
   test('no lead_submit, no conversion call, and the saved answers are cleared on sending', async ({ page }) => {
     await toApplication(page);
     await page.evaluate(() => {

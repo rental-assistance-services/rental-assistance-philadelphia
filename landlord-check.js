@@ -1359,7 +1359,9 @@
       sections.forEach(function (fs) { fs.removeAttribute('data-lc-off'); });
       nextBtn.hidden = true; backBtn.hidden = true;
       progress(labels.length + 1);
-      track('submit', { form_id: form.id });
+      // PREVIEW: the tenant form sends nothing, so it is never reported as a submit (GTM's
+      // drop-off reporting would count it as a real one).
+      if (form.id !== TENANT_FORM) track('submit', { form_id: form.id });
       clearDraft();                                       // sent: nothing left to keep
       restoredNote.hidden = true;
     }
