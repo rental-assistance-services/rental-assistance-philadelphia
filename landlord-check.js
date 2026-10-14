@@ -1056,6 +1056,27 @@
     setTimeout(function () { if (host.parentNode) host.parentNode.removeChild(host); }, 360);
   }
 
+  /* ---------- the hand-off to the homepage ----------
+     A page with no application (the blog, /services/…, /portal/, /faq/) sends the visitor to
+     the homepage's: kind 'apply' for a landlord, 'tenant' for the tenant application (PREVIEW).
+     Whether the flag was actually stored decides where they go, because a browser can refuse
+     to store it: Safari private mode and partitioned third-party embeds both throw on setItem.
+     Assuming it worked sent those visitors to the top of the homepage with no popup and no
+     form, a dead end out of a button marked Apply.
+     Stored: the homepage's TOP, not /#apply, because the flag opens the popup there by itself.
+     With the #apply the browser jumped the page down to the form section, so the popup opened
+     over the bottom of the page and closing it left the visitor down there.
+     Not stored: /#apply, so the browser's own jump puts them on the form section; the popup can
+     no longer carry them, so the anchor has to. A tenant also takes ?tenant-preview=1 along,
+     because the switch may not have been remembered either, and without it the homepage would
+     show the old tenant screen behind a button that said "Start my application". */
+  function handOff(kind) {
+    var ok = false;
+    try { sessionStorage.setItem(HANDOFF, kind); ok = true; } catch (e) {}
+    track('handoff', kind === 'tenant' ? { page: location.pathname, lc_path: 'tenant' } : { page: location.pathname });
+    location.href = ok ? '/' : (kind === 'tenant' ? '/?tenant-preview=1#apply' : '/#apply');
+  }
+
   /* ---------- the popup ---------- */
   // trigger: 'first_visit' | 'cta' | 'gate' | 'handoff'
   // opts: {target: 'apply'|'contact', formId, role: 'landlord'|'tenant'}
@@ -1147,23 +1168,8 @@
 
     function mount() {
       if (form !== pageForm) { detach(); form = pageForm; steps(); }   // the tenant form was in
-      if (!form) {
-        // No application on this page (the blog, /services/…, /portal/, /faq/): it lives on the homepage.
-        // Whether the flag was actually stored decides where we send them, because a browser
-        // can refuse to store it: Safari private mode and partitioned third-party embeds both
-        // throw on setItem. Assuming it worked sent those visitors to the top of the homepage
-        // with no popup and no form — a dead end out of a button marked Apply.
-        var ok = false;
-        try { sessionStorage.setItem(HANDOFF, 'apply'); ok = true; } catch (e) {}
-        track('handoff', { page: location.pathname });
-        // Stored: the homepage's TOP, not /#apply, because the flag opens the application
-        // there by itself. With the #apply the browser jumped the page down to the form
-        // section, so the popup opened over the bottom of the page and closing it left the
-        // visitor down there. Not stored: /#apply, so the browser's own jump puts them on the
-        // form section — the popup can no longer carry them, so the anchor has to.
-        location.href = ok ? '/' : '/#apply';
-        return;
-      }
+      // No application on this page (the blog, /services/…, /portal/, /faq/): it lives on the homepage.
+      if (!form) { handOff('apply'); return; }
       if (!placeholder) {
         stampLandlord(form);
         attach();
@@ -1212,13 +1218,7 @@
     // straight into it, the way a landlord on the blog is handed to the application.
     function mountTenant() {
       var tf = document.getElementById(TENANT_FORM);
-      if (!tf) {
-        var ok = false;
-        try { sessionStorage.setItem(HANDOFF, 'tenant'); ok = true; } catch (e) {}
-        track('handoff', { page: location.pathname, lc_path: 'tenant' });
-        location.href = ok ? '/' : '/#apply';
-        return;
-      }
+      if (!tf) { handOff('tenant'); return; }
       if (form !== tf) { detach(); form = tf; steps(); }
       if (!placeholder) { form.hidden = false; attach(); }
       enter();

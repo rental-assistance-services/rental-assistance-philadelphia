@@ -305,6 +305,28 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
     await page.waitForURL((u) => u.pathname === '/');
     await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
   });
+
+  test('a browser that refuses to store the hand-off still reaches the preview on the homepage', async ({ page }) => {
+    // Safari private mode throws on sessionStorage.setItem: neither the hand-off flag nor the
+    // switch can be kept, so the switch has to travel in the address. Without it the homepage
+    // showed the old tenant screen behind a button that said "Start my application".
+    await page.addInitScript(() => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === window.sessionStorage) throw new DOMException('QuotaExceededError');
+        return real.call(this, k, v);
+      };
+    });
+    await page.goto('/faq/index.html?tenant-preview=1');
+    await tenant(page).click();
+    await ready(page).click();
+    await page.waitForURL((u) => u.pathname === '/' && u.search === '?tenant-preview=1' && u.hash === '#apply');
+    // No flag, so nothing opens by itself: the gate on the form section asks the preview's question.
+    await page.click('[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]');
+    await expect(askPanel(page)).toBeVisible();
+    await ready(page).click();
+    await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
+  });
 });
 
 test.describe('switch on: each step checks its answers before Next', () => {
