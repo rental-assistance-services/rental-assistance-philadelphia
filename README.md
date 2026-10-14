@@ -137,6 +137,42 @@ page.** It is deliberately *not* on `/tenants/` or `/terms.html`. On phones it i
 sheet rather than a full-screen takeover, because Google penalises interstitials that hide
 the page a searcher just landed on.
 
+### The tenant application (preview)
+
+Adam asked on 2026-10-14 for a way for a tenant to start an application that their landlord
+then finishes. Abe sees it before it goes live, so it is built behind a switch and changes
+nothing for a real visitor.
+
+- **The switch.** `TENANT_PREVIEW`, near the top of `landlord-check.js`. It is on only in a tab
+  opened with `?tenant-preview=1`, which `sessionStorage` (`ras_tenant_preview`) remembers for
+  the rest of that tab on every page, and off again with `?tenant-preview=0`. Never on by
+  hostname. Off, the popup, the page and every request are exactly as before, and `site.js`
+  refuses to handle `#tenant-form` at all.
+- **The two-box question.** With it on, "I am the tenant" first asks "Do you have your
+  landlord's details?". "Yes, I'm ready to apply" opens the application. "Not yet, I want to
+  learn more" shows the usual free-help screen, with a "Ready to apply?" block at the bottom
+  (Start my application, or Close).
+- **The steps.** `#tenant-form` sits on the homepage after `#intake-form`, inside `#apply`, and
+  is run by the same popup code as the landlord application: progress bar, Back and Next, live
+  checks, green checks, the email typed twice, Photon on the street box and the one-hour draft.
+  Six steps, written in the first person: About me; My landlord (a name, plus an email or a
+  phone for them, at least one); The home I rent; What I owe; My documents (all optional);
+  Send to my landlord (two required boxes). It carries `visitor_role=tenant`,
+  `form_type=tenant_application` and the usual honeypot, and uses the landlord form's field
+  names where they mean the same thing (`tenant_*`, `property_street`, `property_zip`,
+  `property_unit`, `property_address`, `monthly_rent`, `back_rent_owed`, `months_behind`). On
+  a page without the form (the blog, `/faq/`, `/back-rent/`) the tenant is taken to the
+  homepage, which opens straight into it.
+- **Nothing is sent.** "Send to my landlord" checks the form, then shows "Sent to your
+  landlord" under a navy banner that says "Preview: nothing was sent." There is no fetch, no
+  CRM row, no `rasTrackLead` call and no `lead_submit`, and the saved draft is deleted. The only
+  request on the tenant path is Photon's address suggestions while the street is typed, the
+  same as on the landlord application. `tests/tenant-flow.spec.js` checks all of this.
+- **Not built yet:** the email to the landlord, the application number, the landlord's page to
+  finish or decline, the portal lookup, and Rio accepting the new fields (`landlord_name`,
+  `landlord_email`, `landlord_phone`, `authorize_forward`, `agree_contact`, and
+  `form_type=tenant_application`).
+
 ## Design and motion — global, in two files
 
 **Every page links `/theme.css` and `/motion.js` first** (in `<head>`, before `/site.css` or the
@@ -214,6 +250,8 @@ two worktrees can test at once.
   two form pages), so one copy cannot go stale while another is updated.
 - `tests/landlord-check.spec.js`: the popup: which pages carry it, both paths, the progress
   bar, validation, the conversion rules, the hand-off to the long form, and the phone layout.
+- `tests/tenant-flow.spec.js`: the tenant application preview: nothing new with the switch off,
+  the two-box question, each step's checks, and that sending makes no request and books nothing.
 - `tests/pages.spec.js` and `tests/seo.spec.js`: every page's layout rules, motion and
   reduced motion, and what its search result says.
 - `tests/accessibility.spec.js`: every page against WCAG 2.1 A and AA with axe (contrast,
