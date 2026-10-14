@@ -143,11 +143,14 @@ Adam asked on 2026-10-14 for a way for a tenant to start an application that the
 then finishes. Abe sees it before it goes live, so it is built behind a switch and changes
 nothing for a real visitor.
 
-- **The switch.** `TENANT_PREVIEW`, near the top of `landlord-check.js`. It is on only in a tab
-  opened with `?tenant-preview=1`, which `sessionStorage` (`ras_tenant_preview`) remembers for
-  the rest of that tab on every page, and off again with `?tenant-preview=0`. Never on by
-  hostname. Off, the popup, the page and every request are exactly as before, and `site.js`
-  refuses to handle `#tenant-form` at all.
+- **The switch.** `TENANT_PREVIEW`, near the top of `landlord-check.js`, which publishes it as
+  `window.rasTenantPreview` for `site.js`. Add `?tenant-preview=1` to the address of a page that
+  loads `landlord-check.js` (the homepage is simplest; any page with the popup works), and
+  `sessionStorage` (`ras_tenant_preview`) keeps it on for the rest of that tab; `?tenant-preview=0`
+  turns it off again. `/tenants/` and `/terms.html` do not load that script, so
+  `?tenant-preview=1` on either of them does nothing. Never on by hostname. Off, the popup, the
+  page and every request are exactly as before. `site.js` still binds its usual field checks to
+  the hidden `#tenant-form`, but refuses to submit it unless the switch is on.
 - **The two-box question.** With it on, "I am the tenant" first asks "Do you have your
   landlord's details?". "Yes, I'm ready to apply" opens the application. "Not yet, I want to
   learn more" shows the usual free-help screen, with a "Ready to apply?" block at the bottom
@@ -165,9 +168,10 @@ nothing for a real visitor.
   homepage, which opens straight into it.
 - **Nothing is sent.** "Send to my landlord" checks the form, then shows "Sent to your
   landlord" under a navy banner that says "Preview: nothing was sent." There is no fetch, no
-  CRM row, no `rasTrackLead` call and no `lead_submit`, and the saved draft is deleted. The only
-  request on the tenant path is Photon's address suggestions while the street is typed, the
-  same as on the landlord application. `tests/tenant-flow.spec.js` checks all of this.
+  CRM row, no `rasTrackLead` call, no `lead_submit` and no popup `submit` event, and the saved
+  draft is deleted. The only request on the tenant path is Photon's address suggestions while
+  the street is typed, the same as on the landlord application. `tests/tenant-flow.spec.js`
+  checks all of this.
 - **Not built yet:** the email to the landlord, the application number, the landlord's page to
   finish or decline, the portal lookup, and Rio accepting the new fields (`landlord_name`,
   `landlord_email`, `landlord_phone`, `authorize_forward`, `agree_contact`, and
