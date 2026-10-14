@@ -12,6 +12,7 @@
    6) Intake-form validation (client-side convenience only)
    7) Contact lead-form handler
    8) Landlord / tenant gate
+   9) The tenant application (PREVIEW, ?tenant-preview=1; sends nothing)
    ============================================================ */
 (function(){
   'use strict';
@@ -185,6 +186,18 @@
     form.style.display = 'none';
     panel.scrollIntoView({behavior:'smooth', block:'center'});
   }
+  // The application asks for the street and the ZIP in two boxes, but the CRM stores
+  // property_address as sent and shows it on the lead, so it still gets the whole thing:
+  // "1932 N 5th St, 19122", or just the street when there is no ZIP. Shared with the tenant
+  // application (PREVIEW, section 9), which composes it the same way and sends nothing.
+  function joinAddress(form){
+    var street = form.querySelector('[name="property_street"]');
+    var fullAddr = form.querySelector('input[type="hidden"][name="property_address"]');
+    if(street && fullAddr){
+      var zipBox = form.querySelector('[name="property_zip"]');
+      fullAddr.value = [street.value.trim(), zipBox ? zipBox.value.trim() : ''].filter(Boolean).join(', ');
+    }
+  }
   function initIntakeForm(formId, statusId, formType){
     var form = document.getElementById(formId);
     if(!form) return;
@@ -216,15 +229,7 @@
       // Build the payload. The back-rent intake has file uploads -> multipart;
       // license/tax are field-only -> JSON. Both carry form_type + the honeypot
       // (hp_x7f2) + any utm_* params so the server can segment + attribute.
-      // The application asks for the street and the ZIP in two boxes, but the CRM stores
-      // property_address as sent and shows it on the lead, so it still gets the whole thing:
-      // "1932 N 5th St, 19122", or just the street when there is no ZIP.
-      var street = form.querySelector('[name="property_street"]');
-      var fullAddr = form.querySelector('input[type="hidden"][name="property_address"]');
-      if(street && fullAddr){
-        var zipBox = form.querySelector('[name="property_zip"]');
-        fullAddr.value = [street.value.trim(), zipBox ? zipBox.value.trim() : ''].filter(Boolean).join(', ');
-      }
+      joinAddress(form);                       // property_address = "street, ZIP"
       var btn = form.querySelector('button[type="submit"]');
       var hasFiles = !!form.querySelector('input[type="file"]');
       var body, headers = null;
@@ -485,6 +490,70 @@
   }
 
   document.querySelectorAll('[data-role-gate]').forEach(initRoleGate);
+
+  /* ---- 9) The tenant application (PREVIEW, only with ?tenant-preview=1) ----
+   *
+   * Adam (2026-10-14) asked for a tenant path: a tenant who has their landlord's details starts
+   * an application that is forwarded to the landlord to finish. Abe sees it before it goes live,
+   * so it sits behind the switch in landlord-check.js (TENANT_PREVIEW, same sessionStorage key
+   * as below). It SENDS NOTHING: no fetch, no CRM row, no rasTrackLead, no lead_submit, and the
+   * form has no action. Submitting validates, then shows the confirmation with a banner saying
+   * nothing was sent. With the switch off the form is unreachable, and this refuses it anyway.
+   */
+  function tenantPreviewOn(){
+    var q = null;
+    try { q = new URLSearchParams(location.search).get('tenant-preview'); } catch(e){}
+    if(q === '1' || q === '0') return q === '1';
+    try { return sessionStorage.getItem('ras_tenant_preview') === '1'; } catch(e){ return false; }
+  }
+  (function(){
+    var form = document.getElementById('tenant-form');
+    if(!form) return;
+    var status = document.getElementById('tenant-form-status');
+    var group = form.querySelector('[data-lc-one-of]');
+    // The landlord must be reachable: a valid email or a valid phone, at least one.
+    function landlordReachable(){
+      if(!group) return true;
+      var ok = Array.prototype.some.call(group.querySelectorAll('input[name]'), function(el){
+        var v = (el.value || '').trim();
+        return !!v && (el.type === 'email' ? emailOk(v) : phoneOk(v));
+      });
+      var m = group.querySelector('[data-lc-one-of-msg]');
+      if(m){ m.classList.toggle('show', !ok); }
+      return ok;
+    }
+    // The same per-field checks as the landlord application (the popup runs them on each step).
+    form.querySelectorAll('input,select,textarea').forEach(function(el){
+      var evt = (el.type === 'radio' || el.type === 'checkbox') ? 'change' : 'blur';
+      el.addEventListener(evt, function(){ if(el.required || el.value) validateField(el); });
+    });
+    form.addEventListener('submit', function(e){
+      e.preventDefault();                      // never a native submit: this form sends nothing
+      if(!tenantPreviewOn()){ return; }        // switch off: refused outright
+      var firstBad = null;
+      form.querySelectorAll('input,select,textarea').forEach(function(el){
+        if(el.name === 'hp_x7f2' || el.type === 'hidden') return;
+        if(!validateField(el) && !firstBad){ firstBad = el; }
+      });
+      if(!landlordReachable() && !firstBad){ firstBad = group.querySelector('input[name]'); }
+      if(status){ status.className = 'form-status'; }
+      if(firstBad){
+        if(status){ status.textContent = 'Please fix the highlighted fields above.'; status.classList.add('bad','show'); }
+        firstBad.focus();
+        return;
+      }
+      joinAddress(form);                       // "street, ZIP", exactly as the landlord application
+      var panel = document.createElement('div');
+      panel.className = 'callout tenant-sent';
+      panel.setAttribute('role','status');
+      panel.innerHTML = '<p class="preview-banner">Preview: nothing was sent. The email to the landlord and the application number are not built yet.</p>'
+        + '<h3>Sent to your landlord</h3>'
+        + '<p>We will email you your application number and let you know when your landlord responds.</p>';
+      form.parentNode.insertBefore(panel, form);
+      form.style.display = 'none';             // the popup watches for this, as for the landlord form
+      panel.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  })();
 })();
 
 
