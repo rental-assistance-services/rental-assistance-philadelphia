@@ -14,7 +14,7 @@ footer your AI tool added.
 ## Before
 
 <!-- Drag in a screenshot of every page you changed, taken before your edit, at desktop (1280)
-     and phone (390) width. A brand-new page has no before: say so here.
+     and phone (390) width. For added pages only, write "No before: this is a new page."
      Never commit screenshots to the repo, and never capture a real person's details. -->
 
 ## After

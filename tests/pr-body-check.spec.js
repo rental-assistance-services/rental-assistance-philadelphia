@@ -51,6 +51,16 @@ test.describe('PR description rules', () => {
     expect(result).toEqual({ ok: true, errors: [] });
   });
 
+  test('a new page needs an after picture and an explicit no-before explanation', () => {
+    const newPage = body(TICKED, '## Before', 'No before: this is a brand-new page.',
+      '## After', '![after](https://example.com/new.png)');
+    expect(checkPrBody(newPage, ['A\tnew/index.html']).ok).toBe(true);
+    expect(checkPrBody(newPage, ['M\tindex.html']).ok).toBe(false);
+    expect(checkPrBody(newPage, ['A\tnew/index.html', 'M\tsite.css']).ok).toBe(false);
+    expect(checkPrBody(body(TICKED, '## After', '![after](https://example.com/new.png)'),
+      ['A\tnew/index.html']).ok).toBe(false);
+  });
+
   test('a "No visible change:" line with a reason passes', () => {
     const result = checkPrBody(body(TICKED, 'No visible change: only the <head> meta description changed'),
       ['index.html']);
@@ -92,6 +102,10 @@ test.describe('PR description rules', () => {
     const prose = body('Adds a hook for Claude Code and a rule file Cursor and Gemini can read.', TICKED,
       'Co-Authored-By: Jane Doe <jane@example.com>');
     expect(checkPrBody(prose, ['CLAUDE.md']).ok).toBe(true);
+  });
+
+  test('a robot emoji without an AI signature is ordinary prose', () => {
+    expect(checkPrBody(body(TICKED, '\u{1F916} The form checks passed.'), ['README.md']).ok).toBe(true);
   });
 
   test('the blank template fails, even with the box ticked, because its hints are comments', () => {

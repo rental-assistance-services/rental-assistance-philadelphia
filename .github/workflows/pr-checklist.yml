@@ -22,7 +22,9 @@ jobs:
         with:
           node-version: 20
       - name: List the changed files
-        run: git diff --name-only origin/${{ github.base_ref }}...HEAD > changed-files.txt
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git diff --name-status --no-renames "origin/$BASE_REF...HEAD" > changed-files.txt
       - name: Check the description
         env:
           PR_BODY: ${{ github.event.pull_request.body }}

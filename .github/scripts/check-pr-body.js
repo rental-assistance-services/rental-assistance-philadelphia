@@ -20,7 +20,7 @@ const IMAGE = /!\[|<img\b/i;
 const AI_TOOL = '(?:claude|anthropic|cursor|copilot|gemini|grok|chatgpt|openai|codex|windsurf)';
 const AI_SIGNATURE = new RegExp(
   '(?:made|generated|created|written|built)\\s+(?:with|by|in|using)\\s+\\[?' + AI_TOOL +
-  '|co-authored-by:[^\\n]*' + AI_TOOL + '|\\u{1F916}', 'iu');
+  '|co-authored-by:[^\\n]*' + AI_TOOL, 'iu');
 
 function isVisibleFile(file) {
   const name = file.replace(/\\/g, '/').split('/').pop();
@@ -60,7 +60,10 @@ function noVisibleChangeReason(body) {
 
 function checkPrBody(body, changedFiles) {
   const text = String(body || '').replace(/<!--[\s\S]*?-->/g, '');
-  const files = (changedFiles || []).map((f) => String(f).trim()).filter(Boolean);
+  const changes = (changedFiles || []).map((f) => String(f).trim()).filter(Boolean).map((file) => {
+    const status = /^([A-Z])\t(.+)$/.exec(file);
+    return { path: status ? status[2] : file, added: !!status && status[1] === 'A' };
+  });
   const errors = [];
 
   if (!ACK_TICKED.test(text)) {
@@ -72,14 +75,18 @@ function checkPrBody(body, changedFiles) {
     errors.push('Remove the AI signature "' + signature[0].trim() + '" from the description (AGENTS.md section 7).');
   }
 
-  const visible = files.filter(isVisibleFile);
+  const visible = changes.filter((file) => isVisibleFile(file.path));
   if (visible.length) {
     const pictures = hasPicture(text, 'Before') && hasPicture(text, 'After');
-    if (!pictures && !noVisibleChangeReason(text)) {
+    const newPagePictures = visible.every((file) => file.added) && hasPicture(text, 'After')
+      && sections(text, 'Before').some((section) => /\bno before\b/i.test(section)
+        && /\b(?:new|brand-new) pages?\b/i.test(section));
+    if (!pictures && !newPagePictures && !noVisibleChangeReason(text)) {
       errors.push(
-        'These files can change what a visitor sees: ' + visible.join(', ') + '. ' +
+        'These files can change what a visitor sees: ' + visible.map((file) => file.path).join(', ') + '. ' +
         'Add a picture under both "## Before" and "## After", or finish the ' +
-        '"No visible change:" line with the reason (AGENTS.md section 6).'
+        '"No visible change:" line with the reason (AGENTS.md section 6). For added pages only, ' +
+        'an After picture and "No before: this is a new page" under Before are enough.'
       );
     }
   }

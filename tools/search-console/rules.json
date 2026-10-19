@@ -1,0 +1,166 @@
+{
+  "_about": [
+    "Who a search query is from, for the Task 7 split of the Search Console Performance export.",
+    "Source: the RAS Landlord SEO Task Brief (rev 9): its keyword table, its 'Terms we do not want to rank for' list and its 'Who we want / Who we do not want' paragraph.",
+    "Edit the lists, not classify.js. A phrase matches whole words, case-insensitive, after the query is lower-cased and its hyphens and punctuation turned into spaces ('lead-safe' reads as 'lead safe'). Apostrophes are kept, so 'tenant' does not match inside \"tenant's\".",
+    "The last word of a phrase may also end in s, 's or s' ('landlord' matches 'landlords' and \"landlord's\"). List any other variant separately.",
+    "A phrase written as {\"phrase\": ..., \"unless\": [...]} does not count when the query also contains one of the 'unless' phrases.",
+    "How a query is classed: landlord phrases only -> landlord; tenant phrases only -> tenant; both -> ambiguous (a conflict, both rules recorded); neither -> ambiguous (any generic phrase recorded). A match that lies wholly inside a longer match is dropped first, so 'my landlord' (tenant) wins over the 'landlord' inside it, and \"tenant's rights\" (tenant) over \"tenant's\".",
+    "Generic phrases never decide a class on their own. They are recorded so the reviewer can see why a query was left ambiguous.",
+    "Flags do not change the class. They mark the other people the brief says we do not want (job seekers, lawyers, 'free', 'apply myself')."
+  ],
+
+  "landlord": {
+    "keywordTable": {
+      "_source": "Brief, 'Keyword targets, one owner page per cluster': every primary and supporting term, verbatim.",
+      "phrases": [
+        "recover back rent philadelphia",
+        "collect unpaid rent from tenant",
+        "back rent recovery",
+        "tenant owes back rent",
+        "get back rent paid",
+        "tenant behind on rent philadelphia",
+        "tenant not paying rent",
+        "tenant stopped paying rent",
+        "what to do when tenant doesn't pay rent philadelphia",
+        "my tenant won't pay rent",
+        "eviction diversion program philadelphia landlord",
+        "targeted financial assistance landlord",
+        "tfa grant philadelphia landlord",
+        "eviction diversion back rent",
+        "philadelphia rental license",
+        "rental license requirements philadelphia",
+        "how to get a rental license in philadelphia",
+        "rental license renewal",
+        "certificate of rental suitability philadelphia",
+        "crs philadelphia landlord",
+        "certificate of suitability form",
+        "commercial activity license philadelphia landlord",
+        "cal philadelphia rental",
+        "business tax account landlord",
+        "philadelphia lead safe certification landlord",
+        "lead paint certification rental philadelphia",
+        "lead safe law 2026"
+      ]
+    },
+    "signals": {
+      "_source": "Landlord-side wording: the owner speaking about their tenant or their property's compliance.",
+      "phrases": [
+        "landlord",
+        "my tenant",
+        "tenant's",
+        "tenants'",
+        "tenant owes",
+        "tenant not paying",
+        "tenant stopped paying",
+        "tenant doesn't pay",
+        "tenant won't pay",
+        "tenant doesnt pay",
+        "tenant wont pay",
+        "tenant behind on rent",
+        "tenant is behind",
+        "evict a tenant",
+        "evict tenant",
+        "evicting a tenant",
+        "property owner",
+        "property manager",
+        "property management",
+        "rental license",
+        "rental licence",
+        "certificate of rental suitability",
+        "certificate of suitability",
+        "commercial activity license",
+        "lead safe",
+        "lead paint certification"
+      ]
+    }
+  },
+
+  "tenant": {
+    "negativeList": {
+      "_source": "Brief, 'Terms we do not want to rank for, ever' (the organic negative list), verbatim, plus the word-order and apostrophe variants a searcher types for the same thing.",
+      "phrases": [
+        "help with rent",
+        "help paying rent",
+        "rent help philadelphia",
+        "behind on my rent",
+        { "phrase": "rental assistance philadelphia", "unless": ["landlord", "property owner", "property manager"] },
+        { "phrase": "philadelphia rental assistance", "unless": ["landlord", "property owner", "property manager"] },
+        "emergency rental assistance",
+        "erap",
+        "phlrentassist",
+        "phl rent assist",
+        "eviction help",
+        "facing eviction",
+        "tenant rights",
+        "tenants rights",
+        "tenant's rights",
+        "tenants' rights",
+        "legal aid",
+        "free lawyer",
+        "section 8",
+        "section eight",
+        "housing voucher",
+        "low income housing"
+      ]
+    },
+    "firstPerson": {
+      "_source": "First-person renter wording: the searcher is the one who owes the rent.",
+      "phrases": [
+        "my rent",
+        "my landlord",
+        "i can't pay",
+        "i cant pay",
+        "i cannot pay",
+        "can't pay rent",
+        "cant pay rent",
+        "pay my rent",
+        "help me pay",
+        "i'm behind on rent",
+        "im behind on rent",
+        "i am behind on rent",
+        "i'm being evicted",
+        "im being evicted",
+        "i am being evicted",
+        "evicted from my"
+      ]
+    }
+  },
+
+  "generic": {
+    "_source": "Words both sides search. On their own they leave a query ambiguous.",
+    "phrases": [
+      "rental assistance services",
+      "rentalassistanceservices",
+      "rental assistance",
+      "rent assistance",
+      "back rent",
+      "unpaid rent",
+      "eviction diversion",
+      "targeted financial assistance",
+      "tfa",
+      "eviction",
+      "rent"
+    ]
+  },
+
+  "pagesForTenants": {
+    "_source": "Pages where a tenant click is the point (brief: send tenant queries to /tenants/). Their tenant clicks are reported, not listed as copy-change candidates. Paths, matched against the page URL's path.",
+    "paths": ["/tenants/"]
+  },
+
+  "flags": {
+    "_source": "Brief, 'Who we do not want': a job seeker, a lawyer, anyone searching 'free' or 'apply myself'. Recorded in the flags column; the class is unchanged.",
+    "phrases": [
+      "free",
+      "apply myself",
+      "apply on my own",
+      "job",
+      "hiring",
+      "career",
+      "salary",
+      "lawyer",
+      "attorney"
+    ]
+  }
+}

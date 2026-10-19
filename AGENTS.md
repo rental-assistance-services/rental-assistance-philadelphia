@@ -19,19 +19,20 @@ the City's program. There is no build step. What is committed is what goes live.
 
 | Path | What it is |
 |---|---|
-| `global.css` | The site's style standard: brand colours, fonts, sizes, and shared classes (section 4) |
-| `index.html` | The homepage, with four forms: the `#apply` intake form, the license and tax forms, and the contact form |
+| `theme.css` | The shared design tokens, motion, and form styles loaded by every page (section 4) |
+| `site.css`, `site.js`, `motion.js`, `landlord-check.js` | Shared page layout, form handling, motion, and the application popup |
+| `index.html` | The homepage, with the `#apply` application and the case-review form |
+| `services/`, `faq/`, `portal/` | The service pages, questions and answers, and portal preview; licensing and tax forms live under `services/licensing/` |
 | `back-rent/index.html` | The paid-search landing page and its case-review form |
+| `tenants/index.html`, `terms.html` | Free tenant resources and the fee and service terms |
 | `blog/<topic>/index.html` | Plain-English guides for landlords |
-| `tests/` | The Playwright suite (`intake-forms.spec.js`), the local server it uses, and browser-free checks for the tooling and `global.css` |
+| `tests/` | The browser suite, its local server, and checks for the repository tooling and shared styles |
 | `.github/` | CI (the Playwright suite and the pull-request checklist), the checklist script, and the pull-request template |
 | `CLAUDE.md`, `.claude/` | Claude Code only: loads this file and adds the hook that enforces section 2 |
 | `CNAME`, `robots.txt`, `sitemap.xml`, `google*.html` | Domain, search engine, and site-verification files |
 
-**The forms send real applications into the company's CRM** at
-`https://rio.tworiverdevelopment.tech/rental-assist/intake`, and a successful landlord submit
-books a Google Ads conversion. A broken form costs real leads. It has happened: the `#apply`
-form was dead for 41 days, and only a real-browser test could see why.
+**The forms send real applications, and a successful landlord submit books a conversion.**
+Browser tests must replace the production endpoint with a stub before using a form.
 
 ---
 
@@ -91,22 +92,21 @@ version next to it, and do not copy a function just to change the copy.
 - **Keep the existing structure.** Change the code that needs changing and leave the shape
   alone. No new folders, frameworks, build steps, or libraries unless the user asked for them.
 - **Read the file before you change it**, and read the part of the page around your change.
-  Match how the neighbouring code is written: plain HTML, inline `<style>` and `<script>`, and
-  plain `function` declarations with `var`, in the same style as `initIntakeForm`.
-- **Styles go in `global.css`, never inline.** `global.css` at the repo root is the site's style
-  standard: the brand colours, fonts, shadows, widths and corner radius as CSS variables, and the
-  classes that more than one page or section uses (cards, buttons, callouts, form fields). To
-  rebrand the site or reuse a look, change it there once.
+  Match how the neighbouring code is written: plain HTML, shared CSS and JavaScript files,
+  page-specific `<style>` blocks, and plain `function` declarations with `var`.
+- **Shared tokens and form styles live in `theme.css`; shared page layout lives in `site.css`.**
+  Every page loads `theme.css` first. Change brand colours, fonts, shadows, radii, and motion there
+  once. `global.css` is an unused compatibility import of `theme.css`, not another theme.
   - Never add a `style="..."` attribute. When you change an element that already has one, move
     that style into a class and use the class.
   - Sizes that repeat (card widths and heights, padding, gaps, corner radius, font sizes) belong
-    in a variable or a reusable class in `global.css`, so one edit changes every card.
+    in a variable or reusable shared class, so one edit changes every card.
   - Use the variables (`var(--navy)`, `var(--rad)`) instead of typing a brand colour or size.
   - A style that only one page uses may stay in that page's `<style>` block.
-  - **Moving the pages onto `global.css` is still in progress.** Today no page loads it, and each
-    page keeps a copy of the variables in its own `<style>` block. Until a page loads
-    `global.css`, keep that copy identical to it; `tests/global-css.spec.js` checks this. Moving a
-    page over changes what visitors load, so it needs before-and-after pictures (section 6).
+  - **Existing inline styles remain in the pages.** Migrate a touched element's styles into a
+    shared class when the change needs them; do not turn an unrelated fix into a site-wide cleanup.
+    The narrower tenant page and the lighter terms page intentionally override a theme token.
+    `tests/global-css.spec.js` checks the shared theme while preserving those page differences.
 - **A change to shared page parts** (the header, footer, nav, "Are you a tenant?" link, legal
   text) usually has to land on **every** page: `index.html`, `back-rent/`, and all the blog pages.
   Check them all.
@@ -115,24 +115,23 @@ version next to it, and do not copy a function just to change the copy.
 - **Tests follow the existing spec.** Put new browser tests in `tests/` next to
   `intake-forms.spec.js`, and use its helpers (`stubEndpoint`, `fillApplyForm`) instead of
   writing new ones.
-- **This repo is what is live, and it is the source of truth for the site.** An older copy of the
-  homepage is kept in another repo. It is out of date: never copy it over `index.html`.
+- **This repository is the source of truth for the site.** Never copy an older draft over the
+  current pages.
 
 ---
 
 ## 5. Testing: Playwright first
 
-This site has **no unit tests on purpose**. Every check drives a real browser against the real
-page, because the worst bug this site has had (a form that never sent anything) is invisible to
-anything that is not a browser. The only checks without a browser are for the repo's own tooling:
+Website behavior is checked in a real browser against the actual pages. Browser-free checks
+cover the repository's own tooling:
 `tests/agents-md-gate.spec.js` (the Claude hook), `tests/pr-body-check.spec.js` (the
-pull-request checklist) and `tests/global-css.spec.js` (the style standard). They run in the
+pull-request checklist) and `tests/global-css.spec.js` (the shared theme). They run in the
 same suite.
 
 ```bash
 npm install
 npx playwright install chromium   # once per machine
-npm test                          # serves the site on 127.0.0.1:4173 and runs tests/
+npm test                          # serves this worktree on its own test port and runs tests/
 ```
 
 - **Run the whole suite before you open a pull request**, and write down the result.
