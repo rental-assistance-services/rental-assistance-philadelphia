@@ -1252,7 +1252,7 @@
         return o;
       } catch (e) { return null; }
     }
-    function clearDraft() { clearTimeout(draftTimer); try { localStorage.removeItem(draftKey()); } catch (e) {} }
+    function clearDraft() { clearTimeout(draftTimer); draftTimer = null; try { localStorage.removeItem(draftKey()); } catch (e) {} }
     function saveDraft() {
       if (!form || restoring || submitted(form)) return;
       var values = {}, any = false;
@@ -1273,7 +1273,11 @@
           values: values, verified: ver }));
       } catch (e) {}
     }
-    function scheduleSave() { if (restoring) return; clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 250); }
+    function scheduleSave() {
+      if (restoring) return;
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(function () { draftTimer = null; saveDraft(); }, 250);
+    }
     // Fill only EMPTY fields: never overwrite something typed since. Returns how many it filled.
     function applyDraft(d) {
       var filled = 0;
@@ -1732,6 +1736,7 @@
     // Put the form (and a confirmation, if one was added) back where it came from, and unhook
     // it: on closing, and when the tenant application (PREVIEW) takes over from the page's form.
     function detach() {
+      if (draftTimer !== null) { clearTimeout(draftTimer); draftTimer = null; saveDraft(); }
       if (observer) { observer.disconnect(); observer = null; }
       if (form) form.removeEventListener('submit', guardSubmit, true);
       if (!placeholder) return;
