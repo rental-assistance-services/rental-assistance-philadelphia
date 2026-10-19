@@ -378,6 +378,82 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div id="form-status" class="form-status" role="status" aria-live="polite"></div>
         </fieldset>
       </form>
+
+      <!--
+        TENANT APPLICATION: PREVIEW ONLY (Adam, 2026-10-14; Abe sees it before it goes live).
+        Reachable only inside the popup in a tab opened with ?tenant-preview=1 (TENANT_PREVIEW in
+        landlord-check.js); for every other visitor it stays hidden and nothing reaches it.
+        It SENDS NOTHING: no action, no endpoint. site.js validates it and shows a preview
+        confirmation instead of a request, and never books a conversion. Field ids start "ta-" so they
+        never collide with #intake-form's. Field names reuse the landlord application's where they
+        mean the same thing. Not built yet: the email to the landlord, the application number, the
+        landlord's finish / decline page, the portal lookup, and Rio accepting these fields.
+      -->
+      <form id="tenant-form" class="intake" novalidate hidden>
+        <fieldset class="fs">
+          <div class="fs-head"><span class="fs-step">1</span><h3>About me</h3></div>
+          <p class="fs-sub">So we can reach you about this application.</p>
+          <div class="field"><label for="ta-name">My full name <span class="req">*</span></label><input id="ta-name" name="tenant_name" type="text" autocomplete="name" placeholder="Dwayne Carter" data-lc-name required><p class="errmsg">Enter your full name.</p></div>
+          <div class="row">
+            <div class="field"><label for="ta-email">My email <span class="req">*</span></label><input id="ta-email" name="tenant_email" type="email" autocomplete="email" placeholder="you@email.com" required><p class="errmsg">Enter a valid email address.</p></div>
+            <div class="field"><label for="ta-phone">My phone <span class="req">*</span></label><input id="ta-phone" name="tenant_phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(215) 555-0188" required><p class="errmsg">Enter a valid phone number (at least 10 digits).</p></div>
+          </div>
+          <div class="field"><label for="ta-movein">When I moved in</label><input id="ta-movein" name="tenant_movein" type="date"><p class="help">The start of my current lease, if I know it.</p></div>
+        </fieldset>
+        <fieldset class="fs">
+          <div class="fs-head"><span class="fs-step">2</span><h3>My landlord</h3></div>
+          <p class="fs-sub">The person or company I pay rent to.</p>
+          <div class="field"><label for="ta-landlord-name">Landlord or company name <span class="req">*</span></label><input id="ta-landlord-name" name="landlord_name" type="text" autocomplete="off" placeholder="Marcus Reed" required><p class="errmsg">Enter your landlord's name or their company's name.</p></div>
+          <!-- At least one of these two (data-lc-one-of): the popup and site.js both hold the form
+               until the landlord's email or phone is filled in and valid. -->
+          <div data-lc-one-of>
+            <div class="row">
+              <div class="field"><label for="ta-landlord-email">Landlord's email</label><input id="ta-landlord-email" name="landlord_email" type="email" autocomplete="off" placeholder="landlord@email.com"><p class="errmsg">Enter a valid email address.</p></div>
+              <div class="field"><label for="ta-landlord-phone">Landlord's phone</label><input id="ta-landlord-phone" name="landlord_phone" type="tel" autocomplete="off" inputmode="tel" placeholder="(215) 555-0123"><p class="errmsg">Enter a valid phone number (at least 10 digits).</p></div>
+            </div>
+            <p class="errmsg" data-lc-one-of-msg>Enter an email or a phone number for your landlord.</p>
+          </div>
+        </fieldset>
+        <fieldset class="fs">
+          <div class="fs-head"><span class="fs-step">3</span><h3>The home I rent</h3></div>
+          <p class="fs-sub">The address and my monthly rent, as written on my lease.</p>
+          <div class="field"><label for="ta-street">Street address <span class="req">*</span></label><input id="ta-street" name="property_street" type="text" autocomplete="address-line1" placeholder="1932 N 5th St" required><p class="errmsg">Enter the street address.</p></div>
+          <div class="row">
+            <div class="field"><label for="ta-zip">ZIP code <span class="req">*</span></label><input id="ta-zip" name="property_zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" placeholder="19122" required><p class="errmsg">Enter the 5-digit ZIP code.</p></div>
+            <div class="field"><label for="ta-unit">Unit / Apt number</label><input id="ta-unit" name="property_unit" type="text" placeholder="Unit B or Apt 3"><p class="help">If applicable. Leave blank for a single-family rental.</p></div>
+          </div>
+          <!-- Street + ZIP, composed by site.js on submit ("1932 N 5th St, 19122"), as on #intake-form. -->
+          <input type="hidden" name="property_address" value="">
+          <div class="field"><label for="ta-rent">My monthly rent <span class="req">*</span></label><input id="ta-rent" name="monthly_rent" type="number" min="1" step="1" inputmode="numeric" placeholder="1150" required><p class="errmsg">Enter your monthly rent.</p></div>
+        </fieldset>
+        <fieldset class="fs">
+          <div class="fs-head"><span class="fs-step">4</span><h3>What I owe</h3></div>
+          <p class="fs-sub">As close as I can.</p>
+          <div class="row">
+            <div class="field"><label for="ta-back-rent">Total back rent I owe <span class="req">*</span></label><input id="ta-back-rent" name="back_rent_owed" type="number" min="1" step="1" inputmode="numeric" placeholder="4200" required><p class="help">The City can pay up to $3,500 of back rent. If I owe more, I can still apply; my landlord may agree to waive the amount over $3,500. If approved, the City also pays two months of future rent so I can stay.</p><p class="errmsg">Enter how much back rent you owe.</p></div>
+            <div class="field"><label for="ta-months">Months behind</label><input id="ta-months" name="months_behind" type="number" min="1" step="1" inputmode="numeric" placeholder="4"><p class="errmsg">Enter a number of months, or leave it blank.</p></div>
+          </div>
+        </fieldset>
+        <fieldset class="fs">
+          <div class="fs-head"><span class="fs-step">5</span><h3>My documents</h3></div>
+          <p class="fs-sub">Upload what I have. Nothing here is required.</p>
+          <div class="field file-field"><label for="ta-doc-lease">My signed lease</label><input id="ta-doc-lease" name="doc_lease" type="file" accept=".pdf,.jpg,.jpeg,.png,.heic"><p class="help">If I have a copy.</p></div>
+          <div class="field file-field"><label for="ta-doc-ledger">Rent ledger or payment history</label><input id="ta-doc-ledger" name="doc_ledger" type="file" accept=".pdf,.jpg,.jpeg,.png,.heic,.xlsx,.csv"><p class="help">If I have one. My landlord can also provide this.</p></div>
+          <p class="note">Proof of ownership, a W-9 and bank details come from the landlord, not from you.</p>
+        </fieldset>
+        <fieldset class="fs">
+          <div class="fs-head"><span class="fs-step">6</span><h3>Send to my landlord</h3></div>
+          <p class="fs-sub">What happens next.</p>
+          <div class="field"><div class="consent"><input id="ta-forward" name="authorize_forward" type="checkbox" required><label for="ta-forward">By completing this application, I am asking Rental Assistance Services to forward it to my landlord. I understand my landlord must provide more information and agree to take part before the application is complete, and that nothing is approved until they do. <span class="req">*</span></label></div><p class="errmsg">Check this box so we can send your application to your landlord.</p></div>
+          <div class="field"><div class="consent"><input id="ta-contact" name="agree_contact" type="checkbox" required><label for="ta-contact">I agree to be contacted by email or phone about this application. <span class="req">*</span></label></div><p class="errmsg">Check this box so we can reach you about your application.</p></div>
+          <p class="note">You will get an email with your application number to share with your landlord if needed.</p>
+          <div class="field" style="position:absolute;left:-9999px;" aria-hidden="true"><label for="tenant-hp-x7f2">Leave this field empty</label><input id="tenant-hp-x7f2" name="hp_x7f2" type="text" tabindex="-1" autocomplete="off"></div>
+          <input type="hidden" name="visitor_role" value="tenant">
+          <input type="hidden" name="form_type" value="tenant_application">
+          <button class="btn btn-blue block" type="submit">Send to my landlord <span class="arw" aria-hidden="true">&rarr;</span></button>
+          <div id="tenant-form-status" class="form-status" role="status" aria-live="polite"></div>
+        </fieldset>
+      </form>
     </div>
   </section>
 

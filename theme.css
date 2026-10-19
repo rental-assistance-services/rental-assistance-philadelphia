@@ -146,6 +146,14 @@ body{animation:page-in var(--dur) var(--ease) both;}
 .tenant-panel a{color:var(--blue-2);}
 .tenant-panel .tp-tel{color:var(--navy);}
 
+/* ---------- the tenant application's confirmation (PREVIEW, ?tenant-preview=1 only) ----------
+   Shown in place of the tenant form: in the popup, and on the homepage once the popup closes. The
+   navy banner says plainly that nothing was sent, because the preview has no endpoint. */
+.tenant-sent{margin-top:8px;}
+.tenant-sent h3{font-family:var(--serif);font-size:1.3rem;font-weight:480;color:var(--navy);margin:0 0 8px;}
+.tenant-sent p{margin:0;}
+.tenant-sent .preview-banner{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--navy);color:#fff;font-weight:650;font-size:.92rem;line-height:1.45;}
+
 /* Task 3: section labels promoted from <p class="eyebrow"> to <h2 class="eyebrow">.
    On the licensing band, ".band.hub-clear h2{color:#fff}" would otherwise beat the label colour. */
 .band.hub-clear .eyebrow.on-ink{color:var(--blue-bright);}

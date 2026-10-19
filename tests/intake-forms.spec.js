@@ -547,6 +547,7 @@ test.describe('the tenant page and the panels agree', () => {
   });
 
   test('every page offers a tenant a way out', async ({ page }) => {
+    await page.route(/googletagmanager\.com|google-analytics\.com/, (route) => route.abort());
     const PAGES = ['/index.html', '/services/back-rent/index.html',
       '/services/licensing/index.html', '/portal/index.html', '/faq/index.html',
       '/back-rent/index.html', '/blog/index.html',
