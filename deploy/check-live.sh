@@ -113,7 +113,9 @@ if [ -n "$EXPECT_COMMIT" ]; then
   else
     fail "the homepage does not carry this build's stamp (${short}); a 200 alone does not prove it landed"
   fi
-  if [ -n "$LIVE_COMMIT" ] && [ "$LIVE_COMMIT" != "$EXPECT_COMMIT" ]; then
+  if [ "$BCODE" = "200" ] && ! [[ "$LIVE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+    fail "/build.json does not name a full 40-character commit"
+  elif [ -n "$LIVE_COMMIT" ] && [ "$LIVE_COMMIT" != "$EXPECT_COMMIT" ]; then
     fail "/build.json says the live commit is ${LIVE_COMMIT}, expected ${EXPECT_COMMIT}"
   fi
 fi

@@ -35,6 +35,7 @@ echo "build + verify guards:"
 
 d=$(scratch); expect_ok "a real build of this repo succeeds" build "$d"
 expect_ok "and that real bundle passes verification" verify "$d"
+expect_ok "the source page inventory ignores the generated bundle" node -e 'process.exit(require(process.argv[1]).sitePages().some(p => p.startsWith("/dist/")) ? 1 : 0)' "$d/tests/site-pages.js"
 expect_refused "README.md is never in the bundle" test -e "$d/dist/README.md"
 expect_refused "tests/ is never in the bundle" test -e "$d/dist/tests"
 expect_refused "package.json is never in the bundle" test -e "$d/dist/package.json"
@@ -45,6 +46,13 @@ g=$(find "$d" -maxdepth 1 -name 'google*.html' | head -n1)
 if [ -n "$g" ]; then
   expect_ok "the Google verification file is byte-identical" cmp -s "$g" "$d/dist/$(basename "$g")"
 fi
+mkdir -p "$d/tools"
+printf 'console.log("internal tool");\n' > "$d/tools/internal.js"
+build "$d"
+expect_refused "tools/ scripts are never in the bundle" test -e "$d/dist/tools/internal.js"
+mkdir -p "$d/dist/tools"
+printf 'console.log("internal tool");\n' > "$d/dist/tools/internal.js"
+expect_refused "a tool script slipped into the bundle" verify "$d"
 rm -rf "$d"
 
 d=$(scratch); build "$d"; echo "# internal" > "$d/dist/NOTES.md"

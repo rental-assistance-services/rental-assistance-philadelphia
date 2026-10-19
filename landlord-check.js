@@ -3,9 +3,9 @@
 
    WHY: this site sells a filing service to PROPERTY OWNERS, but its brand and the search
    terms it ranks for ("rental assistance philadelphia") read as tenant-side, so most
-   visitors are tenants. The popup asks "own or rent?" before any form is shown, and then
-   IS the form: a landlord fills in the page's real application inside it, one section per
-   step, with a progress bar across the top.
+   visitors are tenants. The popup asks "are you the landlord or the tenant?" before any form
+   is shown, and then IS the form: a landlord fills in the page's real application inside it,
+   one section per step, with a progress bar across the top.
 
    WHAT OPENS IT
    - A first visit to any landing page (once per browser; the answer or a dismissal is
@@ -47,8 +47,8 @@
   // The same three lines as the inline tenant panels and /tenants/ — tests/intake-forms.spec.js
   // asserts every copy carries the same numbers. data-no-track keeps them out of phone_click.
   var TENANT_LINES = [
-    { name: 'Eviction Diversion Program — tenant hotline', tel: '+12155239501', label: '215-523-9501',
-      meta: 'City of Philadelphia · Mon–Fri, 9am–4pm' },
+    { name: 'Eviction Diversion Program: tenant hotline', tel: '+12155239501', label: '215-523-9501',
+      meta: 'City of Philadelphia · Monday to Friday, 9am to 4pm' },
     { name: 'Philly Tenant Hotline', tel: '+12674432500', label: '(267) 443-2500',
       meta: 'Free legal help &amp; tenant advocacy' },
     { name: 'PA 211', tel: '211', label: '211', meta: 'Rent, utilities, food and housing referrals' }
@@ -116,39 +116,49 @@
     + '%3Ccircle cx=\'10\' cy=\'10\' r=\'10\' fill=\'%232F9E5E\'/%3E%3Cpath d=\'M5.6 10.4l2.9 2.9 5.9-6.3\' fill=\'none\' '
     + 'stroke=\'%23fff\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")';
   var CSS = ''
-    + '.lc-backdrop{--lc-navy:var(--navy,#14233A);--lc-ink:var(--ink,#11161C);--lc-brass:var(--brass,#C8A24A);'
-    + '--lc-brass-2:var(--brass-2,#A9853A);--lc-paper:var(--paper-3,#FBF7EE);--lc-green:var(--green,#2F9E5E);'
-    + '--lc-hair:var(--hairline,rgba(20,35,58,.2));--lc-muted:var(--muted,#4C5667);--lc-muted-2:var(--muted-2,#6A7384);'
+    + '.lc-backdrop{--lc-navy:var(--navy,#0E2248);--lc-ink:var(--ink,#11161C);--lc-blue:var(--blue,#2A5BD7);'
+    + '--lc-blue-2:var(--blue-2,#1B3FA0);--lc-paper:var(--paper-3,#FBF7EE);--lc-green:var(--green,#2F9E5E);'
+    + '--lc-hair:var(--hairline,rgba(14,34,72,.2));--lc-muted:var(--muted,#4C5667);--lc-muted-2:var(--muted-2,#6A7384);'
     + '--lc-serif:var(--serif,"Fraunces",Georgia,serif);--lc-sans:var(--sans,"Public Sans",-apple-system,"Segoe UI",sans-serif);'
     + '--lc-mono:var(--mono,"Spline Sans Mono",ui-monospace,Menlo,monospace);--lc-ease:cubic-bezier(.22,.61,.36,1);'
     // The backdrop scrolls, not the dialog: a long section grows the dialog instead of
     // trapping it behind an inner scrollbar. margin:auto centres it while it fits.
     + 'position:fixed;inset:0;z-index:1000;display:flex;overflow-y:auto;overscroll-behavior:contain;padding:24px 16px;'
-    + 'background:rgba(14,26,44,.55);font-family:var(--lc-sans);color:var(--lc-ink);line-height:1.5;'
+    + 'background:rgba(8,23,53,.58);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);'
+    + 'font-family:var(--lc-sans);color:var(--lc-ink);line-height:1.5;'
     + 'animation:lc-fade .35s var(--lc-ease) both;}'
-    + '.lc-dialog{position:relative;margin:auto;width:100%;max-width:520px;background:var(--lc-paper);'
-    + 'border-radius:16px;border-top:4px solid var(--lc-brass);box-shadow:0 8px 24px rgba(20,35,58,.18),0 30px 70px rgba(20,35,58,.28);'
-    + 'animation:lc-rise .35s ease-in both;transition:max-width .35s ease-in;}'
-    + '.lc-dialog.lc-wide{max-width:760px;}'
+    // The site's card language (/theme.css, /site.css): 22px corners, the deep shadow with a blue
+    // glow, and a header that is the same navy card as the homepage's "What you can collect".
+    + '.lc-dialog{position:relative;margin:auto;width:100%;max-width:540px;background:var(--lc-paper);'
+    + 'border-radius:22px;box-shadow:0 8px 24px rgba(14,34,72,.18),0 30px 80px rgba(14,34,72,.30),0 30px 90px rgba(42,91,215,.16);'
+    + 'animation:lc-rise .35s var(--lc-ease) both;transition:max-width .35s var(--lc-ease);}'
+    + '.lc-dialog.lc-wide{max-width:780px;}'
     + '.lc-dialog:focus{outline:none;}'
-    + '.lc-head{padding:18px 56px 14px 24px;border-bottom:1px solid var(--lc-hair);}'
+    + '.lc-head{position:relative;padding:22px 66px 18px 28px;border-radius:22px 22px 0 0;color:#fff;'
+    + 'background:var(--ink-grad,#0C1F45);}'
+    + '.lc-head::after{content:"";position:absolute;inset:0 0 auto 0;height:1px;border-radius:22px 22px 0 0;'
+    + 'background:linear-gradient(90deg,transparent,rgba(143,178,255,.7),transparent);}'
     + '.lc-steps{list-style:none;margin:0;padding:0;display:flex;gap:6px;}'
     + '.lc-steps li{flex:1;min-width:0;}'
-    + '.lc-steps .lc-seg{display:block;height:4px;border-radius:4px;background:var(--lc-hair);transition:background .35s var(--lc-ease);}'
-    + '.lc-steps li.is-done .lc-seg,.lc-steps li.is-current .lc-seg{background:var(--lc-brass);}'
-    + '.lc-steps .lc-lbl{display:block;margin-top:7px;font-family:var(--lc-mono);font-size:.62rem;letter-spacing:.1em;'
-    + 'text-transform:uppercase;color:var(--lc-muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
-    + '.lc-steps li.is-current .lc-lbl{color:var(--lc-brass-2);font-weight:600;}'
-    + '.lc-steps li.is-done .lc-lbl{color:var(--lc-navy);}'
-    + '.lc-count{display:none;margin:9px 0 0;font-family:var(--lc-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--lc-brass-2);}'
+    + '.lc-steps .lc-seg{display:block;height:4px;border-radius:4px;background:rgba(143,178,255,.18);'
+    + 'transition:background .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
+    + '.lc-steps li.is-done .lc-seg{background:var(--blue-bright,#8FB2FF);}'
+    + '.lc-steps li.is-current .lc-seg{background:linear-gradient(90deg,var(--blue-bright,#8FB2FF),#fff);box-shadow:0 0 12px rgba(143,178,255,.6);}'
+    + '.lc-steps .lc-lbl{display:block;margin-top:8px;font-family:var(--lc-mono);font-size:.74rem;letter-spacing:.1em;'
+    + 'text-transform:uppercase;color:rgba(201,213,234,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .35s var(--lc-ease);}'
+    + '.lc-steps li.is-current .lc-lbl{color:#fff;font-weight:600;}'
+    + '.lc-steps li.is-done .lc-lbl{color:var(--on-ink,#C9D5EA);}'
+    + '.lc-count{display:none;margin:10px 0 0;font-family:var(--lc-mono);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-bright,#8FB2FF);}'
     // More steps than fit as labels: segments only, and the current step named underneath.
     + '.lc-head.lc-many .lc-lbl{display:none;}.lc-head.lc-many .lc-count{display:block;}'
     + '.lc-head.lc-off .lc-steps{opacity:.35;}'
-    + '.lc-close{position:absolute;top:10px;right:10px;width:40px;height:40px;border:none;border-radius:50%;background:transparent;'
-    + 'color:var(--lc-muted);font-size:1.5rem;line-height:1;cursor:pointer;}'
-    + '.lc-close:hover{background:rgba(20,35,58,.07);color:var(--lc-navy);}'
-    + '.lc-backdrop button:focus-visible,.lc-backdrop a:focus-visible{outline:2.5px solid var(--lc-brass);outline-offset:2px;}'
-    + '.lc-body{padding:22px 24px 24px;}'
+    + '.lc-close{position:absolute;top:14px;right:14px;width:38px;height:38px;border:none;border-radius:50%;'
+    + 'background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(143,178,255,.22);color:#fff;font-size:1.35rem;line-height:1;cursor:pointer;'
+    + 'transition:background .35s var(--lc-ease),transform .35s var(--lc-ease);}'
+    + '.lc-close:hover{background:rgba(255,255,255,.18);transform:rotate(90deg);}'
+    + '.lc-backdrop button:focus-visible,.lc-backdrop a:focus-visible{outline:2.5px solid var(--lc-blue);outline-offset:2px;}'
+    + '.lc-head button:focus-visible{outline-color:var(--blue-bright,#8FB2FF);}'
+    + '.lc-body{padding:26px 28px 28px;}'
     // Motion: whatever a click reveals — a new screen, the next section, an error message —
     // fades up over 350ms, ease-in. One timing for all of it.
     + '.lc-panel{animation:lc-up .35s ease-in both;}'
@@ -163,19 +173,26 @@
     // the first half of it, or the space pops open and the text fades into it afterwards.
     + '.lc-host .errmsg.show,.lc-host .field.show-err .errmsg{max-height:2.9em;margin-top:6px;opacity:1;transform:none;visibility:visible;'
     + 'transition:max-height .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,visibility 0s;}'
-    // Inputs, in the site's own control language — the same as the "own or rent?" buttons and
+    // Inputs, in the site's own control language — the same as the landlord / tenant buttons and
     // the gates in front of each form: white fill, 1.5px hairline border, 10px corners, a
-    // brass focus ring. The page's inputs used a cream fill that vanished on the cream dialog,
+    // blue focus ring. The page's inputs used a cream fill that vanished on the cream dialog,
     // a green focus ring, and a GOLD outline for an error whose message is red.
     // :where() keeps the type filter from adding specificity, so the state rules below
     // (focus, valid, error) can each override the base look in the order they are written.
     + '.lc-host .field :where(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){'
     // display:block drops the empty text-line space an inline input leaves beneath itself.
-    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1rem;color:var(--lc-ink);'
-    + 'box-shadow:none;transition:border-color .15s,box-shadow .15s;}'
-    + '.lc-host .field input::placeholder,.lc-host .field textarea::placeholder{color:var(--lc-muted-2);opacity:.75;}'
-    + '.lc-host .field :where(input,select,textarea):hover{border-color:rgba(200,162,74,.6);}'
-    + '.lc-host .field :where(input,select,textarea):focus{outline:none;border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.24);}'
+    + 'display:block;background:#fff;border:1.5px solid var(--lc-hair);border-radius:10px;padding:13px 15px;font-size:1.05rem;color:var(--lc-ink);'
+    + 'box-shadow:0 1px 2px rgba(14,34,72,.04);transition:border-color .35s var(--lc-ease),box-shadow .35s var(--lc-ease);}'
+    // Type sizes in the popup: nothing a visitor reads is under .9rem (Adam, 2026-10-14: "we're
+    // going to need to make these fonts a little bit bigger, the average person behind on rent
+    // is older"). Only the small capitals go below: the step name in the header (.lc-count .8rem,
+    // .lc-lbl .74rem) and the calendar's weekday row (.7rem).
+    + '.lc-host .field > label{font-weight:680;color:var(--lc-navy);font-size:1rem;margin-bottom:7px;}'
+    + '.lc-host .help{font-size:.92rem;}'
+    + '.lc-host .note,.lc-host .form-note,.lc-host .muted{font-size:.92rem;}'
+    + '.lc-host .field input::placeholder,.lc-host .field textarea::placeholder{color:var(--lc-muted-2);opacity:.7;}'
+    + '.lc-host .field :where(input,select,textarea):hover{border-color:rgba(42,91,215,.5);}'
+    + '.lc-host .field :where(input,select,textarea):focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 4px rgba(42,91,215,.16);}'
     + '.lc-host .field.lc-ok > :where(input,select,textarea),.lc-host .field .lc-confirm input.lc-match{border-color:rgba(47,158,94,.6);}'
     // An error is red — the same red as its message — and stays red while the field has focus.
     // (.err/.bad stay OUTSIDE :where, or the page's own gold `.field input.err` would outrank it.)
@@ -184,29 +201,29 @@
     + 'border-color:#B4432F;box-shadow:0 0 0 3px rgba(180,67,47,.13);}'
     // No bottom margin: the site's paragraph margin would otherwise leave a blank band under
     // every field even while its (collapsed) message is hidden.
-    + '.lc-host .errmsg{color:#9A3B33;font-size:.84rem;margin-bottom:0;}'
+    + '.lc-host .errmsg{color:#9A3B33;font-size:.92rem;margin-bottom:0;}'
     // A two-column row stacks on a phone; its row gap PLUS each field's own bottom margin
     // doubled the space between those fields. The field margin alone spaces them evenly.
     + '.lc-host .row,.lc-host .row2{row-gap:0;}'
     // File uploads: the drop box is the card, so the page's own dashed wrapper steps back.
     + '.lc-host .file-field{background:none;border:none;padding:0;}'
     + '.lc-drop{position:relative;display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;'
-    + 'border:1.5px dashed rgba(200,162,74,.55);border-radius:10px;transition:border-color .15s,background .15s,box-shadow .15s;}'
-    + '.lc-drop:hover,.lc-drop.lc-over{border-color:var(--lc-brass);background:#FFFCF4;}'
-    + '.lc-drop.lc-over{box-shadow:0 0 0 3px rgba(200,162,74,.22);}'
-    + '.lc-drop:has(input:focus-visible){border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.3);}'
+    + 'border:1.5px dashed rgba(42,91,215,.55);border-radius:10px;transition:border-color .15s,background .15s,box-shadow .15s;}'
+    + '.lc-drop:hover,.lc-drop.lc-over{border-color:var(--lc-blue);background:#FFFCF4;}'
+    + '.lc-drop.lc-over{box-shadow:0 0 0 3px rgba(42,91,215,.22);}'
+    + '.lc-drop:has(input:focus-visible){border-color:var(--lc-blue);box-shadow:0 0 0 3px rgba(42,91,215,.3);}'
     + '.lc-drop.lc-has{border-style:solid;border-color:rgba(47,158,94,.6);}'
     + '.lc-drop.lc-bad{border-color:#B4432F;}'
     + '.lc-drop input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;padding:0;margin:0;}'
     + '.lc-drop-ico{flex:none;width:42px;height:42px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;'
-    + 'background:rgba(200,162,74,.13);color:var(--lc-brass-2);}'
+    + 'background:rgba(42,91,215,.13);color:var(--lc-blue-2);}'
     + '.lc-drop.lc-has .lc-drop-ico{background:#DDEFE3;color:var(--green-deep,#207044);}'
     + '.lc-drop-txt{min-width:0;flex:1;}'
     + '.lc-drop-main{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
-    + '.lc-drop-main u{color:var(--lc-brass-2);text-underline-offset:2px;}'
-    + '.lc-drop-sub{display:block;font-size:.8rem;color:var(--lc-muted-2);margin-top:2px;}'
+    + '.lc-drop-main u{color:var(--lc-blue-2);text-underline-offset:2px;}'
+    + '.lc-drop-sub{display:block;font-size:.9rem;color:var(--lc-muted-2);margin-top:2px;}'
     + '.lc-drop-remove{position:relative;z-index:2;flex:none;background:none;border:1.5px solid var(--lc-hair);border-radius:8px;'
-    + 'padding:6px 12px;font:inherit;font-size:.84rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
+    + 'padding:6px 12px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-navy);cursor:pointer;}'
     + '.lc-drop-remove:hover{border-color:#B4432F;color:#9A3B33;}'
     + '.lc-drop-remove[hidden]{display:none;}'
     // The date: a text box with a calendar button, and the site-styled calendar floating by it.
@@ -215,47 +232,47 @@
     + '.lc-date,.lc-date-row{position:relative;}'
     + '.lc-host .field .lc-date input{padding-right:48px;}'
     + '.lc-date-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:8px;'
-    + 'background:transparent;color:var(--lc-brass-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}'
-    + '.lc-date-btn:hover,.lc-date-btn[aria-expanded=true]{background:rgba(200,162,74,.13);}'
+    + 'background:transparent;color:var(--lc-blue-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}'
+    + '.lc-date-btn:hover,.lc-date-btn[aria-expanded=true]{background:rgba(42,91,215,.13);}'
     // FLOATING over the fields below — opening it moves nothing (Kyle, 2026-09-19: "it
     // shouldn't create space at the bottom"). It opens below the date box when there is room,
     // and flips ABOVE it when there isn't (placeCal), so it is never cut off at the bottom.
     // Compact: 280px wide, 30px day cells.
     + '.lc-cal{position:absolute;left:0;top:calc(100% + 6px);z-index:8;width:280px;max-width:100%;padding:10px;background:#fff;'
-    + 'border-radius:12px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.18),0 2px 6px rgba(20,35,58,.06);}'
+    + 'border-radius:12px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(14,34,72,.18),0 2px 6px rgba(14,34,72,.06);}'
     + '.lc-cal.lc-cal-up{top:auto;bottom:calc(100% + 6px);}'
     + '.lc-cal[hidden]{display:none;}'
     + '.lc-cal.lc-drop-in{animation:lc-down .35s ease-in both;}'
     + '.lc-cal.lc-cal-up.lc-drop-in{animation-name:lc-up;}'
     + '.lc-cal-head{display:flex;align-items:center;gap:4px;margin-bottom:6px;}'
     + '.lc-host .field .lc-cal-sel[data-cal-month]{flex:1.8;}'
-    // The browser's own select arrow is wide and grey; a slim brass chevron takes its place,
+    // The browser's own select arrow is wide and grey; a slim blue chevron takes its place,
     // which also leaves room for "September" and the year in a compact header.
     + '.lc-host .field .lc-cal-sel{flex:1;min-width:0;-webkit-appearance:none;appearance:none;padding:5px 20px 5px 8px;'
-    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.82rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
-    + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%23A9853A\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 7px center;}'
-    + '.lc-host .field .lc-cal-sel:focus{outline:none;border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.24);}'
+    + 'border:1.5px solid var(--lc-hair);border-radius:7px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-navy);cursor:pointer;'
+    + 'background:#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%231B3FA0\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E") no-repeat right 7px center;}'
+    + '.lc-host .field .lc-cal-sel:focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 3px rgba(42,91,215,.24);}'
     + '.lc-cal-nav{flex:none;width:26px;height:28px;border:none;border-radius:7px;background:transparent;font-size:1.2rem;line-height:1;'
     + 'color:var(--lc-navy);cursor:pointer;}'
-    + '.lc-cal-nav:hover:not([disabled]){background:rgba(200,162,74,.13);}'
+    + '.lc-cal-nav:hover:not([disabled]){background:rgba(42,91,215,.13);}'
     + '.lc-cal-nav[disabled]{opacity:.3;cursor:default;}'
     + '.lc-cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;}'
-    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;'
+    + '.lc-cal-grid th{font-family:var(--lc-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;'
     + 'color:var(--lc-muted-2);font-weight:600;padding:2px 0 4px;}'
     + '.lc-cal-grid td{padding:1px;text-align:center;}'
     + '.lc-day{width:100%;height:30px;border:none;border-radius:7px;background:transparent;font:inherit;'
-    + 'font-size:.82rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
-    + '.lc-day:hover:not([disabled]){background:rgba(200,162,74,.13);}'
+    + 'font-size:.9rem;color:var(--lc-navy);cursor:pointer;transition:background .15s;}'
+    + '.lc-day:hover:not([disabled]){background:rgba(42,91,215,.13);}'
     + '.lc-day.lc-out{color:var(--lc-muted-2);opacity:.55;}'
-    + '.lc-day.lc-today{box-shadow:inset 0 0 0 1.5px var(--lc-brass);font-weight:700;}'
-    + '.lc-day[aria-selected=true]{background:var(--lc-brass);color:#241B06;font-weight:700;}'
+    + '.lc-day.lc-today{box-shadow:inset 0 0 0 1.5px var(--lc-blue);font-weight:700;}'
+    + '.lc-day[aria-selected=true]{background:var(--lc-blue);color:#FFFFFF;font-weight:700;}'
     + '.lc-day[disabled]{opacity:.25;cursor:default;}'
-    + '.lc-day:focus-visible{outline:2.5px solid var(--lc-brass);outline-offset:1px;}'
+    + '.lc-day:focus-visible{outline:2.5px solid var(--lc-blue);outline-offset:1px;}'
     + '.lc-cal-foot{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--lc-hair);}'
-    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.8rem;font-weight:650;color:var(--lc-brass-2);cursor:pointer;border-radius:6px;}'
-    + '.lc-cal-link:hover{background:rgba(200,162,74,.13);}'
+    + '.lc-cal-link{background:none;border:none;padding:3px 6px;font:inherit;font-size:.9rem;font-weight:650;color:var(--lc-blue-2);cursor:pointer;border-radius:6px;}'
+    + '.lc-cal-link:hover{background:rgba(42,91,215,.13);}'
     // Smaller screens: a touch narrower and tighter still, and never wider than the field.
-    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.8rem;}}'
+    + '@media (max-width:640px){.lc-cal{width:264px;padding:8px;}.lc-day{height:28px;font-size:.9rem;}}'
     // Once a field is filled in and passes, its asterisk turns into a green check (and a field
     // with no asterisk gets the check after its label). It fades up like everything else.
     // The icon is exactly 1em and sits on the text's own bottom edge (vertical-align:text-bottom),
@@ -279,42 +296,42 @@
     + 'transition:grid-template-rows .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
     + 'box-shadow .35s ease-in,visibility 0s linear .35s;}'
     + '.lc-host .lc-confirm.show{grid-template-rows:1fr;opacity:1;transform:none;visibility:visible;margin-top:6px;'
-    + 'box-shadow:0 0 0 1px var(--lc-hair),0 10px 24px rgba(20,35,58,.10),0 2px 6px rgba(20,35,58,.05);'
+    + 'box-shadow:0 0 0 1px var(--lc-hair),0 10px 24px rgba(14,34,72,.10),0 2px 6px rgba(14,34,72,.05);'
     + 'transition:grid-template-rows .35s ease-in,margin-top .35s ease-in,opacity .35s ease-in,transform .35s ease-in,'
     + 'box-shadow .35s ease-in,visibility 0s;}'
     + '.lc-host .lc-confirm-in{min-height:0;overflow:hidden;padding:0 10px;transition:padding .35s ease-in;}'
     // Address suggestions: a list that drops down over the fields below the address box
     // (it overlays rather than pushing them), fading down over 350ms ease-in.
     // "Welcome back" line shown when a saved draft was put back.
-    + '.lc-restored{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 18px;'
-    + 'padding:10px 14px;border-radius:10px;background:rgba(200,162,74,.12);font-size:.86rem;color:var(--lc-muted);'
+    + '.lc-restored{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 20px;'
+    + 'padding:11px 15px;border-radius:12px;background:var(--blue-soft,#DCE6FB);border-left:3px solid var(--lc-blue);font-size:.92rem;color:var(--lc-navy);'
     + 'animation:lc-up .35s ease-in both;}'
     + '.lc-restored[hidden]{display:none;}'
-    + '.lc-startover{background:none;border:none;padding:0;font:inherit;font-weight:650;color:var(--lc-brass-2);'
+    + '.lc-startover{background:none;border:none;padding:0;font:inherit;font-weight:650;color:var(--lc-blue-2);'
     + 'text-decoration:underline;cursor:pointer;}'
     + '.lc-host .field.lc-addr{position:relative;}'
     + '.lc-suggest{position:absolute;left:0;right:0;z-index:5;list-style:none;margin:6px 0 0;padding:6px;background:#fff;'
-    + 'border-radius:10px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(20,35,58,.14),0 2px 6px rgba(20,35,58,.06);}'
+    + 'border-radius:10px;box-shadow:0 0 0 1px var(--lc-hair),0 14px 30px rgba(14,34,72,.14),0 2px 6px rgba(14,34,72,.06);}'
     + '.lc-suggest[hidden]{display:none;}'
     + '.lc-suggest.lc-suggest-in{animation:lc-down .35s ease-in both;}'
     + '.lc-suggest [role=option]{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:8px;cursor:pointer;'
     + 'transition:background .15s;}'
-    + '.lc-suggest [role=option]:hover,.lc-suggest [role=option][aria-selected=true]{background:rgba(200,162,74,.13);}'
-    + '.lc-sg-pin{flex:none;color:var(--lc-brass-2);margin-top:2px;display:inline-flex;}'
+    + '.lc-suggest [role=option]:hover,.lc-suggest [role=option][aria-selected=true]{background:rgba(42,91,215,.13);}'
+    + '.lc-sg-pin{flex:none;color:var(--lc-blue-2);margin-top:2px;display:inline-flex;}'
     + '.lc-sg-1{display:block;font-weight:650;color:var(--lc-navy);font-size:.95rem;line-height:1.3;}'
-    + '.lc-sg-2{display:block;font-size:.82rem;color:var(--lc-muted-2);line-height:1.35;}'
+    + '.lc-sg-2{display:block;font-size:.9rem;color:var(--lc-muted-2);line-height:1.35;}'
     + '.lc-suggest-manual{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;margin-top:4px;border-top:1px solid var(--lc-hair);'
-    + 'font-size:.86rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
-    + '.lc-suggest-manual svg{flex:none;color:var(--lc-brass-2);margin-top:1px;}'
+    + 'font-size:.92rem;line-height:1.4;color:var(--lc-muted);cursor:default;}'
+    + '.lc-suggest-manual svg{flex:none;color:var(--lc-blue-2);margin-top:1px;}'
     + '.lc-suggest.lc-only-manual .lc-suggest-manual{margin-top:0;border-top:none;}'
-    + '.lc-suggest-note{font-size:.7rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
+    + '.lc-suggest-note{font-size:.9rem;color:var(--lc-muted-2);padding:5px 10px 3px;}'
     + '@keyframes lc-down{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}'
     // On a phone the sheet ends at the screen's bottom edge, so a floating list would be cut
     // off there. It sits in the flow instead: the fields below move down, the sheet grows and
     // scrolls, and every suggestion (and the credit line) can be reached.
     + '@media (max-width:640px){.lc-suggest{position:static;}}'
     + '.lc-host .lc-confirm.show .lc-confirm-in{padding:11px 10px 10px;}'
-    + '.lc-host .lc-confirm label{display:block;font-size:.8rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
+    + '.lc-host .lc-confirm label{display:block;font-size:.9rem;font-weight:700;color:var(--green-deep,#207044);margin:0 0 7px 1px;}'
     + '.lc-host .field .lc-confirm input{padding:11px 13px;}'
     // Chrome gives an autofilled field :-webkit-autofill but fires no reliable event; a
     // 1ms animation on that state is the event guardRetype() listens for.
@@ -323,33 +340,35 @@
     // Verified: a green pill after the email's label (its asterisk has already become a check).
     + '.lc-host .field.lc-verified > label::after,.lc-host .field.lc-verified.lc-ok > label:not(:has(.req))::after{'
     + 'content:"Verified";display:inline-block;width:auto;height:auto;margin-left:8px;padding:2px 9px;'
-    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.72rem;font-weight:700;'
+    + 'border-radius:999px;background:#DDEFE3;color:var(--green-deep,#207044);font-size:.9rem;line-height:1.3;font-weight:700;'
     + 'letter-spacing:.03em;vertical-align:1px;animation:lc-up .35s ease-in both;}'
     + '.lc-panel[hidden]{display:none;}'
-    + '.lc-q{font-family:var(--lc-serif);font-size:1.45rem;font-weight:560;color:var(--lc-navy);line-height:1.2;margin:0 0 6px;}'
-    + '.lc-sub{color:var(--lc-muted);font-size:.95rem;margin:0 0 18px;}'
+    // Headings as the site sets them: light Fraunces, tight tracking.
+    + '.lc-q{font-family:var(--lc-serif);font-size:1.65rem;font-weight:420;letter-spacing:-.018em;color:var(--lc-navy);line-height:1.15;margin:0 0 8px;}'
+    + '.lc-sub{color:var(--lc-muted);font-size:1.02rem;line-height:1.55;margin:0 0 20px;}'
+    // The two answers are the site-wide choice cards (.lc-role in /theme.css — the same as the
+    // gate's buttons on the page).
     + '.lc-roles{display:grid;gap:10px;}'
-    + '.lc-role{font-family:var(--lc-sans);font-size:1.02rem;font-weight:680;line-height:1.25;text-align:left;padding:16px 18px;'
-    + 'border-radius:10px;border:1.5px solid var(--lc-hair);background:#fff;color:var(--lc-navy);cursor:pointer;'
-    + 'transition:border-color .15s,box-shadow .15s,transform .12s;}'
-    + '.lc-role:hover{border-color:var(--lc-brass);box-shadow:0 0 0 3px rgba(200,162,74,.16);transform:translateY(-1px);}'
-    + '.lc-role small{display:block;font-weight:500;font-size:.84rem;color:var(--lc-muted-2);margin-top:4px;}'
-    + '.lc-note{color:var(--lc-muted-2);font-size:.82rem;margin:14px 0 0;}'
+    + '.lc-note{color:var(--lc-muted-2);font-size:.9rem;line-height:1.5;margin:16px 0 0;}'
     + '.lc-lines{list-style:none;padding:0;margin:0 0 18px;display:grid;gap:12px;}'
     + '.lc-lines li{border-top:1px solid var(--lc-hair);padding-top:12px;}'
     + '.lc-lines li:first-child{border-top:none;padding-top:0;}'
     + '.lc-lines b{display:block;color:var(--lc-navy);font-size:.95rem;}'
-    + '.lc-lines a{font-weight:700;color:var(--lc-navy);text-decoration:none;border-bottom:2px solid var(--lc-brass);}'
-    + '.lc-lines span{color:var(--lc-muted-2);font-size:.84rem;margin-left:6px;}'
+    + '.lc-lines a{font-weight:700;color:var(--lc-navy);text-decoration:none;border-bottom:2px solid var(--lc-blue);}'
+    + '.lc-lines span{color:var(--lc-muted-2);font-size:.92rem;margin-left:6px;}'
+    // Buttons as the site's: the blue gradient with its glow (.btn-blue), and the ghost (.btn-ghost).
     + '.lc-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--lc-sans);font-weight:680;'
-    + 'font-size:1rem;padding:13px 22px;border-radius:10px;border:1.5px solid transparent;cursor:pointer;text-decoration:none;'
-    + 'transition:background .15s,transform .12s;}'
-    + '.lc-btn-main{background:var(--lc-brass);color:#241B06;}'
-    + '.lc-btn-main:hover{background:var(--lc-brass-2);color:#fff;}'
-    + '.lc-btn-back{background:none;border-color:var(--lc-hair);color:var(--lc-navy);white-space:nowrap;}'
-    + '.lc-btn-back:hover{border-color:var(--lc-navy);}'
+    + 'font-size:1rem;line-height:1;padding:15px 26px;border-radius:10px;border:1.5px solid transparent;cursor:pointer;text-decoration:none;'
+    + 'transition:transform .35s var(--lc-ease),box-shadow .35s var(--lc-ease),background .35s var(--lc-ease),border-color .35s var(--lc-ease),color .35s var(--lc-ease);}'
+    + '.lc-btn:active{transform:translateY(1px);transition-duration:.1s;}'
+    + '.lc-btn-main{background:linear-gradient(180deg,#3F6FE6,#2A5BD7 55%,#2350C4);color:#FFFFFF;'
+    + 'box-shadow:var(--shadow-blue,0 1px 0 rgba(255,255,255,.22) inset,0 8px 22px rgba(42,91,215,.34));}'
+    + '.lc-btn-main:hover{color:#fff;transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 14px 30px rgba(42,91,215,.44);}'
+    + '.lc-btn-main[disabled],.lc-btn-main[aria-disabled=true]{opacity:.55;transform:none;box-shadow:none;cursor:not-allowed;}'
+    + '.lc-btn-back{background:rgba(255,255,255,.6);border-color:var(--lc-hair);color:var(--lc-navy);white-space:nowrap;}'
+    + '.lc-btn-back:hover{border-color:var(--lc-blue);color:var(--lc-blue-2);background:#fff;}'
     + '.lc-stack{display:grid;gap:10px;}'
-    + '.lc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;}'
+    + '.lc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid var(--lc-hair);}'
     + '.lc-nav .lc-btn-main{margin-left:auto;}'
     + '.lc-nav [hidden]{display:none;}'
     // The page's form, flattened to sit inside the dialog rather than as a card in a card.
@@ -360,12 +379,13 @@
     // The section's own number ("1") would contradict the progress bar ("Step 2 of 8"),
     // which counts "Who you are" as step 1. The bar is the one numbering in the popup.
     + '.lc-host .fs-step{display:none;}'
-    + '.lc-host .fs h3{font-family:var(--lc-serif);font-size:1.35rem;color:var(--lc-navy);}'
+    + '.lc-host .fs h3{font-family:var(--lc-serif);font-size:1.55rem;font-weight:420;letter-spacing:-.016em;line-height:1.15;color:var(--lc-navy);}'
+    + '.lc-host .fs-sub{color:var(--lc-muted);font-size:1.02rem;margin:4px 0 22px;}'
     // The contact form's confirmation is styled for the dark band it normally sits in (white
     // text, set inline). On the light dialog that would be invisible, so re-colour it here.
     + '.lc-host .callout.on-ink{background:#DDEFE3;border-color:rgba(47,158,94,.3);border-left-color:var(--lc-green);color:var(--lc-ink);}'
     + '.lc-host .callout.on-ink h3,.lc-host .callout.on-ink p{color:var(--lc-ink) !important;}'
-    + '.lc-host .callout.on-ink a{color:var(--lc-brass-2) !important;}'
+    + '.lc-host .callout.on-ink a{color:var(--lc-blue-2) !important;}'
     + 'body.lc-lock{overflow:hidden;}'
     + '@keyframes lc-fade{from{opacity:0;}to{opacity:1;}}'
     + '@keyframes lc-rise{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:none;}}'
@@ -374,11 +394,20 @@
        hides the content a searcher just landed on as a ranking and ad-quality negative. */
     + '@media (max-width:640px){'
     + '.lc-backdrop{padding:0;}'
-    + '.lc-dialog,.lc-dialog.lc-wide{max-width:none;margin:auto 0 0;border-radius:18px 18px 0 0;animation-name:lc-sheet;}'
-    + '.lc-head{padding:16px 52px 12px 16px;}.lc-body{padding:18px 16px 22px;}'
+    + '.lc-dialog,.lc-dialog.lc-wide{max-width:none;margin:auto 0 0;border-radius:22px 22px 0 0;animation-name:lc-sheet;}'
+    + '.lc-head{padding:18px 58px 14px 18px;}.lc-body{padding:22px 18px 24px;}.lc-close{top:12px;right:12px;}'
     + '.lc-steps .lc-lbl{display:none;}.lc-count{display:block;}'
     + '.lc-q{font-size:1.28rem;}}'
     + '@keyframes lc-sheet{from{transform:translateY(100%);}to{transform:none;}}'
+    // Closing: the still copy left behind by leave() fades and sinks away over the same 350ms the
+    // popup arrived in, the phone sheet sliding back down. Nothing inside it replays its entrance.
+    + '.lc-backdrop.lc-leaving,.lc-backdrop.lc-leaving *{animation:none !important;transition:none !important;}'
+    + '.lc-backdrop.lc-leaving{animation:lc-fade-out .35s ease-in both !important;pointer-events:none;}'
+    + '.lc-backdrop.lc-leaving .lc-dialog{animation:lc-sink .35s ease-in both !important;}'
+    + '@keyframes lc-fade-out{from{opacity:1;}to{opacity:0;}}'
+    + '@keyframes lc-sink{from{opacity:1;transform:none;}to{opacity:0;transform:translateY(18px);}}'
+    + '@media (max-width:640px){.lc-backdrop.lc-leaving .lc-dialog{animation-name:lc-sheet-out !important;}}'
+    + '@keyframes lc-sheet-out{from{transform:none;}to{transform:translateY(100%);}}'
     + '@media (prefers-reduced-motion:reduce){.lc-backdrop,.lc-dialog,.lc-panel,.lc-host fieldset.lc-enter,'
     + '.lc-host .errmsg,.lc-host .errmsg.show,.lc-host .field.show-err .errmsg,.lc-host .field input,.lc-host .field select,'
     + '.lc-host .field textarea,.lc-host .lc-confirm,.lc-host .lc-confirm.show,.lc-host .lc-confirm-in{transition:none;}'
@@ -391,19 +420,19 @@
     + '<div class="lc-body">'
     // who you are
     + '<div class="lc-panel" data-lc-panel="role">'
-    + '<h2 class="lc-q" id="lc-title-role">First &mdash; do you own or rent?</h2>'
+    + '<h2 class="lc-q" id="lc-title-role">First, are you the landlord or the tenant?</h2>'
     + '<p class="lc-sub">We&rsquo;re hired by Philadelphia property owners to get a tenant&rsquo;s back rent paid by the City.</p>'
     + '<div class="lc-roles">'
-    + '<button type="button" class="lc-role" data-lc-role="landlord">I own or manage rental property<small>Landlord or property manager</small></button>'
-    + '<button type="button" class="lc-role" data-lc-role="tenant">I rent my home<small>Tenant</small></button>'
+    + '<button type="button" class="lc-role" data-lc-role="landlord">I am the landlord<small>I own or manage the rental property</small></button>'
+    + '<button type="button" class="lc-role" data-lc-role="tenant">I am the tenant<small>I rent my home</small></button>'
     + '</div>'
     + '<p class="lc-note">Rental Assistance Philadelphia is a private filing service hired by owners. We are not the City and we do not represent tenants.</p>'
     + '</div>'
     // tenant — no request of any kind is made on this path
     + '<div class="lc-panel" data-lc-panel="tenant" hidden>'
-    + '<h2 class="lc-q" id="lc-title-tenant">We work for landlords &mdash; but there&rsquo;s free help for you.</h2>'
+    + '<h2 class="lc-q" id="lc-title-tenant">We work for landlords, but there&rsquo;s free help for you.</h2>'
     + '<p class="lc-sub">We&rsquo;re a private service hired by property owners, so there&rsquo;s nothing we can file for you. '
-    + 'The City&rsquo;s Eviction Diversion Program can pay a tenant&rsquo;s back rent &mdash; but <strong>the landlord has to apply</strong>. '
+    + 'The City&rsquo;s Eviction Diversion Program can pay a tenant&rsquo;s back rent, but <strong>the landlord has to apply</strong>. '
     + 'These free lines can explain it so you can raise it with them:</p>'
     + '<ul class="lc-lines" data-lc-tenant-lines>'
     + TENANT_LINES.map(function (l) {
@@ -415,7 +444,7 @@
     + '</div>'
     // the page's form is moved in here
     + '<div class="lc-panel" data-lc-panel="form" hidden>'
-    + '<p class="lc-restored" hidden><span>Welcome back — we kept what you typed on this device for an hour.</span>'
+    + '<p class="lc-restored" hidden><span>Welcome back. We kept what you typed on this device for an hour.</span>'
     + '<button type="button" class="lc-startover" data-lc-startover>Start over</button></p>'
     + '<div class="lc-host" id="lc-title-form"></div>'
     + '<div class="lc-nav"><button type="button" class="lc-btn lc-btn-back" data-lc-back>&larr; Back</button>'
@@ -425,8 +454,11 @@
 
   /* ---------- address suggestions (Photon) ----------
      As the visitor types the property address, up to five real addresses are offered under
-     the box; picking one fills in the whole address. Typing it out by hand still works — this
-     only ever suggests.
+     the box. Picking one fills in the address: on a form with a ZIP box (the homepage
+     application) the street box gets the street only ("1932 North 5th Street") and the ZIP
+     box gets the postcode; on a form without one (/back-rent/) the street box gets the whole
+     address, city, state and ZIP included. The list itself always shows the whole address.
+     Typing it out by hand still works — this only ever suggests.
 
      Source: Photon (photon.komoot.io), a free address search over OpenStreetMap data — no
      account, no key, CORS-open, built for search-as-you-type. Results are BIASED towards
@@ -435,13 +467,13 @@
      simply behaves like a plain text box. OpenStreetMap's licence requires the attribution
      line at the foot of the list.
 
-     Blocks and lots: anything typed that names a block, lot, unit, apartment, suite or "#…"
-     is never thrown away when a suggestion replaces the text. It moves to the
-     "Unit / Apt / Block & Lot" box if the form has one, and otherwise stays at the front of
-     the address. */
+     Units: when a suggestion replaces the text, anything typed that names a unit, apartment,
+     suite or "#…" is moved to the "Unit / Apt number" box if the form has one, and otherwise
+     stays at the front of the address. Any other text typed ahead of the street is replaced
+     by the pick. */
   var PHOTON = 'https://photon.komoot.io/api/';
   var BIAS = { lat: 39.9526, lon: -75.1652 };             // City Hall, Philadelphia
-  var UNIT_RE = /(?:\b(?:blk|block|lot|phase|unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
+  var UNIT_RE = /(?:\b(?:unit|apt|apartment|suite|ste|bldg|building|floor|fl|rm|room)\b\.?\s*#?\s*[\w-]+|#\s*[\w-]+)/gi;
   var US_STATES = { Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA', Colorado: 'CO',
     Connecticut: 'CT', Delaware: 'DE', 'District of Columbia': 'DC', Florida: 'FL', Georgia: 'GA', Hawaii: 'HI',
     Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA', Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME',
@@ -455,7 +487,8 @@
 
   var PEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-4-4L4 16v4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.8"/></svg>';
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  // One Photon result -> what the list shows and what the box is filled with.
+  // One Photon result -> what the list shows and what the boxes are filled with: `value` is
+  // the whole address (a form with no ZIP box), `street` and `zip` are its two parts.
   function describe(p) {
     var street = p.street || (p.type === 'street' ? p.name : '') || p.name || '';
     if (!street) return null;
@@ -465,7 +498,12 @@
     var region = us ? (US_STATES[p.state] || p.state || '') : (p.state || '');
     var tail = [region, p.postcode].filter(Boolean).join(' ');
     var line2 = [place, tail].filter(Boolean).join(', ') + (us || !p.country ? '' : ', ' + p.country);
-    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), exact: !!p.housenumber };
+    // Only a US ZIP fills the ZIP box (ZIP+4 is cut to its five digits); anything else empties
+    // it, for the visitor to fill in.
+    var post = String(p.postcode || '').trim();
+    var zip = us && /^\d{5}(?:-\d{4})?$/.test(post) ? post.slice(0, 5) : '';
+    return { line1: line1, line2: line2, value: line1 + (line2 ? ', ' + line2 : ''), street: line1, zip: zip,
+      exact: !!p.housenumber };
   }
 
   function addressAssist(input) {
@@ -502,7 +540,7 @@
     // is information only — not an option, so the arrow keys skip it and a click does nothing.
     var MANUAL = {
       more: 'Don’t see your address? You can still type it in yourself.',
-      none: 'We couldn’t find a match — you can still type your full address yourself.'
+      none: 'We couldn’t find a match. You can still type your full address yourself.'
     };
     function manualLine(text) {
       return '<li class="lc-suggest-manual" role="presentation">' + PEN + '<span>' + text + '</span></li>';
@@ -563,9 +601,12 @@
     function choose(i) {
       var s = items[i];
       if (!s) return;
-      // Keep every block / lot / unit the visitor typed — never lose it to the suggestion.
+      // Keep every unit / apartment the visitor typed — never lose it to the suggestion.
       var kept = (input.value.match(UNIT_RE) || []).map(function (t) { return t.trim(); });
-      var value = s.value;
+      // A form with a ZIP box takes the street here and the ZIP there; one without keeps the
+      // whole address in this box, as it always has.
+      var zipBox = input.form && input.form.querySelector('[name="property_zip"]');
+      var value = zipBox ? s.street : s.value;
       if (kept.length) {
         var unit = input.form && input.form.querySelector('[name="property_unit"]');
         if (unit) {
@@ -576,13 +617,19 @@
             unit.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
           }
         } else {
-          value = kept.join(' ') + ', ' + s.value;
+          value = kept.join(' ') + ', ' + value;
         }
       }
       filling = true;
       input.value = value;
       input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
       filling = false;
+      // The ZIP always follows the pick: a pick with no US ZIP empties the box, so a ZIP (and
+      // its green check) left by an earlier pick can't stay behind a different address.
+      if (zipBox) {
+        zipBox.value = s.zip;
+        zipBox.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+      }
       close();
       track('address_suggestion', { form_id: input.form ? input.form.id : '', exact: s.exact });
       input.setSelectionRange(value.length, value.length);
@@ -692,9 +739,9 @@
       if (f) {
         var ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
         var problem = allowed.length && allowed.indexOf(ext) === -1
-          ? '“' + f.name + '” isn’t a file we can take — please use ' + types + '.'
+          ? '“' + f.name + '” isn’t a file we can take. Please use ' + types + '.'
           : f.size > MAX_FILE_MB * 1048576
-            ? '“' + f.name + '” is ' + sizeText(f.size) + ' — files must be under ' + MAX_FILE_MB + 'MB.' : '';
+            ? '“' + f.name + '” is ' + sizeText(f.size) + '. Files must be under ' + MAX_FILE_MB + 'MB.' : '';
         if (problem) { input.value = ''; say(field, problem); zone.classList.add('lc-bad'); show(); return; }
       }
       say(field, ''); zone.classList.remove('lc-bad');
@@ -733,7 +780,7 @@
     if (d.length < 8) return { unfinished: true };
     var mm = +d.slice(0, 2), dd = +d.slice(2, 4), yy = +d.slice(4, 8);
     var dt = new Date(yy, mm - 1, dd);
-    if (mm < 1 || mm > 12 || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return { problem: 'That isn’t a real date — use MM/DD/YYYY, e.g. 03/15/2024.' };
+    if (mm < 1 || mm > 12 || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return { problem: 'That isn’t a real date. Use MM/DD/YYYY, e.g. 03/15/2024.' };
     if (yy < 1900) return { problem: 'Please check the year.' };
     if (dt > today()) return { problem: 'The move-in date can’t be in the future.' };
     return { date: dt };
@@ -906,6 +953,54 @@
     return api;
   }
 
+  /* ---------- closing over 350ms ---------- */
+  // The real popup has to come down at once: the form goes straight back to the page, where the
+  // page's own code (and a reopen) expects to find it. What animates away is a still copy of the
+  // dialog, taken the moment it closes, inside a CLOSED shadow root: it looks the same (the page's
+  // styles are copied in), but no selector, script, focus or screen reader can reach it, and its
+  // ids and field names cannot collide with the real ones. Removed when the 350ms are up.
+  var leaveSheet = null;
+  function leaveStyles() {
+    if (leaveSheet) return leaveSheet;
+    var css = Array.prototype.map.call(document.styleSheets, function (s) {
+      try { return Array.prototype.map.call(s.cssRules, function (r) { return r.cssText; }).join('\n'); }
+      catch (e) { return ''; }                 // a cross-origin sheet (the web fonts) can't be read
+    }).join('\n');
+    if (typeof CSSStyleSheet === 'function' && 'adoptedStyleSheets' in Document.prototype) {
+      try { leaveSheet = new CSSStyleSheet(); leaveSheet.replaceSync(css); return leaveSheet; } catch (e) {}
+    }
+    leaveSheet = css;
+    return leaveSheet;
+  }
+  function leave(root) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!document.body.attachShadow) return;
+    var ghost = root.cloneNode(true);
+    // cloneNode keeps what the markup says, not what was typed: carry the typed values over, or
+    // the fields would blank out as the popup leaves.
+    var from = root.querySelectorAll('input,select,textarea'), to = ghost.querySelectorAll('input,select,textarea');
+    for (var i = 0; i < from.length && i < to.length; i++) {
+      to[i].removeAttribute('name');
+      if (from[i].type === 'checkbox' || from[i].type === 'radio') to[i].checked = from[i].checked;
+      else if (from[i].type !== 'file') { try { to[i].value = from[i].value; } catch (e) {} }
+    }
+    ghost.removeAttribute('data-landlord-check');
+    ghost.classList.add('lc-leaving');
+    var host = document.createElement('div');
+    host.className = 'lc-ghost';
+    host.setAttribute('aria-hidden', 'true');
+    host.inert = true;
+    host.style.cssText = 'position:fixed;inset:0;z-index:1000;pointer-events:none;';
+    var shadow = host.attachShadow({ mode: 'closed' });
+    var sheet = leaveStyles();
+    if (typeof sheet === 'string') { var st = document.createElement('style'); st.textContent = sheet; shadow.appendChild(st); }
+    else shadow.adoptedStyleSheets = [sheet];
+    shadow.appendChild(ghost);
+    document.body.appendChild(host);
+    ghost.scrollTop = root.scrollTop;
+    setTimeout(function () { if (host.parentNode) host.parentNode.removeChild(host); }, 360);
+  }
+
   /* ---------- the popup ---------- */
   // trigger: 'first_visit' | 'cta' | 'gate' | 'handoff'
   // opts: {target: 'apply'|'contact', formId, role: 'landlord'|'tenant'}
@@ -983,9 +1078,19 @@
     function mount() {
       if (!form) {
         // No application on this page (the blog, /services/…, /portal/, /faq/): it lives on the homepage.
-        try { sessionStorage.setItem(HANDOFF, 'apply'); } catch (e) {}
+        // Whether the flag was actually stored decides where we send them, because a browser
+        // can refuse to store it: Safari private mode and partitioned third-party embeds both
+        // throw on setItem. Assuming it worked sent those visitors to the top of the homepage
+        // with no popup and no form — a dead end out of a button marked Apply.
+        var ok = false;
+        try { sessionStorage.setItem(HANDOFF, 'apply'); ok = true; } catch (e) {}
         track('handoff', { page: location.pathname });
-        location.href = '/#apply';
+        // Stored: the homepage's TOP, not /#apply, because the flag opens the application
+        // there by itself. With the #apply the browser jumped the page down to the form
+        // section, so the popup opened over the bottom of the page and closing it left the
+        // visitor down there. Not stored: /#apply, so the browser's own jump puts them on the
+        // form section — the popup can no longer carry them, so the anchor has to.
+        location.href = ok ? '/' : '/#apply';
         return;
       }
       if (!placeholder) {
@@ -1003,7 +1108,9 @@
         observer.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         // Capture, so it runs before the page's own submit handler and can hold it back.
         form.addEventListener('submit', guardSubmit, true);
-        form.querySelectorAll('input[name="property_address"]').forEach(addressAssist);
+        // The street box: property_street on the homepage application (its property_address is
+        // a hidden field site.js composes on submit), property_address on /back-rent/.
+        form.querySelectorAll('input[name="property_street"], input[name="property_address"]:not([type="hidden"])').forEach(addressAssist);
         form.querySelectorAll('.file-field input[type="file"]').forEach(fileAssist);
         form.querySelectorAll('input[type="date"]').forEach(dateAssist);
       }
@@ -1168,9 +1275,10 @@
        A field that has been typed into and passes turns its asterisk into a green check.
 
        On top of the page's rules the popup adds a few of its own (popupProblem): a length
-       cap on the owner's name, and — for a form the page never validates live, the case-review
-       form — required / email / phone checks. And a required email must be typed twice: a
-       confirm box fades up beneath it, and the email is only "Verified" once both match. */
+       cap on the owner's name, five digits for the property's ZIP code, and — for a form the
+       page never validates live, the case-review form — required / email / phone checks. And
+       a required email must be typed twice: a confirm box fades up beneath it, and the email
+       is only "Verified" once both match. */
     var validating = false;
     var NAME_FIELDS = { owner_name: true, name: true };   // the owner's full name, on every form
     function val(el) { return String(el.value || '').trim(); }
@@ -1206,7 +1314,7 @@
     var NAME_CHARS = /^[\p{L}\p{M}' ’.\-]+$/u;
     // Caps Lock: any part of a name with 2+ letters that are ALL capitals ("MARCUS", "O'NEIL").
     // Mixed case is fine ("McDonald", "DeShawn"), and so are generation suffixes (III, IV).
-    var CAPS_MSG = 'Please type your name normally, not in all capitals — e.g. Marcus Reed.';
+    var CAPS_MSG = 'Please type your name normally, not in all capitals, e.g. Marcus Reed.';
     var SUFFIX = /^(II|III|IV|VI{0,3}|IX)\.?$/;              // generation suffixes: Carter III
     function shouting(v) {
       return v.split(/[\s\-.'’,&]+/).some(function (w) {
@@ -1242,10 +1350,10 @@
       if (!/^[\d\s().+\-]+$/.test(v)) return 'Phone numbers can only use digits, spaces, ( ) and -.';
       var raw = v.replace(/\D/g, ''), d = phoneDigits(v);
       if (raw.length > 11 || (raw.length === 11 && raw[0] !== '1'))
-        return 'That’s too many digits — enter a 10-digit US number, e.g. (215) 555-0123.';
+        return 'That’s too many digits. Enter a 10-digit US number, e.g. (215) 555-0123.';
       if (d.length < 10) return strict ? 'Enter a 10-digit US phone number, e.g. (215) 555-0123.' : null;
-      if (!/^[2-9]/.test(d)) return 'That area code isn’t valid — it can’t start with 0 or 1.';
-      if (!/^[2-9]/.test(d.slice(3))) return 'That number isn’t valid — check the three digits after the area code.';
+      if (!/^[2-9]/.test(d)) return 'That area code isn’t valid. It can’t start with 0 or 1.';
+      if (!/^[2-9]/.test(d.slice(3))) return 'That number isn’t valid. Check the three digits after the area code.';
       if (/^(\d)\1{9}$/.test(d)) return 'That doesn’t look like a real phone number.';
       return null;
     }
@@ -1272,6 +1380,13 @@
       while (pos < out.length && seen < want) { if (/\d/.test(out[pos])) seen++; pos++; }
       if (document.activeElement === el) { try { el.setSelectionRange(pos, pos); } catch (e) {} }
     }
+    // The property's ZIP code: five digits. Anything but a digit is wrong the moment it is
+    // typed; too few digits only once the visitor leaves the box or presses Next.
+    var ZIP_MSG = 'Enter the 5-digit ZIP code.';
+    function zipProblem(v, strict) {
+      if (!/^\d+$/.test(v) || v.length > 5) return ZIP_MSG;
+      return v.length < 5 && strict ? ZIP_MSG : null;
+    }
     function formatPhone(el) {
       var d = phoneDigits(val(el));
       if (d.length === 10 && !phoneProblem(val(el), true)) el.value = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
@@ -1283,6 +1398,7 @@
       if (el.hasAttribute('data-lc-date')) return dateProblem(v, strict);
       if (NAME_FIELDS[el.name]) return nameProblem(v, strict);
       if (el.name === 'tenant_name') return tenantNameProblem(v);
+      if (el.name === 'property_zip') return zipProblem(v, strict);
       if (el.type === 'tel') return phoneProblem(v, strict);
       if (el.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address.';
       return null;
@@ -1296,13 +1412,16 @@
       if (!isEntry(el)) return;
       // The pages skip an EMPTY optional field, so an error from an earlier value would stay.
       if (!el.required && !val(el)) clearErr(el);
-      // Names and phones: the popup's rules are stricter than the page's and decide on their
-      // own once there is a value (the page's phone check would flag an unfinished number
-      // mid-typing). An empty required field keeps the page's own wording.
+      // Names, phones and the ZIP: the popup's rules are stricter than the page's and decide on
+      // their own once there is a value (the page's phone and ZIP checks would flag an
+      // unfinished number mid-typing). An empty required field keeps the page's own wording.
       if (ownsRules(el) && val(el)) { clearErr(el); var q = popupProblem(el, strict); if (q) showErr(el, q); return; }
       if (!hasErr(el)) { var p = popupProblem(el, strict); if (p) showErr(el, p); }
     }
-    function ownsRules(el) { return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.hasAttribute('data-lc-date'); }
+    function ownsRules(el) {
+      return !!NAME_FIELDS[el.name] || el.name === 'tenant_name' || el.type === 'tel' || el.name === 'property_zip'
+        || el.hasAttribute('data-lc-date');
+    }
     function verified(el) { return el.getAttribute('data-lc-verified-for') === val(el).toLowerCase() && !!val(el); }
     function refreshTick(el) {
       var f = el.closest('.field');
@@ -1340,7 +1459,7 @@
     }
     // The point of the retype is a second, independent typing — so it can't be pasted,
     // dropped in, or filled by the browser. Any of those is refused with a line saying why.
-    var NO_FILL = 'Please type your email again — pasting and autofill are turned off here, so a typo can’t slip through.';
+    var NO_FILL = 'Please type your email again. Pasting and autofill are turned off here, so a typo can’t slip through.';
     function guardRetype(c, email) {
       function refuse(e) {
         if (e) e.preventDefault();
@@ -1490,6 +1609,7 @@
 
     function close(reason) {
       if (!root.parentNode) return;
+      leave(root);                             // the 350ms exit, played by a copy — see leave()
       if (reason === 'dismiss' && !readChoice()) { saveChoice('dismissed'); }
       if (reason === 'dismiss') track('dismiss', { lc_screen: screen });
       if (observer) observer.disconnect();

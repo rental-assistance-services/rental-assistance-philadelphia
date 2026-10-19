@@ -27,7 +27,7 @@ from urllib.parse import unquote, urlsplit
 
 OWN_HOSTS = {"rentalassistanceservices.com", "www.rentalassistanceservices.com"}
 FORBIDDEN_DIRS = {".git", ".github", ".claude", ".cursor", "node_modules", "tests",
-                  "test", "deploy", "playwright-report", "test-results", "docs"}
+                  "test", "tools", "deploy", "playwright-report", "test-results", "docs"}
 FORBIDDEN_NAMES = {"README.md", "AGENTS.md", "CLAUDE.md", "package.json",
                    "package-lock.json", "playwright.config.js", "CNAME", ".nojekyll",
                    ".gitignore", "wrangler.toml", "config.env"}

@@ -452,10 +452,10 @@ jobs:
             --state-file "$RUNNER_TEMP/pages-switch.json" --attempts 6 --wait 10 || rc=$?
           case "$rc" in
             0) v=good ;; 1) v=not-switched ;; 2) v=no-target ;; 3) v=target-refused ;;
-            4) v=unverified ;; 5) v=put-back ;; 6) v=may-be-wrong ;; 8) v=already-live ;; *) v=error ;;
+            4) v=unverified ;; 5) v=put-back ;; 6) v=may-be-wrong ;; 7) v=superseded ;; 8) v=already-live ;; *) v=error ;;
           esac
           out "verdict=${v}"
-          [ "$rc" = "8" ] && exit 0
+          case "$rc" in 7|8) exit 0 ;; esac
           exit "$rc"
       - name: Restore what was live if this job was cancelled mid-switch
         id: restore
@@ -472,7 +472,7 @@ jobs:
           python3 deploy/pages_switch.py --project "$PAGES_PROJECT" --restore "$RUNNER_TEMP/pages-switch.json" \
             --public-url "${PUBLIC_URL:-$PAGES_URL}" --check "bash deploy/check-live.sh --release" \
             --attempts 6 --wait 10 || rc=$?
-          case "$rc" in 0) r=nothing-to-restore ;; 5) r=put-back-verified ;; *) r=put-back-failed ;; esac
+          case "$rc" in 0) r=nothing-to-restore ;; 5) r=put-back-verified ;; 7) r=superseded ;; *) r=put-back-failed ;; esac
           echo "restore=${r}" >> "$GITHUB_OUTPUT"
       - name: Tell Slack
         if: failure() || cancelled()
@@ -494,6 +494,7 @@ jobs:
                  put-back-verified)  W="The run was cancelled mid-switch; what was live before was put back and verified." ;;
                  put-back-failed)    W="The run was cancelled mid-switch and putting back what was live FAILED. Check it now." ;;
                  nothing-to-restore) W="The run was cancelled before anything was switched." ;;
+                 superseded)        W="A newer deployment took over; cancellation recovery left it untouched." ;;
                  *)                  W="See the run; check which version is live: /build.json." ;;
                esac ;;
           esac

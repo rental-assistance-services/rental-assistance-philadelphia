@@ -195,6 +195,17 @@ class OwnAddressCheck(SwitchCase):
 
 
 class Races(SwitchCase):
+    def test_a_newer_deployment_stops_a_manual_switch_too(self):
+        newer = "dddddddd-0000-0000-0000-000000000004"
+        self.cf.deps.insert(0, dep(newer, C(4)))
+
+        def newer_goes_live(n: int) -> None:
+            if n == 2:
+                self.cf.live = newer
+        self.cf.on_read = newer_goes_live
+        rc, _, _ = self.run_tool("--previous")
+        self.assertEqual((rc, self.cf.posts, self.cf.live), (7, [], newer))
+
     def test_a_newer_deployment_during_the_check_stops_the_switch(self):
         # pass 2 S6: live was read, then the check ran, then the switch reverted a newer deploy
         newer = "dddddddd-0000-0000-0000-000000000004"
@@ -209,14 +220,27 @@ class Races(SwitchCase):
 
 
 class AfterTheSwitch(SwitchCase):
+    def test_a_newer_deployment_during_public_checks_is_not_put_back(self):
+        newer = "dddddddd-0000-0000-0000-000000000004"
+        self.cf.deps.insert(0, dep(newer, C(4)))
+
+        def check_with_new_release(check, url, commit):
+            if ".pages.dev" in url:
+                return 0
+            self.cf.live = newer
+            return 1
+        with mock.patch.object(ps, "run_check", check_with_new_release):
+            rc, _, _ = self.run_tool("--previous", "--public-url", "https://www.example.test/", "--attempts", "1")
+        self.assertEqual((rc, self.cf.posts, self.cf.live), (7, [PREV], newer))
+
     def test_a_confirm_read_that_fails_lets_the_public_check_decide(self):
         # pass 2 N1: a 502 on the re-read was reported as "nothing changed"
-        self.cf.fail_project_reads = {2}
+        self.cf.fail_project_reads = {3}
         rc, _, _ = self.run_tool("--previous", "--public-url", "https://www.example.test/")
         self.assertEqual((rc, self.cf.live), (0, PREV))
 
     def test_unconfirmed_and_unreachable_is_production_may_be_wrong(self):
-        self.cf.fail_project_reads = {2}
+        self.cf.fail_project_reads = {3}
         self.checks.public = [2]
         rc, _, _ = self.run_tool("--previous", "--public-url", "https://www.example.test/", "--attempts", "2")
         self.assertEqual(rc, 6)
@@ -258,6 +282,42 @@ class Restore(SwitchCase):
         rc, _, _ = self.run_tool("--restore", path, "--public-url", "https://www.example.test/")
         self.assertEqual((rc, self.cf.live), (5, NEW))
 
+    def test_restore_preserves_a_newer_deployment(self):
+        newer = "dddddddd-0000-0000-0000-000000000004"
+        self.cf.deps.insert(0, dep(newer, C(4)))
+        self.cf.live = newer
+        for phase in ("switching", "switched"):
+            with self.subTest(phase=phase):
+                path = self.state(phase=phase, original=NEW, original_commit=C(3), target=PREV)
+                rc, _, _ = self.run_tool("--restore", path)
+                self.assertEqual((rc, self.cf.posts, self.cf.live), (7, [], newer))
+
+    def test_restore_before_the_switch_applied_does_not_post(self):
+        path = self.state(phase="switching", original=NEW, original_commit=C(3), target=PREV)
+        rc, _, _ = self.run_tool("--restore", path)
+        self.assertEqual((rc, self.cf.posts, self.cf.live), (0, [], NEW))
+
+    def test_restore_refuses_when_current_production_is_unreadable(self):
+        self.cf.live = PREV
+        self.cf.fail_project_reads = {1}
+        path = self.state(phase="switched", original=NEW, original_commit=C(3), target=PREV)
+        rc, _, _ = self.run_tool("--restore", path)
+        self.assertEqual((rc, self.cf.posts, self.cf.live), (6, [], PREV))
+
+    def test_corrupt_existing_recovery_state_is_not_reported_as_nothing_to_restore(self):
+        for contents in ('', '{"phase":', '[]', '{}'):
+            with self.subTest(contents=contents):
+                path = self.state(phase="switching", original=NEW, original_commit=C(3), target=PREV)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(contents)
+                rc, _, _ = self.run_tool("--restore", path)
+                self.assertEqual((rc, self.cf.posts), (6, []))
+
+    def test_a_missing_recovery_file_still_means_no_switch_was_recorded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rc, _, _ = self.run_tool("--restore", os.path.join(directory, "missing.json"))
+        self.assertEqual((rc, self.cf.posts), (0, []))
+
     def test_nothing_restorable_is_recorded_for_an_automatic_rollback(self):
         path = self.state(phase="no-restore", target=PREV)
         rc, _, _ = self.run_tool("--restore", path)
@@ -274,6 +334,21 @@ class Restore(SwitchCase):
 
 
 class TheCheckItself(unittest.TestCase):
+    def test_an_interrupted_state_write_preserves_the_previous_recovery_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "state.json")
+            ps.save(path, phase="switching", original=NEW, target=PREV)
+
+            def interrupted_dump(state, output):
+                output.write('{"phase":')
+                raise OSError("interrupted write")
+
+            with mock.patch.object(ps.json, "dump", interrupted_dump):
+                with self.assertRaises(OSError):
+                    ps.save(path, phase="switched", original=NEW, target=PREV)
+            with open(path, encoding="utf-8") as f:
+                self.assertEqual(json.load(f), {"phase": "switching", "original": NEW, "target": PREV})
+
     def test_the_repositorys_check_never_sees_the_cloudflare_token(self):
         # pass 2 N5: check-live.sh comes from the pushed commit
         seen = {}

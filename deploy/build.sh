@@ -68,7 +68,7 @@ SITE_TYPES = {".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg",
               ".webmanifest", ".pdf", ".mp4", ".webm"}
 # Never published, whatever their type.
 DEV_DIRS = {".git", ".github", ".claude", ".cursor", "node_modules", "tests",
-            "test", "deploy", "dist", "playwright-report", "test-results", "docs"}
+            "test", "tools", "deploy", "dist", "playwright-report", "test-results", "docs"}
 DEV_FILES = {"playwright.config.js", "package.json", "package-lock.json",
              "CNAME", ".nojekyll", ".gitignore", "README.md", "AGENTS.md",
              "CLAUDE.md", "wrangler.toml"}

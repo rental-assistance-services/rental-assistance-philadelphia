@@ -92,7 +92,7 @@ class Unknown(Exception):
 
 
 class Refused(Unknown):
-    """GitHub answered, with a 4xx: the thing asked about does not exist or is not ours.
+    """GitHub says the target is missing or invalid (404, 410, or 422).
     Still 'unknown' for everything the gate asks on its own; but when it merely follows
     a link someone else wrote (a status's target_url), it means "not genuine"."""
 
@@ -113,7 +113,8 @@ def get(url: str, token: str | None, attempts: int = 3) -> object:
                 return json.load(resp)
         except urllib.error.HTTPError as e:
             if e.code < 500 and e.code != 429:
-                raise Refused(f"GET {url.split('/repos/')[-1]} answered HTTP {e.code}") from e
+                error = Refused if e.code in (404, 410, 422) else Unknown
+                raise error(f"GET {url.split('/repos/')[-1]} answered HTTP {e.code}") from e
             last = e
         except (OSError, http.client.HTTPException, ValueError) as e:
             # URLError, timeouts, resets, a dropped connection, a body that is not JSON
@@ -216,9 +217,10 @@ class Repo:
             started by a push or by hand;
           - in that run, a step named exactly "Mark <this commit> verified" succeeded.
         Faking all three means committing a workflow change to main, the stated limit.
-        A link that GitHub answers with a 4xx (a made-up run, a deleted run, a wrong
+        A link that GitHub says is missing or invalid (a made-up run, a deleted run, a wrong
         attempt) makes that one status "not genuine"; it can never switch the gate to
-        "unknown", or a single bogus status would switch off every rollback."""
+        "unknown", or a single bogus status would switch off every rollback. Access failures
+        remain unknown: an unreadable genuine marker must never cause a rollback."""
         statuses: list = []
         for page in range(1, STATUS_PAGES + 1):
             batch = get(f"{API}/repos/{self.name}/commits/{sha}/statuses?per_page=100&page={page}", self.token)

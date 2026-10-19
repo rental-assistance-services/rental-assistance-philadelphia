@@ -388,6 +388,21 @@ class Helpers(GateCase):
 
 
 class TheHttpLayer(unittest.TestCase):
+    def test_access_denied_is_unknown_not_proof_a_marker_is_bogus(self):
+        for code in (401, 403):
+            with self.subTest(code=code):
+                error = g.urllib.error.HTTPError("https://api.github.com/actions/runs/1", code, "denied", {}, None)
+                with mock.patch.object(g.urllib.request, "urlopen", side_effect=error):
+                    with self.assertRaises(g.Unknown) as result:
+                        g.get("https://api.github.com/actions/runs/1", "t")
+                self.assertNotIsInstance(result.exception, g.Refused)
+
+    def test_a_missing_marker_target_remains_refused(self):
+        error = g.urllib.error.HTTPError("https://api.github.com/actions/runs/1", 404, "missing", {}, None)
+        with mock.patch.object(g.urllib.request, "urlopen", side_effect=error):
+            with self.assertRaises(g.Refused):
+                g.get("https://api.github.com/actions/runs/1", "t")
+
     def test_a_dropped_connection_is_retried_then_unknown_never_a_crash(self):
         import http.client
         errors = [ConnectionResetError("reset"), http.client.RemoteDisconnected("gone"), TimeoutError("slow")]

@@ -46,7 +46,7 @@ Exit codes: 0 switched and verified (or a dry run that would switch)
             5 the target was wrong in public; the original was put back and verified
             6 production may be wrong right now: a put-back failed or is
               unverified, or the switch could not be confirmed either way
-            7 production no longer serves --only-if-live-commit: nothing switched
+            7 another deployment took over: left untouched
             8 the target is already live: nothing to do
 Messages go to stderr. stdout carries only --print-live's "<id> <commit>".
 Needs CLOUDFLARE_API_TOKEN (Account > Cloudflare Pages > Edit) and
@@ -64,6 +64,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -168,15 +169,40 @@ def verify_public(check: str, url: str, commit: str, attempts: int, wait: int) -
 
 def save(state_file: str | None, **state) -> None:
     if state_file:
-        with open(state_file, "w", encoding="utf-8") as f:
-            json.dump(state, f)
+        destination = os.path.abspath(state_file)
+        fd, temporary = tempfile.mkstemp(prefix=".pages-switch-", dir=os.path.dirname(destination))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(state, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary, destination)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
 
-def put_back(a, original: str, original_commit: str) -> int:
+def put_back(a, original: str, original_commit: str, target: str) -> int:
     if not original:
         say("::error::the deployment that was live before is unknown, so it cannot be put back. "
             f"Cloudflare > Workers & Pages > {a.project} > Deployments: roll back by hand.")
         return 6
+    if not ID_RE.fullmatch(target):
+        say("::error::the recorded rollback target is missing or invalid; refusing to put production back")
+        return 6
+    try:
+        current, _ = live(a.project)
+    except Fail as e:
+        say(f"::error::cannot read production before putting it back ({e}); nothing switched")
+        return 6
+    if current == original:
+        save(a.state_file, phase="restored", original=original)
+        say("the original deployment is already live; nothing switched")
+        return 0
+    if current != target:
+        save(a.state_file, phase="superseded", original=original, target=target)
+        say(f"production changed to {current}; leaving the newer deployment untouched")
+        return 7
     say(f"::warning::putting production back to {original} ({original_commit[:7] or 'no commit recorded'})")
     api("POST", f"{a.project}/deployments/{original}/rollback")
     try:
@@ -235,14 +261,21 @@ def main() -> int:
         try:
             with open(a.restore, encoding="utf-8") as f:
                 st = json.load(f)
-        except (OSError, ValueError):
+        except FileNotFoundError:
             say("no switch was recorded; nothing to restore")
             return 0
+        except (OSError, ValueError) as e:
+            say(f"::error::cannot read the existing recovery record ({e}); production is unconfirmed")
+            return 6
+        phases = ("switching", "switched", "no-restore", "not-switched", "done", "restored", "superseded", "unverified")
+        if not isinstance(st, dict) or st.get("phase") not in phases:
+            say("::error::the existing recovery record is invalid; production is unconfirmed")
+            return 6
         if st.get("phase") not in ("switching", "switched"):
             say(f"last recorded phase is {st.get('phase')}; nothing to restore")
             return 0
         a.state_file = a.restore
-        return put_back(a, st.get("original", ""), st.get("original_commit", ""))
+        return put_back(a, st.get("original", ""), st.get("original_commit", ""), st.get("target", ""))
 
     try:
         lid, lcommit = live(a.project)
@@ -346,19 +379,14 @@ def main() -> int:
         say("dry run: the target passed its own check; nothing switched")
         return 0
 
-    if a.only_if_live_commit:
-        try:
-            lid, lcommit = live(a.project)
-        except Fail as e:
-            say(f"::error::cannot re-read production right before switching ({e}); nothing switched")
-            return 1
-        if not lcommit:
-            say("::error::cannot read which commit production serves right before switching; nothing switched")
-            return 1
-        if lcommit != a.only_if_live_commit:
-            say(f"production changed to {lcommit[:7]} during the check: a newer deployment took over, "
-                "so nothing is switched")
-            return 7
+    try:
+        current, current_commit = live(a.project)
+    except Fail as e:
+        say(f"::error::cannot re-read production right before switching ({e}); nothing switched")
+        return 1
+    if current != lid or (a.only_if_live_commit and current_commit != a.only_if_live_commit):
+        say(f"production changed to {current} during the check; leaving it untouched")
+        return 7
 
     if a.no_put_back:
         save(a.state_file, phase="no-restore", target=tid)
@@ -392,7 +420,7 @@ def main() -> int:
         save(a.state_file, phase="done", target=tid)
         return 0
     if rc == 1 and not a.no_put_back:
-        return put_back(a, lid, lcommit)
+        return put_back(a, lid, lcommit, tid)
     if not now:
         say(f"::error::production may be wrong: the switch could not be confirmed and the public check "
             f"exited {rc}. Cloudflare > Workers & Pages > {a.project} > Deployments.")

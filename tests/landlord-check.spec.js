@@ -2,7 +2,7 @@
  * The landlord-check popup (landlord-check.js) — the popup every lead form lives in.
  *
  * Most visitors to this site are tenants, because the brand is a tenant's search term. The
- * popup asks "own or rent?" before any form is shown, sends tenants to free help without
+ * popup asks "landlord or tenant?" before any form is shown, sends tenants to free help without
  * sending anything, and then IS the form: the page's own application is moved into it and
  * shown one section per step, with a progress bar across the top.
  *
@@ -35,7 +35,8 @@ const LANDING = [
 const NOT_LANDING = ['/tenants/index.html', '/terms.html'];
 
 /** The homepage application's seven sections, as the progress bar names them. */
-const APPLY_STEPS = ['About you (the owner)', 'The property', 'The tenant', 'The money owed',
+const APPLY_STEPS = ['About the landlord or property manager', 'The property this application is for',
+  'The tenant', 'The money owed',
   'Your documents', 'Eviction-diversion status', 'Fee, authorization & finish'];
 
 const popup = (page) => page.locator('[data-landlord-check]');
@@ -67,19 +68,23 @@ const lcEvents = (page) =>
 const stored = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('ras_role_check') || 'null'));
 
-/** The step the progress bar currently marks, e.g. "The property". */
+/** The step the progress bar currently marks, e.g. "The tenant". */
 const currentStep = (page) => page.locator('[data-lc-dot][aria-current="step"] .lc-lbl').textContent();
 
-const landlord = (page) => page.getByRole('button', { name: /I own or manage rental property/ });
+// Inside the popup: the gates on the page carry the same words behind it.
+const landlord = (page) => popup(page).getByRole('button', { name: /^I am the landlord/ });
+const tenant = (page) => popup(page).getByRole('button', { name: /^I am the tenant/ });
 
 /** Fill the current homepage application section like a person would. */
 const SECTION_FILL = {
-  'About you (the owner)': async (p) => {
+  'About the landlord or property manager': async (p) => {
     await p.fill('#owner-name', 'Marcus Reed'); await p.fill('#owner-email', 'landlord@example.com');
     await p.fill('#owner-email-confirm', 'landlord@example.com');
-    await p.fill('#owner-phone', '(215) 555-0123'); await p.fill('#owner-units', '3');
+    await p.fill('#owner-phone', '(215) 555-0123');
   },
-  'The property': async (p) => { await p.fill('#prop-address', '1932 N 5th St'); await p.fill('#prop-rent', '1150'); },
+  'The property this application is for': async (p) => {
+    await p.fill('#prop-address', '1932 N 5th St'); await p.fill('#prop-zip', '19122'); await p.fill('#prop-rent', '1150');
+  },
   'The tenant': async (p) => { await p.fill('#tenant-name', 'Dwayne Carter'); },
   'The money owed': async (p) => { await p.fill('#back-rent', '4200'); await p.fill('#months-behind', '4'); },
   'Your documents': async () => {},
@@ -165,9 +170,9 @@ const termsSection = (page, heading) => page.evaluate((h) => {
 async function toPropertyStep(page) {
   await page.goto('/index.html');
   await landlord(page).click();
-  await SECTION_FILL['About you (the owner)'](page);
+  await SECTION_FILL['About the landlord or property manager'](page);
   await next(page).click();
-  expect(await currentStep(page)).toBe('The property');
+  expect(await currentStep(page)).toBe('The property this application is for');
 }
 
 test.describe('address suggestions', () => {
@@ -189,7 +194,7 @@ test.describe('address suggestions', () => {
     await expect(page.locator('#prop-address')).toHaveAttribute('aria-expanded', 'true');
   });
 
-  test('arrow keys + Enter pick one and fill the whole address — Enter does not skip the step', async ({ page }) => {
+  test('arrow keys + Enter pick one: the street fills the street box, the ZIP the ZIP box, and Enter does not skip the step', async ({ page }) => {
     await photonAnswers(page);
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
@@ -197,10 +202,12 @@ test.describe('address suggestions', () => {
     await page.keyboard.press('ArrowDown');
     await expect(options(page).nth(0)).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Enter');
-    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street, Philadelphia, PA 19122');
+    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street');
+    await expect(page.locator('#prop-zip')).toHaveValue('19122');
     await expect(list(page)).toBeHidden();
-    expect(await currentStep(page)).toBe('The property');
+    expect(await currentStep(page)).toBe('The property this application is for');
     await expect(page.locator('.field:has(#prop-address)')).toHaveClass(/lc-ok/);
+    await expect(page.locator('.field:has(#prop-zip)')).toHaveClass(/lc-ok/);
   });
 
   test('clicking a suggestion picks it', async ({ page }) => {
@@ -208,32 +215,70 @@ test.describe('address suggestions', () => {
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
     await options(page).nth(1).click();
-    await expect(page.locator('#prop-address')).toHaveValue('1932 East 5th Street, New York, NY 11223');
+    await expect(page.locator('#prop-address')).toHaveValue('1932 East 5th Street');
+    await expect(page.locator('#prop-zip')).toHaveValue('11223');
     await expect(page.locator('#prop-address')).toBeFocused();
   });
 
-  test('a typed block and lot (or unit) is never lost — it moves to the Unit / Block & Lot box', async ({ page }) => {
+  test('picking a suggestion puts only the street in the street box and the ZIP in the ZIP box', async ({ page }) => {
     await photonAnswers(page);
     await toPropertyStep(page);
-    await expect(page.locator('label[for="prop-unit"]')).toHaveText('Unit / Apt / Block & Lot');
-    await page.locator('#prop-address').pressSequentially('Blk 5 Lot 12 1932 N 5th');
+    await expect(page.locator('label[for="prop-address"]')).toHaveText('Street address *');
+    await expect(page.locator('label[for="prop-zip"]')).toHaveText('ZIP code *');
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
+    // the list still shows the whole address, so the visitor can tell the matches apart
+    await expect(options(page).nth(0)).toContainText('Philadelphia, PA 19122');
     await options(page).nth(0).click();
-    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street, Philadelphia, PA 19122');
-    await expect(page.locator('#prop-unit')).toHaveValue('Blk 5, Lot 12');
-    // and it adds to what is already there, without repeating it
+    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street');      // no city, state or ZIP
+    await expect(page.locator('#prop-zip')).toHaveValue('19122');
+    await expect(page.locator('.field:has(#prop-zip)')).toHaveClass(/lc-ok/);
+    // and that is what the form sends
+    const sent = await page.locator('#intake-form').evaluate((f) => {
+      const d = new FormData(f); return [d.get('property_street'), d.get('property_zip')];
+    });
+    expect(sent).toEqual(['1932 North 5th Street', '19122']);
+    // a place outside the US has no 5-digit ZIP: the street box takes its street, and the ZIP
+    // box is emptied, so the first pick's 19122 and its check can't sit behind a different address
     await page.locator('#prop-address').fill('');
-    await page.locator('#prop-address').pressSequentially('Apt 3 Lot 12 1932 N 5th');
-    await options(page).nth(0).click();
-    await expect(page.locator('#prop-unit')).toHaveValue('Blk 5, Lot 12, Apt 3');
+    await page.locator('#prop-address').pressSequentially('12 Rizal');
+    await options(page).nth(2).click();
+    await expect(page.locator('#prop-address')).toHaveValue('12 Rizal Street');
+    await expect(page.locator('#prop-zip')).toHaveValue('');
+    await expect(page.locator('.field:has(#prop-zip)')).not.toHaveClass(/lc-ok/);
+    await page.fill('#prop-rent', '1150');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property this application is for');
+    await expect(page.locator('.field:has(#prop-zip) > .errmsg')).toHaveText('Enter the 5-digit ZIP code.');
   });
 
-  test('/back-rent/ has no unit box, so a block and lot stays at the front of the address', async ({ page }) => {
+  test('a typed unit or apartment is never lost: it moves to the Unit / Apt number box', async ({ page }) => {
+    await photonAnswers(page);
+    await toPropertyStep(page);
+    await expect(page.locator('label[for="prop-unit"]')).toHaveText('Unit / Apt number');
+    await page.locator('#prop-address').pressSequentially('Apt 3 1932 N 5th');
+    await options(page).nth(0).click();
+    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street');
+    await expect(page.locator('#prop-unit')).toHaveValue('Apt 3');
+    await expect(page.locator('#prop-zip')).toHaveValue('19122');
+    // and it adds to what is already there, without repeating it
+    await page.locator('#prop-address').fill('');
+    await page.locator('#prop-address').pressSequentially('Unit B Apt 3 1932 N 5th');
+    await options(page).nth(0).click();
+    await expect(page.locator('#prop-unit')).toHaveValue('Apt 3, Unit B');
+  });
+
+  test('/back-rent/ has no ZIP or unit box, so a picked address is still the whole address, unit in front', async ({ page }) => {
     await photonAnswers(page);
     await page.goto('/back-rent/index.html');
     await landlord(page).click();
-    await page.locator('#prop-address').pressSequentially('Block 5 Lot 12 1932 N 5th');
+    await expect(page.locator('#backrent-form [name="property_zip"]')).toHaveCount(0);
+    await page.locator('#prop-address').pressSequentially('1932 N 5th');
     await options(page).nth(0).click();
-    await expect(page.locator('#prop-address')).toHaveValue('Block 5 Lot 12, 1932 North 5th Street, Philadelphia, PA 19122');
+    await expect(page.locator('#prop-address')).toHaveValue('1932 North 5th Street, Philadelphia, PA 19122');
+    await page.locator('#prop-address').fill('');
+    await page.locator('#prop-address').pressSequentially('Apt 3 1932 N 5th');
+    await options(page).nth(0).click();
+    await expect(page.locator('#prop-address')).toHaveValue('Apt 3, 1932 North 5th Street, Philadelphia, PA 19122');
   });
 
   test('Escape closes the list, not the popup; fewer than 3 letters asks nothing', async ({ page }) => {
@@ -272,8 +317,8 @@ test.describe('address suggestions', () => {
   test('no match: the list says so, and that they can type it themselves', async ({ page }) => {
     await photonAnswers(page, []);
     await toPropertyStep(page);
-    await page.locator('#prop-address').pressSequentially('Block 5 Lot 12 Sampaguita');
-    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await page.locator('#prop-address').pressSequentially('1 Sampaguita Street');
+    await expect(manual(page)).toHaveText('We couldn’t find a match. You can still type your full address yourself.');
     await expect(options(page)).toHaveCount(0);
     await expect(list(page)).not.toContainText('OpenStreetMap');       // nothing of theirs is shown
     // Escape closes the list, not the popup
@@ -294,7 +339,7 @@ test.describe('address suggestions', () => {
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
     await page.waitForTimeout(1500);
     await expect(list(page)).toBeHidden();                           // not straight away
-    await expect(manual(page)).toContainText('you can still type your full address yourself', { timeout: 3000 });
+    await expect(manual(page)).toContainText('You can still type your full address yourself', { timeout: 3000 });
     release();
     await expect(options(page)).toHaveCount(3);
     await expect(manual(page)).toHaveText('Don’t see your address? You can still type it in yourself.');
@@ -304,9 +349,10 @@ test.describe('address suggestions', () => {
     await photonAnswers(page, [], { fail: true });
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th St');
-    await expect(manual(page)).toHaveText('We couldn’t find a match — you can still type your full address yourself.');
+    await expect(manual(page)).toHaveText('We couldn’t find a match. You can still type your full address yourself.');
     await expect(options(page)).toHaveCount(0);
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
+    await page.fill('#prop-zip', '19122');
     await page.fill('#prop-rent', '1150');
     await next(page).click();
     expect(await currentStep(page)).toBe('The tenant');
@@ -324,7 +370,7 @@ test.describe('address suggestions', () => {
     await expect(note).toBeInViewport();
   });
 
-  test('the list fades down over 350ms, ease-in', async ({ page }) => {
+  test('the list fades down over 350ms, ease-in', { tag: '@timing' }, async ({ page }) => {
     await photonAnswers(page);
     await toPropertyStep(page);
     await page.locator('#prop-address').pressSequentially('1932 N 5th');
@@ -372,7 +418,7 @@ test.describe('address suggestions', () => {
     expect(res.status()).toBe(200);
     expect(await termsSection(page, '7. Your information')).toContain(
       'As you type a property address into one of our forms, what you have typed is sent to Photon, '
-      + 'a free address-search service run by komoot, so it can offer matching addresses \u2014 you can '
+      + 'a free address-search service run by komoot, so it can offer matching addresses. You can '
       + 'always ignore the suggestions and type the address out in full.');
   });
 });
@@ -426,10 +472,10 @@ test.describe('file uploads look like the site', () => {
     await toStep(page, 'Your documents');
     const msg = page.locator('.field:has(#doc-lease) > .errmsg');
     await page.setInputFiles('#doc-lease', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hi') });
-    await expect(msg).toContainText('“notes.txt” isn’t a file we can take — please use PDF, JPG, PNG or HEIC.');
+    await expect(msg).toContainText('“notes.txt” isn’t a file we can take. Please use PDF, JPG, PNG or HEIC.');
     expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
     await page.setInputFiles('#doc-lease', pdf('huge-scan.pdf', 16 * 1024 * 1024));
-    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB — files must be under 15MB.');
+    await expect(msg).toContainText('“huge-scan.pdf” is 16.0 MB. Files must be under 15MB.');
     expect(await page.locator('#doc-lease').evaluate((el) => el.files.length)).toBe(0);
     await page.setInputFiles('#doc-lease', pdf('lease.pdf'));
     await expect(msg).toBeHidden();
@@ -517,7 +563,7 @@ test.describe('the move-in date and its calendar look like the site', () => {
       return need <= el.clientWidth + 0.5;
     }));
     expect(fits).toEqual([true, true]);
-    // and they still read as dropdowns: the brass chevron is showing
+    // and they still read as dropdowns: the blue chevron is showing
     const chevrons = await cal(page).locator('.lc-cal-sel').evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundImage));
     chevrons.forEach((bg) => expect(bg).toContain('svg'));
   });
@@ -526,6 +572,9 @@ test.describe('the move-in date and its calendar look like the site', () => {
     await toStep(page, 'The tenant');
     const help = page.locator('.field:has(#tenant-movein) .help');
     const nextBtn = next(page);
+    // The pointer is still where Next was clicked, and a hovered Next lifts 2px: move it off
+    // every button, or the "before" reading depends on where the last step's Next sat.
+    await page.mouse.move(1, 1);
     await atRest(page);   // step at rest
     const [h0, n0] = [await help.boundingBox(), await nextBtn.boundingBox()];
     await page.getByRole('button', { name: 'Open calendar' }).click();
@@ -632,22 +681,24 @@ test.describe('answers are kept for an hour', () => {
   test('after a reload the answers — and the verified email — come back, on the step they reached', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     await page.fill('#owner-entity', 'Reed Property Group LLC');
     await next(page).click();
     await page.fill('#prop-address', '1932 N 5th St');
-    await expect.poll(async () => (await draft(page))?.values?.property_address).toBe('1932 N 5th St');
+    await page.fill('#prop-zip', '19122');
+    await expect.poll(async () => (await draft(page))?.values?.property_zip).toBe('19122');
+    expect((await draft(page)).values.property_street).toBe('1932 N 5th St');
     await page.reload();
     await openApply(page);
     // picks up where they were
-    expect(await currentStep(page)).toBe('The property');
+    expect(await currentStep(page)).toBe('The property this application is for');
     await expect(page.locator('#prop-address')).toHaveValue('1932 N 5th St');
-    await expect(note(page)).toContainText('we kept what you typed on this device for an hour');
+    await expect(page.locator('#prop-zip')).toHaveValue('19122');
+    await expect(note(page)).toContainText('We kept what you typed on this device for an hour');
     await back(page).click();
     await expect(page.locator('#owner-name')).toHaveValue('Marcus Reed');
     await expect(page.locator('#owner-entity')).toHaveValue('Reed Property Group LLC');
     await expect(page.locator('#owner-phone')).toHaveValue('(215) 555-0123');
-    await expect(page.locator('#owner-units')).toHaveValue('3');
     // the email comes back verified, retype and all, with its check
     await expect(page.locator('#owner-email')).toHaveValue('landlord@example.com');
     await expect(page.locator('.field:has(#owner-email)')).toHaveClass(/lc-verified/);
@@ -655,7 +706,7 @@ test.describe('answers are kept for an hour', () => {
     await expect(page.locator('.field:has(#owner-name)')).toHaveClass(/lc-ok/);
     // and Next goes straight through — nothing has to be retyped
     await next(page).click();
-    expect(await currentStep(page)).toBe('The property');
+    expect(await currentStep(page)).toBe('The property this application is for');
   });
 
   test('the consent boxes are never kept — a legal authorisation is ticked fresh each time', async ({ page }) => {
@@ -723,13 +774,13 @@ test.describe('answers are kept for an hour', () => {
   test('"Start over" empties the form and forgets the saved answers', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     await next(page).click();
     await expect.poll(async () => (await draft(page))?.step).toBe(1);
     await page.reload();
     await openApply(page);
     await page.getByRole('button', { name: 'Start over' }).click();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await expect(page.locator('#owner-name')).toHaveValue('');
     await expect(page.locator('#owner-email')).toHaveValue('');
     await expect(page.locator('.field:has(#owner-email)')).not.toHaveClass(/lc-verified/);
@@ -757,27 +808,27 @@ test.describe('answers are kept for an hour', () => {
   test('the draft holds personal answers, and section 7 of the terms says so', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     await next(page).click();
-    await SECTION_FILL['The property'](page);
-    await expect.poll(async () => (await draft(page))?.values?.property_address).toBe('1932 N 5th St');
+    await SECTION_FILL['The property this application is for'](page);
+    await expect.poll(async () => (await draft(page))?.values?.property_street).toBe('1932 N 5th St');
     expect(await draft(page)).toMatchObject({ values: { owner_name: 'Marcus Reed',
       owner_email: 'landlord@example.com', owner_phone: '(215) 555-0123' } });
     const res = await page.goto('/terms.html');
     expect(res.status()).toBe(200);
     expect(await termsSection(page, '7. Your information')).toContain(
       'So you can finish later, the form keeps what you have typed in your own browser for one hour '
-      + 'after your last change \u2014 that copy stays on your device, is sent nowhere, and is cleared '
+      + 'after your last change. That copy stays on your device, is sent nowhere, and is cleared '
       + 'after the hour, when you submit, or when you press Start over.');
   });
 });
 
 test.describe('where it opens by itself', () => {
   for (const url of LANDING) {
-    test(`${url}: opens on a first visit, asking own or rent`, async ({ page }) => {
+    test(`${url}: opens on a first visit, asking landlord or tenant`, async ({ page }) => {
       await page.goto(url);
       await expect(dialog(page)).toBeVisible();
-      await expect(dialog(page)).toContainText('do you own or rent?');
+      await expect(dialog(page)).toContainText('First, are you the landlord or the tenant?');
       expect(await currentStep(page)).toBe('Who you are');
     });
   }
@@ -823,13 +874,22 @@ test.describe('where it opens by itself', () => {
     await page.goto('/index.html');
     await expect(dialog(page)).toBeFocused();
   });
+
+  test('the two answers say landlord and tenant in plain words', async ({ page }) => {
+    await page.goto('/index.html');
+    await expect(page.locator('#lc-title-role')).toHaveText('First, are you the landlord or the tenant?');
+    await expect(popup(page).locator('[data-lc-role="landlord"]')).toHaveText('I am the landlordI own or manage the rental property');
+    await expect(popup(page).locator('[data-lc-role="landlord"] small')).toHaveText('I own or manage the rental property');
+    await expect(popup(page).locator('[data-lc-role="tenant"]')).toHaveText('I am the tenantI rent my home');
+    await expect(popup(page).locator('[data-lc-role="tenant"] small')).toHaveText('I rent my home');
+  });
 });
 
 test.describe('tenant', () => {
   test('gets the free help lines, POSTs nothing, books nothing, and is not asked again', async ({ page }) => {
     const seen = await stubEndpoint(page);
     await page.goto('/index.html');
-    await page.getByRole('button', { name: /I rent my home/ }).click();
+    await tenant(page).click();
     await expect(dialog(page)).toContainText('the landlord has to apply');
     await expect(page.getByRole('link', { name: /free help for tenants/ })).toHaveAttribute('href', '/tenants/');
     await expect(page.locator('#intake-form')).toBeHidden();
@@ -848,7 +908,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await landlord(page).click();
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
     await expect(page.locator('[data-lc-dot]')).toHaveCount(8);          // who you are + 7 sections
-    await expect(page.locator('.lc-count')).toHaveText('Step 2 of 8 · About you (the owner)');
+    await expect(page.locator('.lc-count')).toHaveText('Step 2 of 8 · About the landlord or property manager');
     // only the current section is on screen
     await expect(page.locator('#owner-name')).toBeVisible();
     await expect(page.locator('#prop-address')).toBeHidden();
@@ -859,18 +919,90 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.goto('/index.html');
     await landlord(page).click();
     await next(page).click();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await expect(page.locator('#owner-name')).toHaveClass(/err/);
     await page.fill('#owner-name', 'Marcus Reed');
     await page.fill('#owner-email', 'not-an-email');
     await page.fill('#owner-phone', '2155550123');
-    await page.fill('#owner-units', '3');
     await next(page).click();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await page.fill('#owner-email', 'landlord@example.com');
     await page.fill('#owner-email-confirm', 'landlord@example.com');
     await next(page).click();
-    expect(await currentStep(page)).toBe('The property');
+    expect(await currentStep(page)).toBe('The property this application is for');
+  });
+
+  test('the property step holds Next until the ZIP code is 5 digits', async ({ page }) => {
+    await toPropertyStep(page);
+    const zip = page.locator('#prop-zip');
+    const field = page.locator('.field:has(#prop-zip)');
+    const msg = page.locator('.field:has(#prop-zip) > .errmsg');
+    await expect(zip).toHaveAttribute('inputmode', 'numeric');
+    await expect(zip).toHaveAttribute('autocomplete', 'postal-code');
+    await expect(zip).toHaveAttribute('maxlength', '5');
+    await page.fill('#prop-address', '1932 N 5th St');
+    await page.fill('#prop-rent', '1150');
+    // empty: required
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property this application is for');
+    await expect(msg).toHaveText('Enter the 5-digit ZIP code.');
+    await expect(zip).toBeFocused();
+    // too few digits: not an error while typing, but Next is still held
+    await zip.pressSequentially('191');
+    await expect(msg).toBeHidden();
+    await expect(field).not.toHaveClass(/lc-ok/);
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property this application is for');
+    await expect(msg).toHaveText('Enter the 5-digit ZIP code.');
+    // a letter is wrong the moment it is typed, and the box takes no more than 5 characters
+    await zip.pressSequentially('2a');
+    await expect(msg).toBeVisible();
+    await expect(zip).toHaveValue('1912a');
+    await zip.pressSequentially('9');
+    await expect(zip).toHaveValue('1912a');
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The property this application is for');
+    // five digits: a green check, and on to the tenant
+    await zip.fill('');
+    await zip.pressSequentially('19122');
+    await expect(msg).toBeHidden();
+    await expect(field).toHaveClass(/lc-ok/);
+    await next(page).click();
+    expect(await currentStep(page)).toBe('The tenant');
+  });
+
+  // Adam, 2026-10-14: "we're going to need to make these fonts a little bit bigger, the average
+  // person behind on rent is older." Nothing a visitor reads in the popup is under .9rem (14.4px),
+  // except the header's two small-capital step names (.lc-count, .lc-lbl), never under .74rem.
+  test('no text in the popup is smaller than .9rem, on any step', async ({ page }) => {
+    const tooSmall = () => page.evaluate(() => {
+      const out = [];
+      const walk = document.createTreeWalker(document.querySelector('[data-landlord-check] .lc-dialog'), NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+        const el = n.parentElement;
+        if (!n.textContent.trim() || !el.getClientRects().length) continue;           // not on screen
+        const px = parseFloat(getComputedStyle(el).fontSize);
+        const floor = el.closest('.lc-count, .lc-lbl') ? 0.74 * 16 : 0.9 * 16;
+        if (px < floor - 0.01) out.push(`${el.className || el.tagName} ${px}px "${n.textContent.trim().slice(0, 40)}"`);
+      }
+      return out;
+    });
+    await page.goto('/index.html');
+    await expect(dialog(page)).toBeVisible();
+    expect(await tooSmall(), 'the question').toEqual([]);
+    await landlord(page).click();
+    for (const name of APPLY_STEPS) {
+      expect(await currentStep(page)).toBe(name);
+      expect(await tooSmall(), name).toEqual([]);
+      await SECTION_FILL[name](page);
+      if (name !== APPLY_STEPS[APPLY_STEPS.length - 1]) await next(page).click();
+    }
+    // a two-step form shows the step names as labels under the bar instead of the count line
+    await page.goto('/back-rent/index.html');
+    await page.locator('a[href="#form-card"]').first().evaluate((a) => a.click());
+    await expect(page.locator('[data-landlord-check] #backrent-form')).toBeVisible();
+    await expect(page.locator('[data-lc-dot] .lc-lbl').first()).toBeVisible();
+    expect(await tooSmall(), '/back-rent/').toEqual([]);
   });
 
   test('a field is not marked wrong until the visitor has typed in it', async ({ page }) => {
@@ -916,9 +1048,8 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.fill('#owner-email', 'landlord@example.com');
     await page.fill('#owner-email-confirm', 'landlord@example.com');
     await page.fill('#owner-phone', '2155550123');
-    await page.fill('#owner-units', '3');
     await next(page).click();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await name.press('Backspace');                             // back to 149
     await expect(msg).toBeHidden();
     // the page's own message comes back for the page's own rule
@@ -958,7 +1089,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     for (const shouty of ['MARCUS REED', 'Marcus REED', 'Keana O’NEIL']) {
       await name.fill('');
       await name.pressSequentially(shouty);
-      await expect(msg).toHaveText('Please type your name normally, not in all capitals — e.g. Marcus Reed.');
+      await expect(msg).toHaveText('Please type your name normally, not in all capitals, e.g. Marcus Reed.');
       await expect(field).not.toHaveClass(/lc-ok/);
     }
     // ...but capitals inside a normal name are fine, and so are suffixes and initials
@@ -1049,7 +1180,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
       return e.defaultPrevented;
     });
     expect(pasted).toBe(true);
-    await expect(cmsg).toContainText('pasting and autofill are turned off');
+    await expect(cmsg).toContainText('Pasting and autofill are turned off');
     // drop
     const dropped = await confirm.evaluate((el) => {
       const e = new Event('drop', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented;
@@ -1079,9 +1210,12 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // the card hugs its content: no blank band under the input (an inline input's text-line
     // space and a hidden message's paragraph margin each used to leave one)
     await atRest(page.locator('.lc-confirm'));
-    const gap = await page.locator('.lc-confirm').evaluate((box) =>
-      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom);
-    expect(gap).toBeLessThanOrEqual(12);
+    // Polled, not read once. `atRest` returns when nothing is running, but the card can start
+    // moving again a frame later — the popup cancels and restarts its own animations — and a
+    // single read taken in that frame is an honest measurement of the wrong moment.
+    await expect.poll(() => page.locator('.lc-confirm').evaluate((box) =>
+      box.getBoundingClientRect().bottom - box.querySelector('input').getBoundingClientRect().bottom))
+      .toBeLessThanOrEqual(12);
     // a typo is flagged as soon as it can no longer match
     await confirm.pressSequentially('landlord@exampel');
     await expect(cmsg).toBeVisible();
@@ -1099,7 +1233,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(confirm).toHaveValue('');
   });
 
-  test('the retype card drops DOWN smoothly — height, fade and slide finish together over 350ms', async ({ page }) => {
+  test('the retype card drops DOWN smoothly — height, fade and slide finish together over 350ms', { tag: '@timing' }, async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     await page.locator('#owner-email').pressSequentially('landlord@example.com');
@@ -1139,14 +1273,13 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await page.fill('#owner-name', 'Marcus Reed');
     await page.fill('#owner-email', 'landlord@example.com');
     await page.fill('#owner-phone', '2155550123');
-    await page.fill('#owner-units', '3');
     await next(page).click();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await expect(page.locator('.lc-confirm .errmsg')).toHaveText('Please retype your email to confirm it.');
     await expect(page.locator('#owner-email-confirm')).toBeFocused();
     await page.fill('#owner-email-confirm', 'landlord@example.com');
     await next(page).click();
-    expect(await currentStep(page)).toBe('The property');
+    expect(await currentStep(page)).toBe('The property this application is for');
   });
 
   test('a field that passes turns its asterisk into a green check; an optional field cleared loses its error', async ({ page }) => {
@@ -1170,17 +1303,22 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // does not jump (an earlier version dropped the check below the text and grew it ~11px)
     expect((await labelBox()).h).toBeCloseTo(before.h, 1);
     await atRest(req);   // measure at rest
-    const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
-    expect(rq.y + rq.height).toBeLessThanOrEqual(lb.y + lb.height + 0.5);
+    // Polled for the same reason: the check icon fading in can still be mid-flight when the
+    // two boxes are read, and its bottom then reads higher than where it comes to rest. The
+    // value polled is how far the check hangs below the label, so a failure says by how much.
+    await expect.poll(async () => {
+      const [rq, lb] = await Promise.all([req.boundingBox(), label.boundingBox()]);
+      return (rq.y + rq.height) - (lb.y + lb.height);
+    }).toBeLessThanOrEqual(0.5);
     // an optional field has no asterisk, so its check appears after the label
     await page.locator('#owner-entity').pressSequentially('Reed Property Group LLC');
     const after = await page.locator('label[for="owner-entity"]')
       .evaluate((el) => getComputedStyle(el, '::after').backgroundImage);
     expect(after).toContain('svg');
     // an optional field: a bad value shows an error, emptying it takes the error away again
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     await next(page).click();
-    await SECTION_FILL['The property'](page);
+    await SECTION_FILL['The property this application is for'](page);
     await next(page).click();
     expect(await currentStep(page)).toBe('The tenant');
     await page.fill('#tenant-name', 'Dwayne Carter');
@@ -1192,18 +1330,19 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     await expect(page.locator('.field:has(#tenant-email)')).not.toHaveClass(/lc-ok/);
   });
 
-  test('an error message fades up AND opens its space over 350ms — nothing below it jumps', async ({ page }) => {
+  test('an error message fades up AND opens its space over 350ms — nothing below it jumps', { tag: '@timing' }, async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     // Press Next on the empty section and sample, every ~40ms, the phone error's height and
-    // opacity and where the field BELOW it sits. The old display:none -> block pushed that
-    // field down in a single frame; now it has to travel.
+    // opacity and where what sits BELOW it is (the phone is the step's last field, so that is
+    // the Back / Next row). The old display:none -> block pushed it down in a single frame;
+    // now it has to travel.
     const samples = await page.evaluate(async () => {
       // Let the step's own fade-up (a 10px slide) finish first, or the "before" reading is
       // taken mid-slide and already looks like "after".
       await window.lcAtRest();
       const msg = document.querySelector('.field:has(#owner-phone) > .errmsg');
-      const below = document.querySelector('#owner-units');
+      const below = document.querySelector('[data-landlord-check] .lc-nav');
       // y is measured inside the dialog: the dialog re-centres itself as it grows, so a
       // viewport position mixes that in and says nothing about the field being pushed down.
       const dlg = document.querySelector('.lc-dialog');
@@ -1228,16 +1367,16 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     // some frame caught each of them part-way — none of them happened in a single frame
     expect(samples.out.some((s) => s.h > first.h + 1 && s.h < last.h - 1), 'height opens gradually').toBe(true);
     expect(samples.out.some((s) => s.op > 0.1 && s.op < 0.9), 'opacity fades gradually').toBe(true);
-    expect(last.y, 'the field below is pushed down').toBeGreaterThan(first.y + 10);
+    expect(last.y, 'what is below is pushed down').toBeGreaterThan(first.y + 10);
     expect(samples.out.some((s) => s.y > first.y + 2 && s.y < last.y - 2), 'and travels there, not jumps').toBe(true);
     expect(samples.duration).toContain('0.35s');
     expect(samples.timing).toContain('ease-in');
   });
 
-  test('each new section fades up over 350ms, ease-in', async ({ page }) => {
+  test('each new section fades up over 350ms, ease-in', { tag: '@timing' }, async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     await next(page).click();
     const stepAnim = await page.locator('#intake-form fieldset:not([data-lc-off])').evaluate((el) => {
       const s = getComputedStyle(el); return [s.animationName, s.animationDuration, s.animationTimingFunction];
@@ -1245,7 +1384,7 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(stepAnim).toEqual(['lc-up', '0.35s', 'ease-in']);
   });
 
-  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, brass focus, red error', async ({ page }) => {
+  test('inputs use the site\'s control style: white, 1.5px border, 10px corners, blue focus, red error', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
     const name = page.locator('#owner-name');
@@ -1264,22 +1403,22 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(idle.bw).toBe(ref.bw);
     expect(idle.r).toBe(ref.r);
     await name.focus();
-    await expect.poll(async () => (await st(name)).bc).toBe('rgb(200, 162, 74)');   // brass
+    await expect.poll(async () => (await st(name)).bc).toBe('rgb(42, 91, 215)');   // blue
     await page.locator('#owner-email').pressSequentially('nope');
     await expect.poll(async () => (await st(page.locator('#owner-email'))).bc).toBe('rgb(180, 67, 47)'); // red, like its message
     // ...and still red after leaving the field (the page's own rule would paint it gold)
-    await page.locator('#owner-units').focus();
+    await page.locator('#owner-phone').focus();
     await expect.poll(async () => (await st(page.locator('#owner-email'))).bc).toBe('rgb(180, 67, 47)');
   });
 
-  test('Back walks the sections, and from the first one returns to "own or rent?"', async ({ page }) => {
+  test('Back walks the sections, and from the first one returns to "landlord or tenant?"', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     await next(page).click();
-    expect(await currentStep(page)).toBe('The property');
+    expect(await currentStep(page)).toBe('The property this application is for');
     await back(page).click();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await expect(page.locator('#owner-name')).toHaveValue('Marcus Reed');
     await back(page).click();
     expect(await currentStep(page)).toBe('Who you are');
@@ -1289,9 +1428,9 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     const seen = await stubEndpoint(page);
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
-    await page.locator('#owner-units').press('Enter');
-    expect(await currentStep(page)).toBe('The property');
+    await SECTION_FILL['About the landlord or property manager'](page);
+    await page.locator('#owner-phone').press('Enter');
+    expect(await currentStep(page)).toBe('The property this application is for');
     await page.waitForTimeout(300);
     expect(seen).toHaveLength(0);
   });
@@ -1307,6 +1446,12 @@ test.describe('landlord — the homepage application, inside the popup', () => {
     expect(seen[0].contentType).toMatch(/^multipart\/form-data/);
     expect(seen[0].postData).toContain('Marcus Reed');
     expect(seen[0].postData).toMatch(/name="visitor_role"\r\n\r\nlandlord/);
+    // the CRM still gets the whole address in property_address, "street, ZIP"; the street and
+    // the ZIP also go on their own, and the number of units is no longer asked
+    expect(seen[0].postData).toMatch(/name="property_address"\r\n\r\n1932 N 5th St, 19122\r\n/);
+    expect(seen[0].postData).toMatch(/name="property_street"\r\n\r\n1932 N 5th St\r\n/);
+    expect(seen[0].postData).toMatch(/name="property_zip"\r\n\r\n19122\r\n/);
+    expect(seen[0].postData).not.toContain('name="owner_units"');
     const booked = await leads(page);
     expect(booked).toHaveLength(1);
     expect(booked[0]).toMatchObject({ form_id: 'intake-form', lead_value: 600, transaction_id: CONTACT_ID });
@@ -1356,7 +1501,7 @@ test.describe('the question in front of each form opens the popup', () => {
     await page.goto('/index.html');
     await page.click('[data-gate-for="intake-form"] .rg-btn[data-role="landlord"]');
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
   });
 
   test('homepage: answering tenant at the bottom opens the tenant screen, not the inline panel', async ({ page }) => {
@@ -1414,10 +1559,37 @@ test.describe('the question in front of each form opens the popup', () => {
   test('a blog page hands a landlord to the homepage application, already open in the popup', async ({ page }) => {
     await page.goto('/blog/eviction-diversion-program/index.html');
     await landlord(page).click();
-    await page.waitForURL(/\/#apply$/);
+    await page.waitForURL((u) => u.pathname === '/' && !u.hash);   // the top of the homepage
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator('#intake-form input[name="visitor_role"]')).toHaveValue('landlord');
+  });
+
+  test('a browser that refuses to store the hand-off still lands on the form, not the top', async ({ page }) => {
+    // Safari private mode and partitioned third-party embeds throw on sessionStorage.setItem.
+    // The hand-off used to swallow that and send them to "/" anyway, where nothing opens the
+    // application: the flag it depends on was never written. Top of the homepage, no popup,
+    // no form — out of a button marked Apply. Only setItem throws here; localStorage is left
+    // alone, because that is what really happens and what `as()` writes into.
+    await page.addInitScript(() => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === window.sessionStorage) throw new DOMException('QuotaExceededError');
+        return real.call(this, k, v);
+      };
+    });
+    await page.goto('/blog/eviction-diversion-program/index.html');
+    await landlord(page).click();
+    await page.waitForURL((u) => u.pathname === '/' && u.hash === '#apply');   // the form section
+    // and the browser's own jump really put them there: the application section is on screen.
+    // Polled, not read once: `html{scroll-behavior:smooth}` animates the jump to the anchor,
+    // so a single read right after the navigation lands mid-scroll, still at the top.
+    await expect.poll(() => page.locator('#apply').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top < innerHeight && r.bottom > 0;
+    })).toBe(true);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 });
 
@@ -1491,18 +1663,24 @@ test.describe('Apply links open the popup instead of scrolling to the form', () 
     await page.locator('a.btn[href="/#apply"]').first().evaluate((a) => a.click());
     await expect(dialog(page)).toBeVisible();
     await landlord(page).click();
-    await page.waitForURL(/\/#apply$/);
+    // The homepage's top, not /#apply: the hash made the browser jump the page down to the form
+    // section, so the popup opened over the bottom of the page and closing it left you there.
+    await page.waitForURL((u) => u.pathname === '/' && !u.hash);
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(popup(page)).toHaveCount(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);   // still at the top once it closes
   });
 
-  test('a returning landlord skips "own or rent?" and lands on the application', async ({ page }) => {
+  test('a returning landlord skips "landlord or tenant?" and lands on the application', async ({ page }) => {
     await as(page, 'landlord');
     await page.goto('/index.html');
     await page.waitForTimeout(800);
     await expect(popup(page)).toHaveCount(0);             // not opened unprompted
     await page.locator('#nav-links a.cta').evaluate((a) => a.click());
-    expect(await currentStep(page)).toBe('About you (the owner)');
+    expect(await currentStep(page)).toBe('About the landlord or property manager');
     await expect(page.locator('#intake-form input[name="visitor_role"]')).toHaveValue('landlord');
   });
 
@@ -1545,7 +1723,7 @@ test.describe('on a phone', () => {
   test('a long section scrolls the sheet, with no sideways scroll', async ({ page }) => {
     await page.goto('/index.html');
     await landlord(page).click();
-    await SECTION_FILL['About you (the owner)'](page);
+    await SECTION_FILL['About the landlord or property manager'](page);
     for (let i = 0; i < 4; i++) {
       await SECTION_FILL[APPLY_STEPS[i]](page);
       await next(page).click();
