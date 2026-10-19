@@ -7,6 +7,9 @@ blob-report/
 tests/*-snapshots/
 tools/data/
 
+.claude/worktrees/
+.claude/settings.local.json
+
 dist/
 
 # Python caches from running the deploy scripts' tests
