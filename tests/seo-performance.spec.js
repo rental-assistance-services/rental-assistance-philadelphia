@@ -27,7 +27,7 @@ function sitePages(dir = ROOT, out = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name));
   for (const entry of entries) {
-    if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'tests') continue;
+    if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'tests' || entry.name === 'dist') continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) sitePages(full, out);
     // googleXXXX.html are Search Console verification stubs, not pages.

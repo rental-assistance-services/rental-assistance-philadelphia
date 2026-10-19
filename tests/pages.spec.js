@@ -17,7 +17,7 @@ const ROOT = path.join(__dirname, '..');
  *  of text with no markup, so requiring a <head> leaves them out and keeps the count honest. */
 function sitePages(dir = ROOT, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+    if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'dist') continue;
     const f = path.join(dir, e.name);
     if (e.isDirectory()) sitePages(f, out);
     else if (e.name.endsWith('.html') && fs.readFileSync(f, 'utf8').includes('<head>')) out.push(f);
