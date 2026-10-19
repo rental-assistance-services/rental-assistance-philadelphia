@@ -97,10 +97,10 @@ const FILL = {
 };
 
 test('closing a tenant application immediately after Next preserves the draft step', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await toApplication(page);
   await FILL['About me'](page);
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
   await next(page).click();
   await page.keyboard.press('Escape');
   await page.clock.runFor(500);
@@ -108,14 +108,14 @@ test('closing a tenant application immediately after Next preserves the draft st
 });
 
 test('with preview off, closing the landlord application immediately after Next preserves its draft step', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await page.goto('/index.html');
   await landlord(page).click();
   await page.fill('#owner-name', 'Marcus Reed');
   await page.fill('#owner-email', 'landlord@example.com');
   await page.fill('#owner-email-confirm', 'landlord@example.com');
   await page.fill('#owner-phone', '(215) 555-0123');
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
   await next(page).click();
   await page.keyboard.press('Escape');
   await page.clock.runFor(500);
