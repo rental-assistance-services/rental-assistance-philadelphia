@@ -15,7 +15,9 @@ copy of these rules anywhere else.** Two copies drift, and then nobody knows whi
 
 The public website for **Rental Assistance Services** (`rentalassistanceservices.com`): a static
 site that helps Philadelphia landlords and property managers recover a tenant's back rent through
-the City's program. There is no build step. What is committed is what goes live.
+the City's program. GitHub Pages serves the source directly today. The `deploy/` tools build
+a verified `dist/` bundle for a later Cloudflare Pages cutover; automatic live checks stay off
+until configured. See the README's hosting section before changing those settings.
 
 | Path | What it is |
 |---|---|
@@ -27,7 +29,9 @@ the City's program. There is no build step. What is committed is what goes live.
 | `tenants/index.html`, `terms.html` | Free tenant resources and the fee and service terms |
 | `blog/<topic>/index.html` | Plain-English guides for landlords |
 | `tests/` | The browser suite, its local server, and checks for the repository tooling and shared styles |
-| `.github/` | CI (the Playwright suite and the pull-request checklist), the checklist script, and the pull-request template |
+| `.github/` | CI (browser, deployment, and pull-request checks), supporting scripts, and the pull-request template |
+| `deploy/` | The Cloudflare bundle builder, verifier, configuration, recovery tools, and simulated tests; not a hosting cutover |
+| `tools/search-console/` | The local search-query report tool; exported account data stays out of git |
 | `CLAUDE.md`, `.claude/` | Claude Code only: loads this file and adds the hook that enforces section 2 |
 | `CNAME`, `robots.txt`, `sitemap.xml`, `google*.html` | Domain, search engine, and site-verification files |
 
