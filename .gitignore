@@ -6,3 +6,8 @@ blob-report/
 # Design-check pictures belong to the computer that took them (tests/design.spec.js).
 tests/*-snapshots/
 tools/data/
+
+dist/
+
+# Python caches from running the deploy scripts' tests
+__pycache__/
