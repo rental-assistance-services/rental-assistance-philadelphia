@@ -701,12 +701,13 @@ test.describe('sending', () => {
       form_type: 'tenant_application', visitor_role: 'tenant' });
   });
 
-  test('a filled honeypot still goes to the endpoint, as on the landlord application, and the endpoint decides', async ({ page }) => {
-    const hits = await stubEndpoint(page, { body: { ok: true } });   // what the endpoint answers a bot
+  test('a filled honeypot still goes to the endpoint, as on the landlord application, and its bare ok is no confirmation', async ({ page }) => {
+    const hits = await stubEndpoint(page, { body: { ok: true } });   // what the endpoint answers a bot: nothing saved
     await toFilledApplication(page);
     await page.evaluate(() => { document.querySelector('#tenant-hp-x7f2').value = 'Acme Corp'; });
     await send(page).click();
-    await expect(sent(page)).toBeVisible();
+    await expect(status(page)).toHaveText(FAILED);
+    await expect(sent(page)).toHaveCount(0);
     expect(parts(hits[0].postData).hp_x7f2).toBe('Acme Corp');
     expect(await leads(page)).toHaveLength(0);
   });
@@ -736,7 +737,8 @@ test.describe('sending', () => {
     await expect(sent(page)).toHaveCount(0);
   });
 
-  for (const body of [{}, { ok: false }, { contact_id: CONTACT_ID }]) {
+  // { ok: true } with no contact_id is the endpoint's answer to a tripped honeypot: nothing was saved.
+  for (const body of [{ ok: true }, {}, { ok: false }, { contact_id: CONTACT_ID }]) {
     test(`a 200 that answers ${JSON.stringify(body)} is not a success`, async ({ page }) => {
       const hits = await stubEndpoint(page, { body });
       await toFilledApplication(page);

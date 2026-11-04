@@ -229,7 +229,8 @@
   }
   // opts, for the tenant application (section 9); the landlord forms pass none:
   //   allowed()         sends only while this says true (the switch in landlord-check.js)
-  //   strictOk          the confirmation needs {"ok": true} back, not just no {"ok": false}
+  //   requireContactId  the confirmation needs {"ok": true} AND a contact_id: the endpoint
+  //                     answers a tripped honeypot with a bare {"ok": true} and saves nothing
   //   done(form, data)  shows its own confirmation in place of the landlord one. rasTrackLead
   //                     is then never called: a tenant application is never a conversion.
   function initIntakeForm(formId, statusId, formType, opts){
@@ -291,7 +292,8 @@
       fetch(INTAKE_ENDPOINT, init)
         .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok: r.ok, data: d}; }); })
         .then(function(res){
-          var saved = res.ok && res.data && (opts.strictOk ? res.data.ok === true : res.data.ok !== false);
+          var saved = res.ok && res.data && (opts.requireContactId
+            ? res.data.ok === true && !!res.data.contact_id : res.data.ok !== false);
           if(!saved){
             var e = new Error((res.data && res.data.reply) || 'submit_failed');
             // Only a `reply` the SERVER wrote is meant for a human to read.
@@ -531,7 +533,9 @@
    *   window.rasTenantApplication) is on. The switch is read at submit time: this file is a plain
    *   script at the end of the body and runs BEFORE the deferred landlord-check.js. No
    *   landlord-check.js means no switch, so nothing is sent.
-   * - Its confirmation shows only on a 200 that says {"ok": true}.
+   * - Its confirmation shows only on a 200 that says {"ok": true} AND carries a contact_id, so a
+   *   row was really saved. A bare {"ok": true} is what the endpoint answers a tripped honeypot
+   *   with, saving nothing: that shows the error, never "Application received".
    * - It is NEVER a conversion: its confirmation replaces the landlord one, so rasTrackLead is
    *   never called and no lead_submit is pushed (rasTrackLead would refuse its visitor_role of
    *   tenant anyway).
@@ -550,7 +554,7 @@
   }
   initIntakeForm('tenant-form', 'tenant-form-status', 'tenant_application', {
     allowed: function(){ return window.rasTenantApplication === true; },
-    strictOk: true,
+    requireContactId: true,
     done: showTenantConfirmation
   });
 })();

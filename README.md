@@ -173,9 +173,11 @@ approved it going live for every visitor.
 - **Sending.** `site.js` sends it with the landlord application's own code (`initIntakeForm`):
   one multipart POST to the same endpoint, with its two optional files, the honeypot, the
   stored click ids and any `utm_*` fields. The confirmation ("Application received") shows only
-  on a 200 that says `{"ok": true}`; an error answer or a network failure shows the same
-  message the landlord application does, and the tenant can send again. It is **never a
-  conversion**: no `rasTrackLead` call, no `lead_submit`, and no popup `submit` event.
+  on a 200 that says `{"ok": true}` and carries a `contact_id` (a bare `{"ok": true}` is what
+  the endpoint answers a tripped honeypot with, saving nothing). Anything else, an error answer
+  or a network failure shows the same message the landlord application does, and the tenant
+  can send again. It is **never a conversion**: no `rasTrackLead` call, no `lead_submit`, and
+  no popup `submit` event.
   `tests/tenant-flow.spec.js` checks all of this with the endpoint stubbed.
 - **Rio's part:** accepting `form_type=tenant_application`, the email to the landlord so they
   can finish it, and the email to the tenant with their application number. The confirmation
