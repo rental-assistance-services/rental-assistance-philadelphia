@@ -427,6 +427,24 @@ test.describe('TENANT_APPLICATION = true (as shipped): what the tenant sees', ()
     await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
     expect(await currentStep(page)).toBe('About me');
   });
+
+  test('the /faq/ schema answer says what the page says, in plain text that stands on its own', async ({ page }) => {
+    // The page ends on a link ("Full list: where tenants get help."); the schema has no links, so
+    // its last sentence says where the list is instead. Everything before it is the same words.
+    await page.goto('/faq/index.html');
+    const { schema, shown } = await page.evaluate(() => {
+      const n = (s) => s.replace(/\s+/g, ' ').trim();
+      const q = 'I\'m a tenant. Can you help me?';
+      const faq = [...document.querySelectorAll('script[type="application/ld+json"]')]
+        .map((b) => JSON.parse(b.textContent)).find((j) => j['@type'] === 'FAQPage');
+      const item = [...document.querySelectorAll('.faq-item')].find((d) => n(d.querySelector('summary').textContent) === q);
+      const e = faq.mainEntity.find((x) => x.name === q);
+      return { schema: e && n(e.acceptedAnswer.text), shown: item && n(item.querySelector('.ans').textContent) };
+    });
+    expect(shown).toMatch(/Full list: where tenants get help\.$/);
+    expect(schema).toBe(shown.replace(/Full list: where tenants get help\.$/, 'The full list is on our Tenants page.'));
+    expect(schema).not.toMatch(/[–—]|where tenants get help/);
+  });
 });
 
 test.describe('/tenants/: "Have your landlord\'s details? Start your application"', () => {
