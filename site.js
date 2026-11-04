@@ -461,7 +461,7 @@
     }).join('');
     return '<h3>We work for landlords, but you’re not out of options.</h3>'
       + '<p>Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>, '
-      + 'so there is nothing we can file for you. We would rather tell you that now than take your details.</p>'
+      + 'and we don’t represent tenants.</p>'
       + '<p><strong>The part worth knowing:</strong> the City’s Eviction Diversion Program can pay your past-due '
       + 'rent (up to $3,500 plus two months of future rent), but <strong>the landlord files it, not you</strong>. '
       + 'The first hotline below can explain it to you so you can raise it with them.</p>'

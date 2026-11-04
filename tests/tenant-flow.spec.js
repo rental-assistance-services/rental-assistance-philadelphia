@@ -428,6 +428,25 @@ test.describe('TENANT_APPLICATION = true (as shipped): what the tenant sees', ()
     expect(await currentStep(page)).toBe('About me');
   });
 
+  test('without the popup script, the inline tenant panels say what we are and promise no application', async ({ page }) => {
+    // The panels in site.js and on /back-rent/ only show when /landlord-check.js fails to load,
+    // and then the tenant application can't open, so they must not offer it.
+    await page.route('**/landlord-check.js', (route) => route.abort());
+    const firsts = [];
+    for (const [url, form] of [['/index.html', 'intake-form'], ['/back-rent/index.html', 'backrent-form']]) {
+      await page.goto(url);
+      await page.click(`[data-gate-for="${form}"] .rg-btn[data-role="tenant"]`);
+      const panel = page.locator('[data-tenant-panel]');
+      await expect(panel, url).toBeVisible();
+      await expect(panel.locator('h3 + p'), url).toHaveText('Rental Assistance Philadelphia is a private filing service hired by '
+        + 'property owners, and we don’t represent tenants.');
+      await expect(panel, url).toContainText('the landlord files it, not you');
+      await expect(panel, url).not.toContainText(/nothing we can file|rather tell you|start an application|Start my application/);
+      firsts.push(await panel.innerText());
+    }
+    expect(firsts[1], 'the two copies of the panel say the same').toBe(firsts[0]);
+  });
+
   test('the /faq/ schema answer says what the page says, in plain text that stands on its own', async ({ page }) => {
     // The page ends on a link ("Full list: where tenants get help."); the schema has no links, so
     // its last sentence says where the list is instead. Everything before it is the same words.
