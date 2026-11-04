@@ -93,6 +93,15 @@ async function submitForm(page, form) {
 /** The tenant screen inside the popup. */
 const tenantScreen = (page) => page.locator('[data-landlord-check] [data-lc-panel="tenant"]');
 
+/**
+ * With the tenant application live, "I am the tenant" first asks whether the tenant has their
+ * landlord's details. "Not yet" is the free help these tests are about.
+ */
+async function toTenantHelp(page) {
+  await expect(page.locator('[data-landlord-check] [data-lc-panel="tenant-ask"]')).toBeVisible();
+  await page.locator('[data-landlord-check]').getByRole('button', { name: /^Not yet, I want to learn more/ }).click();
+}
+
 /** Fill everything the intake form validates, without touching the honeypot. */
 async function fillApplyForm(page) {
   await page.evaluate(() => {
@@ -418,6 +427,7 @@ test.describe('landlord / tenant gate', () => {
         const seen = await stubEndpoint(page, { ok: true, contact_id: CONTACT_ID });
         await page.goto(url);
         await chooseRole(page, form, 'tenant');
+        await toTenantHelp(page);
 
         await expect(page.locator(form)).toBeHidden();
         const panel = tenantScreen(page);
@@ -495,6 +505,7 @@ test.describe('landlord / tenant gate', () => {
     // else's phone numbers, dialled by someone we cannot sell to.
     await page.goto('/index.html');
     await chooseRole(page, '#contact-form', 'tenant');
+    await toTenantHelp(page);
     await expect(tenantScreen(page)).toBeVisible();
     for (const line of TENANT_LINES) {
       await expect(tenantScreen(page).locator(`a[href="${line.tel}"]`))
@@ -535,6 +546,7 @@ test.describe('the tenant page and the panels agree', () => {
     await page.goto('/index.html');
     await page.locator('#nav-links a.cta').evaluate((a) => a.click());
     await page.locator('[data-landlord-check]').getByRole('button', { name: /^I am the tenant/ }).click();
+    await toTenantHelp(page);
     for (const line of TENANT_LINES) {
       await expect(tenantScreen(page).locator(`a[href="${line.tel}"]`)).toHaveText(line.label);
     }

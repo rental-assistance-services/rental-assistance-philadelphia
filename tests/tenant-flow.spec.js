@@ -1,25 +1,50 @@
 /**
- * The tenant application: a PREVIEW, behind ?tenant-preview=1 (TENANT_PREVIEW in landlord-check.js).
+ * The tenant application, live for every visitor (TENANT_APPLICATION in landlord-check.js).
  *
  * Adam asked for a tenant path on 2026-10-14: a tenant who has their landlord's details starts an
- * application that is forwarded to the landlord to finish, and a tenant who doesn't can learn more
- * first. Abe sees it before it goes live, so for every real visitor (switch off) nothing changes,
- * and in every state it SENDS NOTHING: no CRM row, no Google Ads conversion, no request to anything
- * but the site itself. The one exception is the same as on the landlord application: the street box
- * asks Photon for address suggestions as it is typed in (stubbed here, as in landlord-check.spec.js).
+ * application that we send to the landlord to finish, and a tenant who doesn't can learn more
+ * first. It was a preview behind ?tenant-preview=1 (PR #26); Kean and RK approved it going live.
  *
- * The page's Google Tag Manager is blocked in every test, so any request the page makes to another
- * host is the code under test making it.
+ * What this file holds it to:
+ * - Sent like the landlord application: ONE multipart POST to the intake endpoint, with the
+ *   tenant's answers, the landlord's details, the two optional files, the honeypot, click ids and
+ *   utm_* fields, and form_type=tenant_application, visitor_role=tenant. Rio is built against
+ *   these field names, so the payload is checked name by name.
+ * - The confirmation only on a 200 that says {"ok": true}. Rio answers this form with 400
+ *   "missing_required" until RK's part is live: that, a network failure, or a 200 without ok, is
+ *   an error the tenant can see, never a success.
+ * - NEVER a Google Ads conversion: no rasTrackLead call, no lead_submit, no popup "submit", and
+ *   no request to any Google host.
+ * - The landlord application is unchanged, and TENANT_APPLICATION = false gives every visitor
+ *   exactly what main gave them before: the free-help screen, no tenant form, no request.
+ *
+ * The real endpoint is never reached: every test aborts it by default and stubs it where a test
+ * sends. The page's Google Tag Manager is blocked in every test, so any request the page makes to
+ * another host is the code under test making it.
  */
 const { test, expect } = require('@playwright/test');
 
 const ENDPOINT = 'https://rio.tworiverdevelopment.tech/rental-assist/intake';
 const CONTACT_ID = '3f6d2b1a-8c4e-4f7a-9b2d-6e1c0a5f7d93';
-const OK = { ok: true, contact_id: CONTACT_ID, files_uploaded: 0, documents: { stored: [], rejected: [] } };
+const OK = { ok: true, contact_id: CONTACT_ID, files_uploaded: 2, documents: { stored: ['doc_lease', 'doc_ledger'], rejected: [] } };
+const PDF = Buffer.from('%PDF-1.4\n% test fixture\n%%EOF\n');
 
-const ON = '/index.html?tenant-preview=1';
 const STEPS = ['About me', 'My landlord', 'The home I rent', 'What I owe', 'My documents', 'Send to my landlord'];
-const BANNER = 'Preview: nothing was sent. The email to the landlord and the application number are not built yet.';
+const CONFIRM_H = 'Application received';
+const CONFIRM_P = 'Thank you. We will email your landlord so they can finish your application, and we will email you your application number.';
+const FAILED = 'Something went wrong submitting your application. Please try again, or call (215) 402-6882.';
+// The free-help screen's first line: with the switch on it can't say there is nothing for a tenant
+// here, because "Start my application" sits under it. Off, it is main's line, word for word.
+const HELP_ON = 'We’re a private service hired by property owners, and we don’t represent tenants. The City’s Eviction '
+  + 'Diversion Program can pay a tenant’s back rent, but the landlord has to apply. These free lines can explain it so you '
+  + 'can raise it with them:';
+const HELP_MAIN = 'We’re a private service hired by property owners, so there’s nothing we can file for you. The City’s Eviction '
+  + 'Diversion Program can pay a tenant’s back rent, but the landlord has to apply. These free lines can explain it so you '
+  + 'can raise it with them:';
+/** Every field the tenant application sends, by the name Rio reads it under. */
+const FIELDS = ['agree_contact', 'authorize_forward', 'back_rent_owed', 'doc_ledger', 'doc_lease', 'form_type', 'hp_x7f2',
+  'landlord_email', 'landlord_name', 'landlord_phone', 'monthly_rent', 'months_behind', 'property_address', 'property_street',
+  'property_unit', 'property_zip', 'tenant_email', 'tenant_movein', 'tenant_name', 'tenant_phone', 'visitor_role'];
 
 const popup = (page) => page.locator('[data-landlord-check]');
 const next = (page) => page.locator('[data-landlord-check] [data-lc-next]');
@@ -31,10 +56,15 @@ const notYet = (page) => popup(page).getByRole('button', { name: /^Not yet, I wa
 const startApp = (page) => popup(page).getByRole('button', { name: 'Start my application' });
 const askPanel = (page) => popup(page).locator('[data-lc-panel="tenant-ask"]');
 const helpPanel = (page) => popup(page).locator('[data-lc-panel="tenant"]');
+const sent = (page) => page.locator('.tenant-sent');
+const status = (page) => page.locator('#tenant-form-status');
+const send = (page) => page.locator('#tenant-form button[type=submit]');
 const currentStep = (page) => page.locator('[data-lc-dot][aria-current="step"] .lc-lbl').textContent();
 const msgOf = (page, sel) => page.locator(`.field:has(${sel}) > .errmsg`);
 const oneOfMsg = (page) => page.locator('#tenant-form [data-lc-one-of-msg]');
 const leads = (page) => page.evaluate(() => (window.dataLayer || []).filter((d) => d.event === 'lead_submit'));
+const lcSubmits = (page) => page.evaluate(() => (window.dataLayer || [])
+  .filter((d) => d.event === 'landlord_check' && d.lc_action === 'submit'));
 const draft = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('ras_lc_draft:tenant-form') || 'null'));
 
 /** Every request the page makes from now on. */
@@ -50,14 +80,32 @@ function foreign(page, urls) {
   const origin = new URL(page.url()).origin;
   return urls.filter((u) => !/^(data|blob):/.test(u) && new URL(u).origin !== origin && !FONT_HOSTS.includes(new URL(u).host));
 }
-async function stubEndpoint(page, body = OK) {
+/** Google Ads, Google Analytics, Tag Manager, DoubleClick: any of them would be a conversion path. */
+const googleHits = (urls) => urls.filter((u) => /^https?:/.test(u) && !FONT_HOSTS.includes(new URL(u).host)
+  && /(^|\.)(google|googleadservices|googlesyndication|googletagmanager|google-analytics|doubleclick)\./.test(new URL(u).host));
+
+/**
+ * Answer the intake endpoint and record what was sent. `hold`, a promise, keeps the answer back
+ * until it settles, so a test can look at the page while the request is still in flight.
+ */
+async function stubEndpoint(page, { status: code = 200, body = OK, hold = null } = {}) {
   const seen = [];
   await page.route(ENDPOINT, async (route) => {
-    seen.push({ contentType: route.request().headers()['content-type'] || '', postData: route.request().postData() || '' });
-    await route.fulfill({ status: 200, contentType: 'application/json',
+    const req = route.request();
+    seen.push({ method: req.method(), contentType: req.headers()['content-type'] || '', postData: req.postData() || '' });
+    if (hold) await hold;
+    await route.fulfill({ status: code, contentType: 'application/json',
       headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
   });
   return seen;
+}
+/** A multipart body as { name: value }, a file as { file: its name }. */
+function parts(body) {
+  const out = {};
+  for (const m of body.matchAll(/name="([^"]+)"(?:; filename="([^"]*)")?\r\n(?:Content-Type: [^\r]*\r\n)?\r\n([^\r]*)/g)) {
+    out[m[1]] = m[2] !== undefined ? { file: m[2] } : m[3];
+  }
+  return out;
 }
 /** A visitor who already closed the first-visit popup, so only a click opens it. */
 async function as(page, v) {
@@ -68,8 +116,22 @@ async function as(page, v) {
     }
   }, v);
 }
+/** Serve landlord-check.js with the switch set to false: what every visitor gets if it is turned off. */
+async function switchOff(page) {
+  await page.route('**/landlord-check.js', async (route) => {
+    const res = await route.fetch();
+    const js = await res.text();
+    await route.fulfill({ response: res, body: js.replace('var TENANT_APPLICATION = true;', 'var TENANT_APPLICATION = false;') });
+  });
+}
+/** After a page load with switchOff(): the switch really is off (a renamed constant fails here). */
+async function expectOff(page) {
+  expect(await page.evaluate(() => window.rasTenantApplication), 'TENANT_APPLICATION was not switched off').toBe(false);
+}
 
 test.beforeEach(async ({ page }) => {
+  // Never the real CRM: a test that sends stubs the endpoint itself, which takes precedence.
+  await page.route(ENDPOINT, (route) => route.abort('blockedbyclient'));
   await page.route(/googletagmanager\.com|google-analytics\.com/, (route) => route.abort());
   await page.route('https://photon.komoot.io/**', (route) => route.fulfill({
     status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
@@ -95,33 +157,6 @@ const FILL = {
   'My documents': async () => {},
   'Send to my landlord': async (p) => { await p.check('#ta-forward'); await p.check('#ta-contact'); },
 };
-
-test('closing a tenant application immediately after Next preserves the draft step', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
-  await toApplication(page);
-  await FILL['About me'](page);
-  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
-  await next(page).click();
-  await page.keyboard.press('Escape');
-  await page.clock.runFor(500);
-  expect((await draft(page)).step).toBe(1);
-});
-
-test('with preview off, closing the landlord application immediately after Next preserves its draft step', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
-  await page.goto('/index.html');
-  await landlord(page).click();
-  await page.fill('#owner-name', 'Marcus Reed');
-  await page.fill('#owner-email', 'landlord@example.com');
-  await page.fill('#owner-email-confirm', 'landlord@example.com');
-  await page.fill('#owner-phone', '(215) 555-0123');
-  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
-  await next(page).click();
-  await page.keyboard.press('Escape');
-  await page.clock.runFor(500);
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('ras_lc_draft:intake-form')));
-  expect(saved.step).toBe(1);
-});
 /** Fill steps from the current one up to (not including) `until`, pressing Next after each. */
 async function fillUntil(page, until) {
   for (const name of STEPS) {
@@ -131,31 +166,42 @@ async function fillUntil(page, until) {
     if (name !== STEPS[STEPS.length - 1]) await next(page).click();
   }
 }
-/** Switch on, "I am the tenant", "Yes, I'm ready to apply": the first step of the application. */
-async function toApplication(page, url = ON) {
+/** "I am the tenant", "Yes, I'm ready to apply": the first step of the application. */
+async function toApplication(page, url = '/index.html') {
   await page.goto(url);
   await tenant(page).click();
   await ready(page).click();
   await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
   expect(await currentStep(page)).toBe('About me');
 }
+/** The whole application filled in, both documents attached, on its last step. */
+async function toFilledApplication(page, url) {
+  await toApplication(page, url);
+  await fillUntil(page, 'My documents');
+  await page.setInputFiles('#ta-doc-lease', { name: 'my-lease.pdf', mimeType: 'application/pdf', buffer: PDF });
+  await page.setInputFiles('#ta-doc-ledger', { name: 'payment-history.pdf', mimeType: 'application/pdf', buffer: PDF });
+  await next(page).click();
+  await FILL['Send to my landlord'](page);
+}
 
-test.describe('switch off: every real visitor sees exactly what they saw before', () => {
-  test('"I am the tenant" shows today\'s free-help screen, and no request leaves the page', async ({ page }) => {
+test.describe('TENANT_APPLICATION = false: every visitor gets exactly what main gave them', () => {
+  test('"I am the tenant" shows main\'s free-help screen, word for word, and no request leaves the page', async ({ page }) => {
+    await switchOff(page);
     const hits = await stubEndpoint(page);
     await page.goto('/index.html');
+    await expectOff(page);
     await expect(tenant(page)).toBeVisible();
     const urls = watchRequests(page);
     await tenant(page).click();
     await expect(helpPanel(page)).toBeVisible();
-    await expect(helpPanel(page)).toContainText('the landlord has to apply');
+    await expect(helpPanel(page).locator('.lc-sub')).toHaveText(HELP_MAIN);
     await expect(helpPanel(page).locator('a[href^="tel:"]')).toHaveCount(3);
     // the same two buttons, together, as before
     const stack = helpPanel(page).locator('.lc-stack');
     await expect(stack).toHaveCount(1);
     await expect(stack.getByRole('link', { name: /See all free help for tenants/ })).toHaveAttribute('href', '/tenants/');
     await expect(stack.getByRole('button', { name: 'Close' })).toBeVisible();
-    // none of the preview exists
+    // none of the tenant application exists
     await expect(popup(page).locator('[data-lc-panel="tenant-ask"], [data-lc-ready], [data-lc-tenant]')).toHaveCount(0);
     await expect(popup(page)).not.toContainText('Ready to apply?');
     await expect(popup(page).locator('#tenant-form')).toHaveCount(0);
@@ -166,12 +212,13 @@ test.describe('switch off: every real visitor sees exactly what they saw before'
     expect(hits).toHaveLength(0);
     expect(foreign(page, urls)).toEqual([]);
     expect(await leads(page)).toHaveLength(0);
-    expect(await page.evaluate(() => sessionStorage.getItem('ras_tenant_preview'))).toBeNull();
   });
 
-  test('the homepage gate and a blog page show the same free-help screen as before', async ({ page }) => {
+  test('the homepage gate and a blog page show the same free-help screen', async ({ page }) => {
+    await switchOff(page);
     await as(page, 'dismissed');
     await page.goto('/index.html');
+    await expectOff(page);
     await page.click('[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]');
     await expect(helpPanel(page)).toBeVisible();
     await expect(askPanel(page)).toHaveCount(0);
@@ -184,23 +231,7 @@ test.describe('switch off: every real visitor sees exactly what they saw before'
     await expect(askPanel(page)).toHaveCount(0);
   });
 
-  test('?tenant-preview=0 turns it off again for the rest of the tab', async ({ page }) => {
-    await as(page, 'dismissed');
-    const gateTenant = '[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]';
-    await page.goto(ON);
-    await page.click(gateTenant);
-    await expect(askPanel(page)).toBeVisible();
-    await page.goto('/index.html?tenant-preview=0');
-    expect(await page.evaluate(() => sessionStorage.getItem('ras_tenant_preview'))).toBeNull();
-    await page.click(gateTenant);
-    await expect(helpPanel(page)).toBeVisible();
-    await expect(askPanel(page)).toHaveCount(0);
-    await page.goto('/index.html');
-    await page.click(gateTenant);
-    await expect(helpPanel(page)).toBeVisible();
-  });
-
-  test('site.js refuses the tenant form while the switch is off, and handles it once it is on', async ({ page }) => {
+  test('site.js refuses the tenant form even when it is forced open and filled; on, the same fill is sent', async ({ page }) => {
     await as(page, 'dismissed');
     const hits = await stubEndpoint(page);
     // Reach past the popup on purpose: un-hide the form, fill it completely and submit it.
@@ -214,31 +245,73 @@ test.describe('switch off: every real visitor sees exactly what they saw before'
       f.querySelector('#ta-forward').checked = true; f.querySelector('#ta-contact').checked = true;
       f.requestSubmit();
     });
+    await switchOff(page);
     await page.goto('/index.html');
+    await expectOff(page);
     const offUrls = watchRequests(page);
     await forceSubmit();
     await page.waitForTimeout(500);
-    await expect(page.locator('.tenant-sent')).toHaveCount(0);
+    await expect(sent(page)).toHaveCount(0);
     await expect(page.locator('#tenant-form')).toBeVisible();          // not swapped for a confirmation
     expect(page.url()).toMatch(/\/index\.html$/);                       // and not submitted natively either
-    expect(foreign(page, offUrls)).toEqual([]);
-    // The same, with the switch on: the fill was valid, so the refusal above was the switch.
-    page.removeAllListeners('request');
-    await page.goto(ON);
-    const urls = watchRequests(page);                                   // from here on: the submit only
-    await forceSubmit();
-    await expect(page.locator('.tenant-sent')).toContainText('Sent to your landlord');
-    await expect(page.locator('#tenant-form')).toBeHidden();
-    await expect(page.locator('#tenant-form input[name="property_address"]')).toHaveValue('1932 N 5th St, 19122');
     expect(hits).toHaveLength(0);
-    expect(foreign(page, urls)).toEqual([]);
+    expect(foreign(page, offUrls)).toEqual([]);
+    // The same fill with the switch on, as shipped: the refusal above was the switch.
+    await page.unroute('**/landlord-check.js');
+    await page.goto('/index.html');
+    expect(await page.evaluate(() => window.rasTenantApplication)).toBe(true);
+    await forceSubmit();
+    await expect(sent(page)).toContainText(CONFIRM_H);
+    expect(hits).toHaveLength(1);
     expect(await leads(page)).toHaveLength(0);
+  });
+
+  test('a "start an application" link in the copy is an ordinary Apply link', async ({ page }) => {
+    await switchOff(page);
+    await as(page, 'dismissed');
+    await page.goto('/faq/index.html');
+    await expectOff(page);
+    const item = page.locator('details.faq-item', { hasText: 'I\'m a tenant. Can you help me?' });
+    await item.locator('summary').click();
+    await item.locator('a[data-tenant-apply]').click();
+    await expect(page.locator('#lc-title-role')).toBeVisible();          // "landlord or tenant?"
+    expect(new URL(page.url()).pathname).toBe('/faq/index.html');
+  });
+
+  test('a tenant handed over from /tenants/ lands on the homepage with no tenant form and no request', async ({ page }) => {
+    // /tenants/ cannot read the switch (it does not load the popup), so its link still hands
+    // over. The homepage then ignores the hand-off, as main did.
+    await switchOff(page);
+    await as(page, 'dismissed');
+    const hits = await stubEndpoint(page);
+    await page.goto('/tenants/index.html');
+    await page.locator('.note a[data-tenant-apply]').click();
+    await page.waitForURL((u) => u.pathname === '/');
+    await expectOff(page);
+    await page.waitForTimeout(800);
+    await expect(popup(page)).toHaveCount(0);
+    await expect(page.locator('#tenant-form')).toBeHidden();
+    expect(hits).toHaveLength(0);
   });
 });
 
-test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
+test.describe('TENANT_APPLICATION = true (as shipped): what the tenant sees', () => {
+  test('it is on for every visitor: no address switch, and the old preview address changes nothing', async ({ page }) => {
+    await as(page, 'dismissed');
+    const gateTenant = '[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]';
+    for (const url of ['/index.html', '/index.html?tenant-preview=0']) {
+      await page.goto(url);
+      expect(await page.evaluate(() => window.rasTenantApplication)).toBe(true);
+      expect(await page.evaluate(() => typeof window.rasTenantPreview)).toBe('undefined');
+      await page.click(gateTenant);
+      await expect(askPanel(page)).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
+    expect(await page.evaluate(() => sessionStorage.getItem('ras_tenant_preview'))).toBeNull();
+  });
+
   test('two cards, "Not yet" with its start prompt, and "Start my application" opens the form', async ({ page }) => {
-    await page.goto(ON);
+    await page.goto('/index.html');
     await tenant(page).click();
     await expect(askPanel(page)).toBeVisible();
     await expect(askPanel(page).locator('h2')).toHaveText('Do you have your landlord’s details?');
@@ -254,12 +327,15 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
 
     await notYet(page).click();
     await expect(helpPanel(page)).toBeVisible();
-    await expect(helpPanel(page)).toContainText('the landlord has to apply');
+    // It says what we are, and no longer that there is nothing for a tenant here.
+    await expect(helpPanel(page).locator('.lc-sub')).toHaveText(HELP_ON);
+    await expect(helpPanel(page)).not.toContainText('nothing we can file');
     await expect(helpPanel(page).locator('a[href^="tel:"]')).toHaveCount(3);
     await expect(helpPanel(page).getByRole('link', { name: /See all free help for tenants/ })).toHaveAttribute('href', '/tenants/');
     const prompt = helpPanel(page).locator('[data-lc-ready]');
     await expect(prompt.locator('h3')).toHaveText('Ready to apply?');
-    await expect(prompt.locator('p')).toHaveText('If you have your landlord’s details, you can start now.');
+    await expect(prompt.locator('p')).toHaveText('If you have your landlord’s details, you can start an application here. '
+      + 'We send it to your landlord to finish.');
     await expect(prompt.getByRole('button')).toHaveText(['Start my application', 'Close']);
     await expect(helpPanel(page).getByRole('button', { name: 'Close' })).toHaveCount(1);
 
@@ -272,18 +348,6 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
     await expect(page.locator('#tenant-form input[name="visitor_role"]')).toHaveValue('tenant');
     await expect(page.locator('#tenant-form input[name="form_type"]')).toHaveValue('tenant_application');
     await expect(page.locator('#tenant-form input[name="hp_x7f2"]')).toHaveCount(1);
-  });
-
-  test('the switch is kept for the rest of the tab, on any page', async ({ page }) => {
-    await as(page, 'dismissed');
-    await page.goto(ON);
-    await page.goto('/index.html');
-    await page.click('[data-gate-for="contact-form"] .rg-btn[data-role="tenant"]');
-    await expect(askPanel(page)).toBeVisible();
-    await page.goto('/back-rent/index.html');
-    await page.locator('a[href="#form-card"]').first().evaluate((a) => a.click());
-    await tenant(page).click();
-    await expect(askPanel(page)).toBeVisible();
   });
 
   test('Back from the first step returns to the question; closing puts the form back, hidden, answers kept', async ({ page }) => {
@@ -301,7 +365,7 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
   });
 
   test('a landlord who went back and chose tenant gets the tenant form, and the landlord form goes home', async ({ page }) => {
-    await page.goto(ON);
+    await page.goto('/index.html');
     await landlord(page).click();
     await expect(page.locator('[data-landlord-check] #intake-form')).toBeVisible();
     await back(page).click();
@@ -314,7 +378,7 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
   });
 
   test('on a page without the form, "Yes" hands the tenant to the homepage application, already open', async ({ page }) => {
-    await page.goto('/blog/index.html?tenant-preview=1');
+    await page.goto('/blog/index.html');
     await tenant(page).click();
     await expect(askPanel(page)).toBeVisible();
     await ready(page).click();
@@ -325,7 +389,7 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
   });
 
   test('"Start my application" on a page without the form hands over the same way', async ({ page }) => {
-    await page.goto('/faq/index.html?tenant-preview=1');
+    await page.goto('/faq/index.html');
     await tenant(page).click();
     await notYet(page).click();
     await startApp(page).click();
@@ -333,10 +397,9 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
     await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
   });
 
-  test('a browser that refuses to store the hand-off still reaches the preview on the homepage', async ({ page }) => {
-    // Safari private mode throws on sessionStorage.setItem: neither the hand-off flag nor the
-    // switch can be kept, so the switch has to travel in the address. Without it the homepage
-    // showed the old tenant screen behind a button that said "Start my application".
+  test('a browser that refuses to store the hand-off lands on the form section, where the gate asks', async ({ page }) => {
+    // Safari private mode throws on sessionStorage.setItem, so the hand-off flag can't be kept and
+    // the address has to carry the tenant to the form section instead.
     await page.addInitScript(() => {
       const real = Storage.prototype.setItem;
       Storage.prototype.setItem = function (k, v) {
@@ -344,19 +407,71 @@ test.describe('switch on (?tenant-preview=1): what the tenant sees', () => {
         return real.call(this, k, v);
       };
     });
-    await page.goto('/faq/index.html?tenant-preview=1');
+    await page.goto('/faq/index.html');
     await tenant(page).click();
     await ready(page).click();
-    await page.waitForURL((u) => u.pathname === '/' && u.search === '?tenant-preview=1' && u.hash === '#apply');
-    // No flag, so nothing opens by itself: the gate on the form section asks the preview's question.
+    await page.waitForURL((u) => u.pathname === '/' && u.search === '' && u.hash === '#apply');
     await page.click('[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]');
     await expect(askPanel(page)).toBeVisible();
     await ready(page).click();
     await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
   });
+
+  test('the FAQ answer\'s "start an application" link opens the application', async ({ page }) => {
+    await as(page, 'dismissed');
+    await page.goto('/faq/index.html');
+    const item = page.locator('details.faq-item', { hasText: 'I\'m a tenant. Can you help me?' });
+    await item.locator('summary').click();
+    await item.locator('a[data-tenant-apply]').click();
+    await page.waitForURL((u) => u.pathname === '/');
+    await expect(page.locator('[data-landlord-check] #tenant-form')).toBeVisible();
+    expect(await currentStep(page)).toBe('About me');
+  });
 });
 
-test.describe('switch on: each step checks its answers before Next', () => {
+test.describe('/tenants/: "Have your landlord\'s details? Start your application"', () => {
+  test('the page says it, and both of its links open the homepage application', async ({ page }) => {
+    await page.goto('/tenants/index.html');
+    await expect(page.locator('.hero .lead')).toContainText('we don\'t represent tenants. If you have your landlord\'s details, '
+      + 'you can start an application that we send to your landlord to finish.');
+    const note = page.locator('.note', { has: page.locator('a[data-tenant-apply]') });
+    await expect(note).toHaveText('Have your landlord\'s details? Start your application. If you have your landlord\'s name and an '
+      + 'email or phone number for them, you can start an application here. We send it to your landlord to finish. '
+      + 'Start my application →');
+    await expect(page.locator('#tq-a1')).toHaveText('Not directly. We are hired by property owners to prepare and manage their '
+      + 'filings, and we don\'t represent tenants. The Eviction Diversion Program application is filed by the landlord, so we '
+      + 'can\'t file it for you. If you have your landlord\'s details, you can start an application that we send to your '
+      + 'landlord to finish.');
+    await expect(page.locator('a[data-tenant-apply]')).toHaveCount(2);
+    // the page itself still has no form and loads no popup
+    await expect(page.locator('form')).toHaveCount(0);
+    await expect(page.locator('script[src*="landlord-check"]')).toHaveCount(0);
+
+    for (const link of ['.note a[data-tenant-apply]', '#tq-a1 a[data-tenant-apply]']) {
+      await page.goto('/tenants/index.html');
+      await page.locator(link).click();
+      await page.waitForURL((u) => u.pathname === '/');
+      await expect(page.locator('[data-landlord-check] #tenant-form'), link).toBeVisible();
+      expect(await currentStep(page)).toBe('About me');
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    }
+  });
+
+  test('a browser that refuses to store the hand-off follows the link to the form section', async ({ page }) => {
+    await page.addInitScript(() => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === window.sessionStorage) throw new DOMException('QuotaExceededError');
+        return real.call(this, k, v);
+      };
+    });
+    await page.goto('/tenants/index.html');
+    await page.locator('.note a[data-tenant-apply]').click();
+    await page.waitForURL((u) => u.pathname === '/' && u.hash === '#apply');
+  });
+});
+
+test.describe('each step checks its answers before Next', () => {
   test('About me: a real first and last name, the email typed twice, a real phone; the move-in date is optional', async ({ page }) => {
     await toApplication(page);
     await next(page).click();
@@ -496,7 +611,8 @@ test.describe('switch on: each step checks its answers before Next', () => {
     expect(await currentStep(page)).toBe('My documents');
   });
 
-  test('documents are optional; both authorizations are required to send', async ({ page }) => {
+  test('documents are optional; both authorizations are required to send, and the first links the terms', async ({ page }) => {
+    const hits = await stubEndpoint(page);
     await toApplication(page);
     await fillUntil(page, 'My documents');
     await expect(page.locator('#tenant-form input[type=file]')).toHaveCount(2);
@@ -506,97 +622,198 @@ test.describe('switch on: each step checks its answers before Next', () => {
       'Proof of ownership, a W-9 and bank details come from the landlord, not from you.');
     await next(page).click();                                       // nothing uploaded: still fine
     expect(await currentStep(page)).toBe('Send to my landlord');
-    await expect(page.locator('#tenant-form button[type=submit]')).toHaveText(/Send to my landlord/);
-    await expect(page.locator('label[for="ta-forward"]')).toContainText('By completing this application, I am asking Rental '
+    await expect(send(page)).toHaveText(/Send to my landlord/);
+    await expect(page.locator('label[for="ta-forward"]')).toHaveText('By completing this application, I am asking Rental '
       + 'Assistance Services to forward it to my landlord. I understand my landlord must provide more information and agree to '
-      + 'take part before the application is complete, and that nothing is approved until they do.');
+      + 'take part before the application is complete, and that nothing is approved until they do. See the terms for tenants. *');
+    // As the landlord application's agreement box links the fee terms, this one links the tenant terms.
+    await expect(page.locator('label[for="ta-forward"] a')).toHaveAttribute('href', '/terms.html#tenants');
     await expect(page.locator('label[for="ta-contact"]')).toContainText('I agree to be contacted by email or phone about this application.');
-    const send = page.locator('#tenant-form button[type=submit]');
-    await send.click();
-    await expect(page.locator('.tenant-sent')).toHaveCount(0);
+    await send(page).click();
+    await expect(sent(page)).toHaveCount(0);
     await expect(msgOf(page, '#ta-forward')).toBeVisible();
     await page.check('#ta-forward');
-    await send.click();
-    await expect(page.locator('.tenant-sent')).toHaveCount(0);
+    await send(page).click();
+    await expect(sent(page)).toHaveCount(0);
     await expect(msgOf(page, '#ta-contact')).toBeVisible();
+    expect(hits).toHaveLength(0);                                    // nothing sent while a box was missing
     await page.check('#ta-contact');
-    await send.click();
-    await expect(page.locator('.tenant-sent')).toBeVisible();
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
+    expect(hits).toHaveLength(1);
+  });
+
+  test('the terms the box links to have the tenant section', async ({ page }) => {
+    const res = await page.goto('/terms.html#tenants');
+    expect(res.status()).toBe(200);
+    await expect(page.locator('h2#tenants')).toHaveText('8. If you are a tenant');
+    const section = page.locator('h2#tenants ~ *').first();
+    await expect(section).toContainText('we do not represent tenants');
   });
 });
 
-test.describe('switch on: sending sends nothing', () => {
-  test('"Send to my landlord" makes no request and shows the preview confirmation with its banner', async ({ page }) => {
-    const hits = await stubEndpoint(page);
-    await toApplication(page);
-    await fillUntil(page, null);
-    const urls = watchRequests(page);
-    await page.click('#tenant-form button[type=submit]');
-    const sent = page.locator('[data-landlord-check] .tenant-sent');
-    await expect(sent).toBeVisible();
-    await expect(sent.locator('.preview-banner')).toHaveText(BANNER);
-    await expect(sent.locator('h3')).toHaveText('Sent to your landlord');
-    await expect(sent.locator('h3 + p')).toHaveText('We will email you your application number and let you know when your landlord responds.');
-    // the banner is above the heading, and plainly visible: white on navy
-    const [b, h] = [await sent.locator('.preview-banner').boundingBox(), await sent.locator('h3').boundingBox()];
-    expect(b.y + b.height).toBeLessThanOrEqual(h.y);
-    const look = await sent.locator('.preview-banner').evaluate((el) => ({ bg: getComputedStyle(el).backgroundColor, fg: getComputedStyle(el).color }));
-    expect(look).toEqual({ bg: 'rgb(14, 34, 72)', fg: 'rgb(255, 255, 255)' });
+test.describe('sending', () => {
+  test('one multipart POST with the tenant\'s answers, the landlord\'s details and both files; the confirmation only after the 200', async ({ page }) => {
+    let release;
+    const hold = new Promise((r) => { release = r; });
+    const hits = await stubEndpoint(page, { hold });
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect.poll(() => hits.length).toBe(1);
+    // In flight: not confirmed yet, and the button can't send it twice.
+    await expect(status(page)).toHaveText('Submitting…');
+    await expect(send(page)).toBeDisabled();
+    await page.waitForTimeout(300);
+    await expect(sent(page)).toHaveCount(0);
+    release();
+    await expect(sent(page)).toBeVisible();
+
+    expect(hits[0].method).toBe('POST');
+    expect(hits[0].contentType).toMatch(/^multipart\/form-data; boundary=/);
+    const body = parts(hits[0].postData);
+    expect(Object.keys(body).sort()).toEqual([...FIELDS].sort());
+    expect(body).toEqual({
+      form_type: 'tenant_application', visitor_role: 'tenant',
+      tenant_name: 'Dwayne Carter', tenant_email: 'dwayne@example.com', tenant_phone: '(215) 555-0188', tenant_movein: '',
+      landlord_name: 'Marcus Reed', landlord_email: 'landlord@example.com', landlord_phone: '',
+      property_street: '1932 N 5th St', property_zip: '19122', property_unit: '', property_address: '1932 N 5th St, 19122',
+      monthly_rent: '1150', back_rent_owed: '4200', months_behind: '',
+      doc_lease: { file: 'my-lease.pdf' }, doc_ledger: { file: 'payment-history.pdf' },
+      authorize_forward: 'on', agree_contact: 'on', hp_x7f2: '',
+    });
+
+    await expect(sent(page).locator('h3')).toHaveText(CONFIRM_H);
+    await expect(sent(page).locator('h3 + p')).toHaveText(CONFIRM_P);
+    await expect(sent(page).locator('.preview-banner')).toHaveCount(0);
+    await expect(sent(page)).not.toContainText(/preview|nothing was sent/i);
     await expect(page.locator('#tenant-form')).toBeHidden();
     await expect(page.locator('.lc-count')).toHaveText('Done');
-    await expect(page.locator('#tenant-form input[name="property_address"]')).toHaveValue('1932 N 5th St, 19122');
-    await page.waitForTimeout(1000);
-    expect(hits).toHaveLength(0);
-    expect(foreign(page, urls), 'sending reached another host').toEqual([]);
+    await page.waitForTimeout(500);
+    expect(hits).toHaveLength(1);
   });
 
-  test('the whole tenant path talks to nothing but the site, and Photon for the street box', async ({ page }) => {
+  test('the same click ids and utm_* fields go along as on the landlord application', async ({ page }) => {
     const hits = await stubEndpoint(page);
-    await page.goto(ON);
-    const urls = watchRequests(page);
-    await tenant(page).click();
-    await notYet(page).click();
-    await startApp(page).click();
-    await fillUntil(page, null);
-    await page.click('#tenant-form button[type=submit]');
-    await expect(page.locator('.tenant-sent')).toBeVisible();
-    await page.waitForTimeout(1000);
-    expect(hits).toHaveLength(0);
-    const hosts = [...new Set(foreign(page, urls).map((u) => new URL(u).host))];
-    expect(hosts).toEqual(['photon.komoot.io']);
+    await toFilledApplication(page, '/index.html?gclid=TEST-GCLID-1&utm_source=google&utm_campaign=landlords');
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
+    expect(parts(hits[0].postData)).toMatchObject({ gclid: 'TEST-GCLID-1', utm_source: 'google', utm_campaign: 'landlords',
+      form_type: 'tenant_application', visitor_role: 'tenant' });
   });
 
-  test('the popup reports no "submit" anywhere on the tenant path', async ({ page }) => {
-    await page.goto(ON);
-    await tenant(page).click();
-    await notYet(page).click();
-    await startApp(page).click();
-    await fillUntil(page, null);
-    await page.click('#tenant-form button[type=submit]');
-    await expect(page.locator('.tenant-sent')).toBeVisible();
-    await expect(page.locator('.lc-count')).toHaveText('Done');
-    const lc = await page.evaluate(() => (window.dataLayer || []).filter((d) => d.event === 'landlord_check'));
-    expect(lc.length).toBeGreaterThan(0);                            // the popup does report, just not this
-    expect(lc.filter((d) => d.lc_action === 'submit')).toEqual([]);
+  test('a filled honeypot still goes to the endpoint, as on the landlord application, and the endpoint decides', async ({ page }) => {
+    const hits = await stubEndpoint(page, { body: { ok: true } });   // what the endpoint answers a bot
+    await toFilledApplication(page);
+    await page.evaluate(() => { document.querySelector('#tenant-hp-x7f2').value = 'Acme Corp'; });
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
+    expect(parts(hits[0].postData).hp_x7f2).toBe('Acme Corp');
+    expect(await leads(page)).toHaveLength(0);
   });
 
-  test('no lead_submit, no conversion call, and the saved answers are cleared on sending', async ({ page }) => {
-    await toApplication(page);
+  test('400 missing_required (what Rio answers this form today) is an error, never the confirmation', async ({ page }) => {
+    const hits = await stubEndpoint(page, { status: 400, body: { ok: false, error: 'missing_required' } });
+    await toFilledApplication(page);
+    await page.waitForTimeout(400);                                  // the draft saves 250ms after an edit
+    await send(page).click();
+    await expect(status(page)).toHaveText(FAILED);
+    await expect(status(page)).toHaveClass(/bad/);
+    await expect(status(page)).toBeVisible();
+    await expect(sent(page)).toHaveCount(0);
+    await expect(page.locator('#tenant-form')).toBeVisible();
+    await expect(send(page)).toBeEnabled();                          // they can send again
+    await expect(page.locator('.lc-count')).toHaveText('Step 7 of 7 · Send to my landlord');
+    expect(hits).toHaveLength(1);
+    expect(await leads(page)).toHaveLength(0);
+    expect((await draft(page)).values.tenant_name).toBe('Dwayne Carter');   // nothing lost
+  });
+
+  test('an error the endpoint words for a person is shown as it is, as on the landlord application', async ({ page }) => {
+    await stubEndpoint(page, { status: 400, body: { error: 'missing_required', reply: 'Please give your name and a phone or email.' } });
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(status(page)).toHaveText('Please give your name and a phone or email.');
+    await expect(sent(page)).toHaveCount(0);
+  });
+
+  test('a 200 that does not say ok is not a success', async ({ page }) => {
+    for (const body of [{}, { ok: false }, { contact_id: CONTACT_ID }]) {
+      await stubEndpoint(page, { body });
+      await toFilledApplication(page);
+      await send(page).click();
+      await expect(status(page), JSON.stringify(body)).toHaveText(FAILED);
+      await expect(sent(page)).toHaveCount(0);
+      await page.unroute(ENDPOINT);
+      await page.route(ENDPOINT, (route) => route.abort('blockedbyclient'));
+      await page.evaluate(() => localStorage.clear());
+    }
+  });
+
+  test('a network failure shows the same error and logs the detail; sending again works', async ({ page }) => {
+    const logged = [];
+    page.on('console', (m) => { if (m.type() === 'error') logged.push(m.text()); });
+    let down = true;
+    const hits = [];
+    await page.route(ENDPOINT, (route) => {
+      hits.push(route.request().method());
+      if (down) return route.abort('failed');
+      return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify(OK) });
+    });
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(status(page)).toHaveText(FAILED);
+    await expect(status(page)).not.toContainText('Failed to fetch');
+    await expect(sent(page)).toHaveCount(0);
+    expect(logged.join(' ')).toContain('[RAS] submit failed');
+    down = false;
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
+    expect(hits).toHaveLength(2);
+    expect(await leads(page)).toHaveLength(0);
+  });
+
+  test('never a conversion: no rasTrackLead, no lead_submit, no popup submit, no Google request', async ({ page }) => {
+    const hits = await stubEndpoint(page);
+    await page.goto('/index.html');
     await page.evaluate(() => {
       window.__leadCalls = 0;
       const real = window.rasTrackLead;
       window.rasTrackLead = function () { window.__leadCalls += 1; return real.apply(this, arguments); };
     });
+    const urls = watchRequests(page);
+    await tenant(page).click();
+    await notYet(page).click();
+    await startApp(page).click();
+    await fillUntil(page, null);
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
+    await expect(page.locator('.lc-count')).toHaveText('Done');
+    await page.waitForTimeout(1000);
+    expect(hits).toHaveLength(1);
+    expect(await page.evaluate(() => window.__leadCalls)).toBe(0);
+    expect(await leads(page)).toHaveLength(0);
+    expect(await lcSubmits(page)).toEqual([]);
+    const lc = await page.evaluate(() => (window.dataLayer || []).filter((d) => d.event === 'landlord_check'));
+    expect(lc.length).toBeGreaterThan(0);                            // the popup does report, just not this
+    expect(googleHits(urls)).toEqual([]);
+    // Everything that left the page: Photon (the street box) and the one POST.
+    const hosts = [...new Set(foreign(page, urls).map((u) => new URL(u).host))].sort();
+    expect(hosts).toEqual([new URL(ENDPOINT).host, 'photon.komoot.io'].sort());
+    expect(foreign(page, urls).filter((u) => u === ENDPOINT)).toHaveLength(1);
+  });
+
+  test('the saved answers are cleared on sending', async ({ page }) => {
+    await stubEndpoint(page);
+    await toApplication(page);
     await fillUntil(page, null);
     await page.waitForTimeout(400);                                  // the draft saves 250ms after an edit
     const kept = await draft(page);
     expect(kept.values.tenant_name).toBe('Dwayne Carter');
     expect(kept.values.authorize_forward).toBeUndefined();          // a consent is ticked fresh every time
     expect(kept.values.agree_contact).toBeUndefined();
-    await page.click('#tenant-form button[type=submit]');
-    await expect(page.locator('.tenant-sent')).toBeVisible();
-    expect(await leads(page)).toHaveLength(0);
-    expect(await page.evaluate(() => window.__leadCalls)).toBe(0);
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
     expect(await draft(page)).toBeNull();
   });
 
@@ -615,8 +832,35 @@ test.describe('switch on: sending sends nothing', () => {
   });
 });
 
-test.describe('switch on: the rest of the popup is as before', () => {
-  test('no long dashes and nothing under .9rem on any tenant screen', async ({ page }) => {
+test.describe('the rest of the popup is as before', () => {
+  test('closing a tenant application immediately after Next preserves the draft step', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+    await toApplication(page);
+    await FILL['About me'](page);
+    await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
+    await next(page).click();
+    await page.keyboard.press('Escape');
+    await page.clock.runFor(500);
+    expect((await draft(page)).step).toBe(1);
+  });
+
+  test('closing the landlord application immediately after Next preserves its draft step', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.fill('#owner-name', 'Marcus Reed');
+    await page.fill('#owner-email', 'landlord@example.com');
+    await page.fill('#owner-email-confirm', 'landlord@example.com');
+    await page.fill('#owner-phone', '(215) 555-0123');
+    await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
+    await next(page).click();
+    await page.keyboard.press('Escape');
+    await page.clock.runFor(500);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('ras_lc_draft:intake-form')));
+    expect(saved.step).toBe(1);
+  });
+
+  test('no long dashes and nothing under .9rem on any tenant screen, the confirmation and the error', async ({ page }) => {
     const check = () => page.evaluate(() => {
       const out = [];
       const dialog = document.querySelector('[data-landlord-check] .lc-dialog');
@@ -631,7 +875,12 @@ test.describe('switch on: the rest of the popup is as before', () => {
       }
       return out;
     });
-    await page.goto(ON);
+    let down = true;
+    await page.route(ENDPOINT, (route) => (down ? route.fulfill({ status: 400, contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ ok: false, error: 'missing_required' }) })
+      : route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify(OK) })));
+    await page.goto('/index.html');
     await tenant(page).click();
     expect(await check(), 'the question').toEqual([]);
     await notYet(page).click();
@@ -643,8 +892,12 @@ test.describe('switch on: the rest of the popup is as before', () => {
       await FILL[name](page);
       if (name !== STEPS[STEPS.length - 1]) await next(page).click();
     }
-    await page.click('#tenant-form button[type=submit]');
-    await expect(page.locator('.tenant-sent')).toBeVisible();
+    await send(page).click();
+    await expect(status(page)).toHaveText(FAILED);
+    expect(await check(), 'the error').toEqual([]);
+    down = false;
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
     expect(await check(), 'the confirmation').toEqual([]);
   });
 
@@ -662,24 +915,20 @@ test.describe('switch on: the rest of the popup is as before', () => {
     }
   });
 
-  // The landlord application, its payload and its one conversion, with the switch off and on:
-  // the same fields with the same values, so the preview changes nothing a landlord sends.
+  // The landlord application, its payload and its one conversion, with the switch on and off:
+  // the same fields with the same values, so the tenant application changes nothing a landlord sends.
   test('the landlord application sends the same payload, and books one conversion, with the switch on as off', async ({ browser }) => {
-    const parts = (body) => {
-      const out = {};
-      for (const m of body.matchAll(/name="([^"]+)"(; filename="[^"]*")?\r\n(?:Content-Type: [^\r]*\r\n)?\r\n([^\r]*)/g)) {
-        out[m[1]] = m[2] ? '<file>' : m[3];
-      }
-      return out;
-    };
-    const run = async (url) => {
+    const run = async (off) => {
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
+      await page.route(ENDPOINT, (route) => route.abort('blockedbyclient'));
       await page.route(/googletagmanager\.com|google-analytics\.com/, (route) => route.abort());
       await page.route('https://photon.komoot.io/**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
         headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
+      if (off) await switchOff(page);
       const seen = await stubEndpoint(page);
-      await page.goto(url);
+      await page.goto('/index.html');
+      expect(await page.evaluate(() => window.rasTenantApplication)).toBe(!off);
       await landlord(page).click();
       await expect(page.locator('[data-lc-dot]')).toHaveCount(8);
       await page.fill('#owner-name', 'Marcus Reed'); await page.fill('#owner-email', 'landlord@example.com');
@@ -695,12 +944,12 @@ test.describe('switch on: the rest of the popup is as before', () => {
       await page.click('#intake-form button[type=submit]');
       await expect(page.locator('[role=status]').filter({ hasText: 'Application received' })).toBeVisible();
       const result = { seen: seen.length, body: parts(seen[0].postData), leads: await leads(page),
-        contentType: seen[0].contentType.split(';')[0] };
+        contentType: seen[0].contentType.split(';')[0], submits: await lcSubmits(page) };
       await ctx.close();
       return result;
     };
-    const off = await run('/index.html');
-    const on = await run(ON);
+    const off = await run(true);
+    const on = await run(false);
     expect(off.seen).toBe(1);
     expect(on.seen).toBe(1);
     expect(on.contentType).toBe('multipart/form-data');
@@ -713,5 +962,6 @@ test.describe('switch on: the rest of the popup is as before', () => {
     expect(off.leads).toHaveLength(1);
     expect(on.leads).toHaveLength(1);
     expect(on.leads[0]).toMatchObject({ form_id: 'intake-form', lead_value: 600, transaction_id: CONTACT_ID });
+    expect(on.submits).toHaveLength(1);                              // the popup still reports a landlord's submit
   });
 });

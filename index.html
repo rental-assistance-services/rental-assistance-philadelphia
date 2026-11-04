@@ -380,16 +380,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </form>
 
       <!--
-        TENANT APPLICATION: PREVIEW ONLY (Adam, 2026-10-14; Abe sees it before it goes live).
-        Reachable only inside the popup in a tab opened with ?tenant-preview=1 (TENANT_PREVIEW in
-        landlord-check.js); for every other visitor it stays hidden and nothing reaches it.
-        It SENDS NOTHING: no action, no endpoint. site.js validates it and shows a preview
-        confirmation instead of a request, and never books a conversion. Field ids start "ta-" so they
-        never collide with #intake-form's. Field names reuse the landlord application's where they
-        mean the same thing. Not built yet: the email to the landlord, the application number, the
-        landlord's finish / decline page, the portal lookup, and Rio accepting these fields.
+        TENANT APPLICATION (Adam, 2026-10-14; live for every visitor, approved by Kean and RK).
+        Filled only inside the popup, which finds it by data-lc-visitor="tenant" and is the only
+        thing that shows it; switched off with TENANT_APPLICATION in landlord-check.js.
+        site.js sends it to the CRM with the landlord application's own code (multipart, the same
+        endpoint, honeypot, click ids and utm_*), but it is never a conversion: no rasTrackLead, no
+        lead_submit. Field ids start "ta-" so they never collide with #intake-form's. Field names
+        reuse the landlord application's where they mean the same thing; Rio is built against them,
+        so do not rename any. Rio sends the email to the landlord and the application number.
       -->
-      <form id="tenant-form" class="intake" novalidate hidden>
+      <form id="tenant-form" class="intake" data-lc-visitor="tenant" novalidate hidden>
         <fieldset class="fs">
           <div class="fs-head"><span class="fs-step">1</span><h3>About me</h3></div>
           <p class="fs-sub">So we can reach you about this application.</p>
@@ -444,7 +444,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <fieldset class="fs">
           <div class="fs-head"><span class="fs-step">6</span><h3>Send to my landlord</h3></div>
           <p class="fs-sub">What happens next.</p>
-          <div class="field"><div class="consent"><input id="ta-forward" name="authorize_forward" type="checkbox" required><label for="ta-forward">By completing this application, I am asking Rental Assistance Services to forward it to my landlord. I understand my landlord must provide more information and agree to take part before the application is complete, and that nothing is approved until they do. <span class="req">*</span></label></div><p class="errmsg">Check this box so we can send your application to your landlord.</p></div>
+          <div class="field"><div class="consent"><input id="ta-forward" name="authorize_forward" type="checkbox" required><label for="ta-forward">By completing this application, I am asking Rental Assistance Services to forward it to my landlord. I understand my landlord must provide more information and agree to take part before the application is complete, and that nothing is approved until they do. See the <a href="/terms.html#tenants" target="_blank" rel="noopener">terms for tenants</a>. <span class="req">*</span></label></div><p class="errmsg">Check this box so we can send your application to your landlord.</p></div>
           <div class="field"><div class="consent"><input id="ta-contact" name="agree_contact" type="checkbox" required><label for="ta-contact">I agree to be contacted by email or phone about this application. <span class="req">*</span></label></div><p class="errmsg">Check this box so we can reach you about your application.</p></div>
           <p class="note">You will get an email with your application number to share with your landlord if needed.</p>
           <div class="field" style="position:absolute;left:-9999px;" aria-hidden="true"><label for="tenant-hp-x7f2">Leave this field empty</label><input id="tenant-hp-x7f2" name="hp_x7f2" type="text" tabindex="-1" autocomplete="off"></div>

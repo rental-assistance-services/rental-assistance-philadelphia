@@ -890,6 +890,9 @@ test.describe('tenant', () => {
     const seen = await stubEndpoint(page);
     await page.goto('/index.html');
     await tenant(page).click();
+    // The tenant application is live, so the popup first asks for the landlord's details;
+    // "Not yet" is the free help.
+    await popup(page).getByRole('button', { name: /^Not yet, I want to learn more/ }).click();
     await expect(dialog(page)).toContainText('the landlord has to apply');
     await expect(page.getByRole('link', { name: /free help for tenants/ })).toHaveAttribute('href', '/tenants/');
     await expect(page.locator('#intake-form')).toBeHidden();
@@ -1508,6 +1511,9 @@ test.describe('the question in front of each form opens the popup', () => {
     await as(page, 'dismissed');
     await page.goto('/index.html');
     await page.click('[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]');
+    // The tenant application is live: the popup first asks for the landlord's details.
+    await expect(page.locator('[data-landlord-check] [data-lc-panel="tenant-ask"]')).toBeVisible();
+    await popup(page).getByRole('button', { name: /^Not yet, I want to learn more/ }).click();
     await expect(page.locator('[data-landlord-check] [data-lc-panel="tenant"]')).toBeVisible();
     await expect(page.locator('[data-tenant-panel]')).toHaveCount(0);
   });
