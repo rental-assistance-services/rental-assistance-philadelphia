@@ -736,18 +736,17 @@ test.describe('sending', () => {
     await expect(sent(page)).toHaveCount(0);
   });
 
-  test('a 200 that does not say ok is not a success', async ({ page }) => {
-    for (const body of [{}, { ok: false }, { contact_id: CONTACT_ID }]) {
-      await stubEndpoint(page, { body });
+  for (const body of [{}, { ok: false }, { contact_id: CONTACT_ID }]) {
+    test(`a 200 that answers ${JSON.stringify(body)} is not a success`, async ({ page }) => {
+      const hits = await stubEndpoint(page, { body });
       await toFilledApplication(page);
       await send(page).click();
-      await expect(status(page), JSON.stringify(body)).toHaveText(FAILED);
+      await expect(status(page)).toHaveText(FAILED);
       await expect(sent(page)).toHaveCount(0);
-      await page.unroute(ENDPOINT);
-      await page.route(ENDPOINT, (route) => route.abort('blockedbyclient'));
-      await page.evaluate(() => localStorage.clear());
-    }
-  });
+      expect(hits).toHaveLength(1);
+      expect(await leads(page)).toHaveLength(0);
+    });
+  }
 
   test('a network failure shows the same error and logs the detail; sending again works', async ({ page }) => {
     const logged = [];
