@@ -152,6 +152,10 @@ body{animation:page-in var(--dur) var(--ease) both;}
 .tenant-sent{margin-top:8px;}
 .tenant-sent h3{font-family:var(--serif);font-size:1.3rem;font-weight:480;color:var(--navy);margin:0 0 8px;}
 .tenant-sent p{margin:0;}
+/* A block offering the tenant application (data-tenant-apply-block, on /tenants/) is hidden by
+   /tenant-application.js when the application is switched off. Its own display (the page's grid
+   note) would otherwise win over the hidden attribute. */
+[data-tenant-apply-block][hidden]{display:none !important;}
 
 /* Task 3: section labels promoted from <p class="eyebrow"> to <h2 class="eyebrow">.
    On the licensing band, ".band.hub-clear h2{color:#fff}" would otherwise beat the label colour. */

@@ -39,6 +39,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Public+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <script src="/motion.js" defer></script>
+<!-- The tenant application's switch and hand-off (shared with the pages that have the popup). -->
+<script src="/tenant-application.js" defer></script>
 <style>
 :root{--maxw:1000px;}   /* narrower than the main site's 1140px */
 *{box-sizing:border-box;}
@@ -328,12 +330,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <span class="note-rule" aria-hidden="true"></span>
       <p><strong>But the landlord files it, not you.</strong> The City's Eviction Diversion Program application is submitted by the property owner. That is why we can't do it for you, and it is why the most useful thing you can do is get your landlord to apply. The tenant hotline below can explain the program to you and help you raise it with them.</p>
     </div>
-    <!-- The tenant application lives on the homepage, in the popup this page does not load: the
-         link hands the tenant over (the script at the bottom), the way every other page does. -->
-    <div class="note reveal" data-d="2">
+    <!-- The tenant application lives on the homepage, in the popup this page does not load.
+         /tenant-application.js hands the tenant over from the link, and hides this block when the
+         application is switched off. The href is where the link goes without it: this page. -->
+    <div class="note reveal" data-d="2" data-tenant-apply-block>
       <span class="note-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-file-user"/></svg></span>
       <span class="note-rule" aria-hidden="true"></span>
-      <p><strong>Have your landlord's details? Start your application.</strong> If you have your landlord's name and an email or phone number for them, you can start an application here. We send it to your landlord to finish. <a href="/#apply" data-tenant-apply>Start my application &rarr;</a></p>
+      <p><strong>Have your landlord's details? Start your application.</strong> If you have your landlord's name and an email or phone number for them, you can start an application here. We send it to your landlord to finish. <a href="/tenants/" data-tenant-apply>Start my application &rarr;</a></p>
     </div>
   </div>
 </section>
@@ -423,7 +426,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-file-user"/></svg></span>
         <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Can you apply for rental assistance for me?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
         <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a1"><span class="tq-text">Can you apply for rental assistance for me?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
-        <div class="tq-a" id="tq-a1"><p>Not directly. We are hired by property owners to prepare and manage their filings, and we don't represent tenants. The Eviction Diversion Program application is filed by the landlord, so we can't file it for you. If you have your landlord's details, you can <a href="/#apply" data-tenant-apply>start an application</a> that we send to your landlord to finish.</p></div>
+        <div class="tq-a" id="tq-a1"><p>Not directly. We are hired by property owners to prepare and manage their filings, and we don't represent tenants. The Eviction Diversion Program application is filed by the landlord, so we can't file it for you. If you have your landlord's details, you can <a href="/tenants/" data-tenant-apply>start an application</a> that we send to your landlord to finish.</p></div>
       </div>
 
       <div class="tq-item amber reveal" data-d="1">
@@ -481,23 +484,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
   }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
   els.forEach(function(el){ io.observe(el); });
-})();
-/* "Start my application": the tenant application is on the homepage, in the popup this page does
-   not load (/landlord-check.js). Hand the tenant over as that script's handOff() does: the same
-   sessionStorage flag opens the application on the homepage's arrival. A browser that will not
-   store it (Safari private mode) follows the link to /#apply instead, where the question in front
-   of the form asks the tenant the same thing. Nothing here makes a request. */
-(function(){
-  document.querySelectorAll('a[data-tenant-apply]').forEach(function(a){
-    a.addEventListener('click', function(e){
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      try { sessionStorage.setItem('ras_lc_open', 'tenant'); } catch (err) { return; }
-      e.preventDefault();
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({ event: 'landlord_check', lc_action: 'handoff', page: location.pathname, lc_path: 'tenant' });
-      location.href = '/';
-    });
-  });
 })();
 /* The questions: each button fades its answer out or back in, and the question grows into the
    space the answer leaves (or shrinks back). The card keeps its size, so nothing else on the page

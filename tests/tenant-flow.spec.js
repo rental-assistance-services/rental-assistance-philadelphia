@@ -22,7 +22,13 @@
  * sends. The page's Google Tag Manager is blocked in every test, so any request the page makes to
  * another host is the code under test making it.
  */
+const fs = require('fs');
+const path = require('path');
 const { test, expect } = require('@playwright/test');
+const { sitePages } = require('./site-pages');
+
+const ROOT = path.join(__dirname, '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const ENDPOINT = 'https://rio.tworiverdevelopment.tech/rental-assist/intake';
 const CONTACT_ID = '3f6d2b1a-8c4e-4f7a-9b2d-6e1c0a5f7d93';
@@ -116,9 +122,9 @@ async function as(page, v) {
     }
   }, v);
 }
-/** Serve landlord-check.js with the switch set to false: what every visitor gets if it is turned off. */
+/** Serve /tenant-application.js with the switch set to false: what every visitor gets if it is turned off. */
 async function switchOff(page) {
-  await page.route('**/landlord-check.js', async (route) => {
+  await page.route('**/tenant-application.js', async (route) => {
     const res = await route.fetch();
     const js = await res.text();
     await route.fulfill({ response: res, body: js.replace('var TENANT_APPLICATION = true;', 'var TENANT_APPLICATION = false;') });
@@ -257,7 +263,7 @@ test.describe('TENANT_APPLICATION = false: every visitor gets exactly what main 
     expect(hits).toHaveLength(0);
     expect(foreign(page, offUrls)).toEqual([]);
     // The same fill with the switch on, as shipped: the refusal above was the switch.
-    await page.unroute('**/landlord-check.js');
+    await page.unroute('**/tenant-application.js');
     await page.goto('/index.html');
     expect(await page.evaluate(() => window.rasTenantApplication)).toBe(true);
     await forceSubmit();
@@ -266,7 +272,7 @@ test.describe('TENANT_APPLICATION = false: every visitor gets exactly what main 
     expect(await leads(page)).toHaveLength(0);
   });
 
-  test('a "start an application" link in the copy is an ordinary Apply link', async ({ page }) => {
+  test('a "start an application" link in the copy goes to /tenants/, never to the landlord Apply', async ({ page }) => {
     await switchOff(page);
     await as(page, 'dismissed');
     await page.goto('/faq/index.html');
@@ -274,24 +280,70 @@ test.describe('TENANT_APPLICATION = false: every visitor gets exactly what main 
     const item = page.locator('details.faq-item', { hasText: 'I\'m a tenant. Can you help me?' });
     await item.locator('summary').click();
     await item.locator('a[data-tenant-apply]').click();
-    await expect(page.locator('#lc-title-role')).toBeVisible();          // "landlord or tenant?"
-    expect(new URL(page.url()).pathname).toBe('/faq/index.html');
+    await page.waitForURL((u) => u.pathname === '/tenants/');
+    expect(await page.evaluate(() => sessionStorage.getItem('ras_lc_open'))).toBeNull();
   });
 
-  test('a tenant handed over from /tenants/ lands on the homepage with no tenant form and no request', async ({ page }) => {
-    // /tenants/ cannot read the switch (it does not load the popup), so its link still hands
-    // over. The homepage then ignores the hand-off, as main did.
+  test('/tenants/: the "Have your landlord\'s details?" block is hidden, and the answer\'s link stays on /tenants/', async ({ page }) => {
     await switchOff(page);
-    await as(page, 'dismissed');
     const hits = await stubEndpoint(page);
     await page.goto('/tenants/index.html');
-    await page.locator('.note a[data-tenant-apply]').click();
-    await page.waitForURL((u) => u.pathname === '/');
     await expectOff(page);
-    await page.waitForTimeout(800);
-    await expect(popup(page)).toHaveCount(0);
-    await expect(page.locator('#tenant-form')).toBeHidden();
+    const urls = watchRequests(page);
+    await expect(page.locator('[data-tenant-apply-block]')).toHaveCount(1);
+    await expect(page.locator('[data-tenant-apply-block]')).toBeHidden();
+    await expect(page.getByText('Have your landlord\'s details? Start your application.')).toBeHidden();
+    const link = page.locator('#tq-a1 a[data-tenant-apply]');
+    await expect(link).toHaveAttribute('href', '/tenants/');
+    await link.click();
+    await page.waitForLoadState('load');
+    expect(new URL(page.url()).pathname).toBe('/tenants/');
+    expect(await page.evaluate(() => sessionStorage.getItem('ras_lc_open'))).toBeNull();
+    expect(await page.evaluate(() => (window.dataLayer || []).filter((d) => d.lc_action === 'handoff'))).toEqual([]);
     expect(hits).toHaveLength(0);
+    // The link reloads /tenants/, whose own Tag Manager loader (blocked here) is the page's, not this code's.
+    expect(foreign(page, urls).filter((u) => !/^https:\/\/www\.googletagmanager\.com\/gtm\.js\?/.test(u))).toEqual([]);
+  });
+});
+
+test.describe('/tenant-application.js: the one place for the switch and the hand-off', () => {
+  test('nothing else keeps a copy, every page with the popup loads it first, and every tenant link falls back to /tenants/', () => {
+    // Read off disk, so a page added later is counted too.
+    const pages = sitePages().map((p) => p.slice(1));
+    const scripts = fs.readdirSync(ROOT).filter((f) => f.endsWith('.js') && !/\.config\.js$/.test(f));
+    expect(scripts).toContain('tenant-application.js');
+    for (const file of [...scripts, ...pages]) {
+      if (file === 'tenant-application.js') continue;
+      const src = read(file);
+      expect(src, `${file} sets the switch itself`).not.toMatch(/TENANT_APPLICATION\s*=\s*(true|false)/);
+      expect(src, `${file} keeps its own copy of the hand-off key`).not.toContain('ras_lc_open');
+    }
+    expect(read('tenant-application.js')).toMatch(/var TENANT_APPLICATION = true;/);
+    const popupPages = pages.filter((p) => read(p).includes('src="/landlord-check.js"'));
+    expect(popupPages.length).toBeGreaterThanOrEqual(15);
+    for (const p of popupPages) {
+      const html = read(p);
+      const shared = html.indexOf('<script src="/tenant-application.js" defer></script>');
+      expect(shared, `${p} does not load /tenant-application.js`).toBeGreaterThan(-1);
+      expect(shared, `${p} loads /tenant-application.js after the popup that reads it`).toBeLessThan(html.indexOf('src="/landlord-check.js"'));
+    }
+    expect(read('tenants/index.html')).toContain('<script src="/tenant-application.js" defer></script>');
+    const links = pages.flatMap((p) => [...read(p).matchAll(/<a\b[^>]*\bdata-tenant-apply\b[^>]*>/g)].map((m) => ({ p, tag: m[0] })));
+    expect(links.length).toBeGreaterThanOrEqual(3);                 // the /faq/ answer and the two on /tenants/
+    for (const { p, tag } of links) expect(tag, p).toMatch(/\bhref="\/tenants\/"/);
+  });
+
+  test('if it fails to load, the popup acts as switched off and a landlord is still handed to the application', async ({ page }) => {
+    await page.route('**/tenant-application.js', (route) => route.abort());
+    await page.goto('/blog/index.html');
+    expect(await page.evaluate(() => window.rasTenantApplication)).toBeUndefined();
+    await tenant(page).click();
+    await expect(helpPanel(page).locator('.lc-sub')).toHaveText(HELP_MAIN);
+    await expect(askPanel(page)).toHaveCount(0);
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/blog/index.html');
+    await landlord(page).click();
+    await page.waitForURL((u) => u.pathname === '/' && u.hash === '#apply');
   });
 });
 
@@ -483,6 +535,7 @@ test.describe('/tenants/: "Have your landlord\'s details? Start your application
     // the page itself still has no form and loads no popup
     await expect(page.locator('form')).toHaveCount(0);
     await expect(page.locator('script[src*="landlord-check"]')).toHaveCount(0);
+    await expect(page.locator('[data-tenant-apply-block]')).toBeVisible();   // switched on
 
     for (const link of ['.note a[data-tenant-apply]', '#tq-a1 a[data-tenant-apply]']) {
       await page.goto('/tenants/index.html');

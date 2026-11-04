@@ -15,8 +15,8 @@
      /services/…, /portal/ and /faq/ have), so it works without this script too.
    - Either answer on the landlord/tenant question in front of each form (initRoleGate() on
      the homepage and /back-rent/) — instead of revealing the form on the page.
-   - A tenant's "start an application" link in the copy (data-tenant-apply), which opens the
-     tenant application (below).
+   - A tenant's "start an application" link in the copy (data-tenant-apply): /tenant-application.js
+     handles the click and opens the tenant application here (window.rasOpenTenantApplication).
 
    WHAT IT SHOWS
    - Tenant: the free tenant help lines and a link to /tenants/. The help itself makes NO
@@ -29,36 +29,33 @@
      the gate's own landlord button, so visitor_role is set by the page's initRoleGate().
      When the popup closes the form goes back where it came from, still hidden.
    - A page with no application (the blog, /services/…, /portal/, /faq/) hands a landlord to
-     the homepage application, which opens straight into the popup (HANDOFF).
+     the homepage application, which opens straight into the popup (the hand-off, in
+     /tenant-application.js).
 
-   THE TENANT APPLICATION (TENANT_APPLICATION, on for every visitor)
+   THE TENANT APPLICATION (TENANT_APPLICATION in /tenant-application.js, on for every visitor)
    "I am the tenant" first asks "Do you have your landlord's details?": "Not yet" shows the free
    help above plus a "Start my application" prompt; "Yes" opens the homepage's tenant application
    (the form marked data-lc-visitor="tenant"), moved in and run one section per step by exactly
    the machinery the landlord application uses. On a page without that form the tenant is handed
-   to the homepage (HANDOFF = 'tenant'), as /tenants/ does too. site.js sends it to the CRM the
-   way it sends the landlord application, but it is never a conversion: no rasTrackLead, no
-   lead_submit, and this popup reports no 'submit' for it. Set TENANT_APPLICATION to false and
-   none of this exists: the tenant screen, the markup and every request are exactly as before.
+   to the homepage (the hand-off, kind 'tenant'), as /tenants/ does too. site.js sends it to the
+   CRM the way it sends the landlord application, but it is never a conversion: no rasTrackLead,
+   no lead_submit, and this popup reports no 'submit' for it. Set TENANT_APPLICATION to false
+   and none of this exists: the tenant screen, the markup and every request are exactly as before.
 
    Loaded with <script src="/landlord-check.js" defer> on every landing page EXCEPT
-   /tenants/ and /terms.html. Tested by tests/landlord-check.spec.js.
+   /tenants/ and /terms.html, right after <script src="/tenant-application.js" defer>, which it
+   reads. Tested by tests/landlord-check.spec.js and tests/tenant-flow.spec.js.
    ============================================================ */
 (function () {
   'use strict';
 
   var STORE = 'ras_role_check';            // {v: 'landlord'|'tenant'|'dismissed', t: ms}
-  var HANDOFF = 'ras_lc_open';             // sessionStorage: open the application on arrival
   var TTL_DAYS = { landlord: 90, tenant: 90, dismissed: 30 };
 
-  // The tenant application: a tenant who has their landlord's details starts an application that
-  // we send to the landlord to finish (Adam asked for it 2026-10-14; Kean and RK approved it going
-  // live for every visitor). This is the ONE switch. Set it to false and every page behaves exactly
-  // as it did before the tenant application existed: the free-help screen, no tenant form, no
-  // request. site.js reads it from window.rasTenantApplication and refuses to send the tenant form
-  // unless it is true.
-  var TENANT_APPLICATION = true;
-  window.rasTenantApplication = TENANT_APPLICATION;
+  // The tenant application's ONE switch is in /tenant-application.js, loaded just before this
+  // file. If that file did not load, it reads as off: every page behaves as it did before the
+  // tenant application existed (the free-help screen, no tenant form, no request).
+  var TENANT_APPLICATION = window.rasTenantApplication === true;
   // The tenant application is the form marked data-lc-visitor="tenant" (the homepage's
   // #tenant-form). The popup's tenant rules hang off that mark, never off a form id.
   function forTenant(f) { return !!f && f.getAttribute('data-lc-visitor') === 'tenant'; }
@@ -1061,24 +1058,12 @@
 
   /* ---------- the hand-off to the homepage ----------
      A page with no application (the blog, /services/…, /portal/, /faq/) sends the visitor to
-     the homepage's: kind 'apply' for a landlord, 'tenant' for the tenant application.
-     Whether the flag was actually stored decides where they go, because a browser can refuse
-     to store it: Safari private mode and partitioned third-party embeds both throw on setItem.
-     Assuming it worked sent those visitors to the top of the homepage with no popup and no
-     form, a dead end out of a button marked Apply.
-     Stored: the homepage's TOP, not /#apply, because the flag opens the popup there by itself.
-     With the #apply the browser jumped the page down to the form section, so the popup opened
-     over the bottom of the page and closing it left the visitor down there.
-     Not stored: /#apply, so the browser's own jump puts them on the form section; the popup can
-     no longer carry them, so the anchor has to. A tenant lands there too, and the gate on that
-     section asks them the same "Do you have your landlord's details?" question.
-     /tenants/ does not load this script, so its "Start my application" link does the same in a
-     few lines of its own: the same flag, the same two addresses. */
+     the homepage's: kind 'apply' for a landlord, 'tenant' for the tenant application. The
+     hand-off, and why it goes where it goes, is in /tenant-application.js, shared with /tenants/.
+     If that file did not load, a visitor still lands on the form section, never a dead end. */
   function handOff(kind) {
-    var ok = false;
-    try { sessionStorage.setItem(HANDOFF, kind); ok = true; } catch (e) {}
-    track('handoff', kind === 'tenant' ? { page: location.pathname, lc_path: 'tenant' } : { page: location.pathname });
-    location.href = ok ? '/' : '/#apply';
+    if (window.rasHandOff) window.rasHandOff(kind);
+    else location.href = '/#apply';
   }
 
   /* ---------- the popup ---------- */
@@ -1849,17 +1834,7 @@
       return;
     }
 
-    // 2) A tenant's "start an application" link in the page's copy (data-tenant-apply, as in the
-    //    FAQ): straight into the tenant application, or handed to the homepage's. Its href is
-    //    /#apply, so with the switch off it is an ordinary Apply link (3).
-    var ta = e.target.closest('a[data-tenant-apply]');
-    if (ta && TENANT_APPLICATION) {
-      e.preventDefault(); e.stopPropagation();
-      open('cta', { role: 'tenant', tenantApply: true });
-      return;
-    }
-
-    // 3) A link that jumps to a form.
+    // 2) A link that jumps to a form.
     var a = e.target.closest('a[href]');
     if (!a) return;
     var url;
@@ -1883,8 +1858,10 @@
 
   function init() {
     document.addEventListener('click', onClick, true);
-    var handoff = null;
-    try { handoff = sessionStorage.getItem(HANDOFF); sessionStorage.removeItem(HANDOFF); } catch (e) {}
+    // A data-tenant-apply link (handled in /tenant-application.js) opens the tenant application
+    // here: in this popup, or handed to the homepage's when this page has none.
+    window.rasOpenTenantApplication = function () { open('cta', { role: 'tenant', tenantApply: true }); };
+    var handoff = window.rasTakeHandOff ? window.rasTakeHandOff() : null;
     // A tenant handed over from a page without the tenant application opens straight into it.
     if (handoff === 'tenant') {
       if (TENANT_APPLICATION) { open('handoff', { role: 'tenant', tenantApply: true }); return; }

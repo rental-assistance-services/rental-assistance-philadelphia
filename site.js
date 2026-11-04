@@ -228,7 +228,7 @@
     }
   }
   // opts, for the tenant application (section 9); the landlord forms pass none:
-  //   allowed()         sends only while this says true (the switch in landlord-check.js)
+  //   allowed()         sends only while this says true (the switch in /tenant-application.js)
   //   requireContactId  the confirmation needs {"ok": true} AND a contact_id: the endpoint
   //                     answers a tripped honeypot with a bare {"ok": true} and saves nothing
   //   done(form, data)  shows its own confirmation in place of the landlord one. rasTrackLead
@@ -529,10 +529,10 @@
    * endpoint, multipart with its two optional files, the same honeypot, click ids and utm_*
    * fields, and the same error message when the endpoint refuses it or cannot be reached.
    * Three things differ, all passed in below:
-   * - It sends only while the switch in landlord-check.js (TENANT_APPLICATION, published as
+   * - It sends only while the switch in /tenant-application.js (TENANT_APPLICATION, published as
    *   window.rasTenantApplication) is on. The switch is read at submit time: this file is a plain
-   *   script at the end of the body and runs BEFORE the deferred landlord-check.js. No
-   *   landlord-check.js means no switch, so nothing is sent.
+   *   script at the end of the body and runs BEFORE the deferred /tenant-application.js. No
+   *   /tenant-application.js means no switch, so nothing is sent.
    * - Its confirmation shows only on a 200 that says {"ok": true} AND carries a contact_id, so a
    *   row was really saved. A bare {"ok": true} is what the endpoint answers a tripped honeypot
    *   with, saving nothing: that shows the error, never "Application received".

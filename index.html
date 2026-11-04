@@ -382,7 +382,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!--
         TENANT APPLICATION (Adam, 2026-10-14; live for every visitor, approved by Kean and RK).
         Filled only inside the popup, which finds it by data-lc-visitor="tenant" and is the only
-        thing that shows it; switched off with TENANT_APPLICATION in landlord-check.js.
+        thing that shows it; switched off with TENANT_APPLICATION in /tenant-application.js.
         site.js sends it to the CRM with the landlord application's own code (multipart, the same
         endpoint, honeypot, click ids and utm_*), but it is never a conversion: no rasTrackLead, no
         lead_submit. Field ids start "ta-" so they never collide with #intake-form's. Field names
@@ -569,6 +569,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <script src="/site.js"></script>
 <!-- First-visit landlord check popup — see /landlord-check.js. Not loaded on /tenants/ or /terms.html. -->
+<script src="/tenant-application.js" defer></script>
 <script src="/landlord-check.js" defer></script>
 </body>
 </html>

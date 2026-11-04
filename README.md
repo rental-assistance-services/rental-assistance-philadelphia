@@ -143,13 +143,18 @@ Adam asked on 2026-10-14 for a way for a tenant to start an application that the
 then finishes. It was built as a preview behind `?tenant-preview=1` (PR #26); Kean and RK
 approved it going live for every visitor.
 
-- **The switch.** `TENANT_APPLICATION`, near the top of `landlord-check.js`, a plain `true`. It
-  is the one place to turn the feature off: set it to `false` and the popup, the page and every
-  request are exactly as they were before the tenant application existed. It is published as
-  `window.rasTenantApplication` for `site.js`, which refuses to send the tenant form unless it is
-  `true`. The page copy that tells a tenant they can start an application (`/tenants/`, the
-  `/faq/` answer, the `/services/back-rent/` answer and the terms) is plain HTML that the switch
-  cannot reach, so turning the feature off also means changing those words back.
+- **The switch.** `TENANT_APPLICATION`, a plain `true` near the top of `/tenant-application.js`,
+  a small first-party file that also holds the hand-off to the homepage application. Every page
+  with the popup loads it just before `landlord-check.js`, and `/tenants/` loads it on its own;
+  nothing else keeps a copy of the switch or the hand-off. It is the one place to turn the
+  feature off: set it to `false` and the popup, the page and every request are exactly as they
+  were before the tenant application existed, the "Have your landlord's details?" block on
+  `/tenants/` is hidden, and every `data-tenant-apply` link goes to `/tenants/` (its href),
+  never to the landlord Apply. `site.js` refuses to send the tenant form unless the switch
+  (`window.rasTenantApplication`) is `true`. The wording that tells a tenant they can start an
+  application (the `/faq/` and `/services/back-rent/` answers, the `/tenants/` opening and
+  answer, and the terms) is plain text the switch does not change: turning the feature off also
+  means changing those words back by hand.
 - **The two-box question.** "I am the tenant" first asks "Do you have your landlord's
   details?". "Yes, I'm ready to apply" opens the application. "Not yet, I want to learn more"
   shows the usual free-help screen, with a "Ready to apply?" block at the bottom (Start my
@@ -168,8 +173,8 @@ approved it going live for every visitor.
   `landlord_name`, `landlord_email`, `landlord_phone`, `authorize_forward` and `agree_contact`.
   Rio is built against these names: do not rename any. On a page without the form (the blog,
   `/faq/`, `/back-rent/`) the tenant is taken to the homepage, which opens straight into it.
-  `/tenants/` does not load the popup, so its "Start my application" link sets the same
-  hand-off flag itself. A link marked `data-tenant-apply` in a page's copy opens it directly.
+  `/tenants/` has no popup, so `/tenant-application.js` hands its "Start my application"
+  link to the homepage. A link marked `data-tenant-apply` in a page's copy opens it directly.
 - **Sending.** `site.js` sends it with the landlord application's own code (`initIntakeForm`):
   one multipart POST to the same endpoint, with its two optional files, the honeypot, the
   stored click ids and any `utm_*` fields. The confirmation ("Application received") shows only
