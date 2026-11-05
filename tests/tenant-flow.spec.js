@@ -745,6 +745,17 @@ test.describe('each step checks its answers before Next', () => {
     const section = page.locator('h2#tenants ~ *').first();
     await expect(section).toContainText('we do not represent tenants');
   });
+
+  test('the terms say once, for every form, that we record which ad or link brought a visitor', async ({ page }) => {
+    // Every form sends the stored ad click ids and utm_* fields (Kean, round 2). "Last updated"
+    // waits for Adam's sign-off.
+    await page.goto('/terms.html');
+    const sentence = 'We also record which ad or link brought you to our site, if any.';
+    expect((await page.locator('body').innerText()).split(sentence).length - 1).toBe(1);
+    const general = page.locator('h2', { hasText: '7. Your information' }).locator('xpath=following-sibling::p[1]');
+    await expect(general).toContainText(sentence);
+    await expect(page.locator('.sub')).toContainText('Last updated 13 September 2026');
+  });
 });
 
 test.describe('sending', () => {
