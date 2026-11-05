@@ -800,6 +800,14 @@ test.describe('each step checks its answers before Next', () => {
     await expect(section).toContainText('we do not represent tenants');
   });
 
+  test('the tenant section says once that the tenant application uses Cloudflare Turnstile', async ({ page }) => {
+    await page.goto('/terms.html');
+    const sentence = 'To stop spam, the tenant application uses Cloudflare Turnstile, which checks that a person, not a bot, is filling it in.';
+    expect((await page.locator('body').innerText()).split(sentence).length - 1).toBe(1);
+    await expect(page.locator('h2#tenants + p + ul > li').filter({ hasText: sentence })).toHaveText(sentence);
+    await expect(page.locator('.sub')).toContainText('Last updated 13 September 2026');
+  });
+
   test('the terms say once, for every form, that we record which ad or link brought a visitor', async ({ page }) => {
     // Every form sends the stored ad click ids and utm_* fields (Kean, round 2). "Last updated"
     // waits for Adam's sign-off.
