@@ -181,7 +181,9 @@ approved it going live for every visitor.
   on a 200 that says `{"ok": true}` and carries a `contact_id` (a bare `{"ok": true}` is what
   the endpoint answers a tripped honeypot with, saving nothing). Anything else, an error answer
   or a network failure shows the same message the landlord application does, and the tenant
-  can send again. It is **never a conversion**: no `rasTrackLead` call, no `lead_submit`, and
+  can send again. When the answer also carries a non-empty `application_number`, the
+  confirmation shows it ("Your application number is X. We've also emailed it to you."), set as
+  text, never HTML. It is **never a conversion**: no `rasTrackLead` call, no `lead_submit`, and
   no popup `submit` event.
   `tests/tenant-flow.spec.js` checks all of this with the endpoint stubbed.
 - **Spam check (Cloudflare Turnstile), tenant application only.** Kean approved this one
@@ -198,8 +200,9 @@ approved it going live for every visitor.
   sends the real one, and it must be replaced with RK's real site key before merge.** The tests
   never reach Cloudflare: they answer `challenges.cloudflare.com` with a stand-in.
 - **Rio's part:** accepting `form_type=tenant_application`, the email to the landlord so they
-  can finish it, the email to the tenant with their application number, and checking the
-  `turnstile_token` with the secret key. The confirmation promises both emails.
+  can finish it, the email to the tenant with their application number, returning that number
+  as `application_number` with `ok` and `contact_id`, and checking the `turnstile_token` with the
+  secret key. The confirmation promises both emails.
 
 ## Design and motion — global, in two files
 

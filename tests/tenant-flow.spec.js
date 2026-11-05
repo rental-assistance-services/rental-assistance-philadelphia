@@ -852,6 +852,39 @@ test.describe('sending', () => {
     expect(hits).toHaveLength(1);
   });
 
+  test('with an application number from Rio, the confirmation shows it, as text', async ({ page }) => {
+    await stubEndpoint(page, { body: { ...OK, application_number: 'TA-2026-00042' } });
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(sent(page).locator('h3')).toHaveText(CONFIRM_H);
+    await expect(sent(page).locator('p')).toHaveText([
+      'Thank you. We will email your landlord so they can finish your application.',
+      'Your application number is TA-2026-00042. We’ve also emailed it to you.']);
+    await expect(sent(page).locator('p strong')).toHaveText('TA-2026-00042');
+  });
+
+  for (const answer of [{}, { application_number: '' }, { application_number: '   ' }, { application_number: null }]) {
+    test(`without an application number (${JSON.stringify(answer)}), the confirmation says it will be emailed`, async ({ page }) => {
+      await stubEndpoint(page, { body: { ...OK, ...answer } });
+      await toFilledApplication(page);
+      await send(page).click();
+      await expect(sent(page).locator('h3')).toHaveText(CONFIRM_H);
+      await expect(sent(page).locator('p')).toHaveText([CONFIRM_P]);
+      await expect(sent(page).locator('strong')).toHaveCount(0);
+    });
+  }
+
+  test('an application number that contains HTML is shown as text, never run', async ({ page }) => {
+    const evil = '<img src=x onerror="window.__pwned=1"><b>TA-1</b>';
+    await stubEndpoint(page, { body: { ...OK, application_number: evil } });
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(sent(page).locator('p strong')).toHaveText(evil);
+    await expect(sent(page).locator('img, b')).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+  });
+
   test('the same click ids and utm_* fields go along as on the landlord application', async ({ page }) => {
     const hits = await stubEndpoint(page);
     await toFilledApplication(page, '/index.html?gclid=TEST-GCLID-1&utm_source=google&utm_campaign=landlords');

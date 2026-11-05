@@ -559,14 +559,20 @@
    *   goes in the body as turnstile_token, and the widget is reset after any failed submit,
    *   because a token can only be used once (window.rasTurnstile, /tenant-application.js).
    * The confirmation's promises (an email to the landlord, the application number emailed to the
-   * tenant) are Rio's to keep, not this page's.
+   * tenant) are Rio's to keep, not this page's. When Rio answers with the application number
+   * (application_number), the confirmation shows it too. It is set as text, never as HTML: it
+   * comes from the server, not from this page.
    */
-  function showTenantConfirmation(form){
+  function showTenantConfirmation(form, data){
+    var number = (data && data.application_number != null) ? String(data.application_number).trim() : '';
     var panel = document.createElement('div');
     panel.className = 'callout tenant-sent';
     panel.setAttribute('role','status');
-    panel.innerHTML = '<h3>Application received</h3>'
-      + '<p>Thank you. We will email your landlord so they can finish your application, and we will email you your application number.</p>';
+    panel.innerHTML = '<h3>Application received</h3>' + (number
+      ? '<p>Thank you. We will email your landlord so they can finish your application.</p>'
+        + '<p>Your application number is <strong data-application-number></strong>. We&rsquo;ve also emailed it to you.</p>'
+      : '<p>Thank you. We will email your landlord so they can finish your application, and we will email you your application number.</p>');
+    if(number){ panel.querySelector('[data-application-number]').textContent = number; }
     form.parentNode.insertBefore(panel, form);
     form.style.display = 'none';             // the popup watches for this, as for the landlord form
     panel.scrollIntoView({behavior:'smooth', block:'center'});
