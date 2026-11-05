@@ -231,6 +231,11 @@
   //   allowed()         sends only while this says true (the switch in /tenant-application.js)
   //   requireContactId  the confirmation needs {"ok": true} AND a contact_id: the endpoint
   //                     answers a tripped honeypot with a bare {"ok": true} and saves nothing
+  //   check()           a last check once the fields are right: a message to show instead of
+  //                     sending, or '' to send (the tenant application's spam-check token)
+  //   extra()           fields to add to the payload, { name: value } (the token itself)
+  //   failed()          runs after any submit that did not end in a confirmation, refused by
+  //                     check(), by the endpoint or by the network (a fresh spam check)
   //   done(form, data)  shows its own confirmation in place of the landlord one. rasTrackLead
   //                     is then never called: a tenant application is never a conversion.
   function initIntakeForm(formId, statusId, formType, opts){
@@ -252,6 +257,13 @@
         firstBad.focus(); firstBad.scrollIntoView({behavior:'smooth', block:'center'});
         return;
       }
+      var refusal = opts.check ? opts.check() : '';
+      if(refusal){
+        if(status){ status.textContent = refusal; status.classList.add('bad','show'); }
+        if(opts.failed){ opts.failed(); }
+        return;
+      }
+      var extra = opts.extra ? opts.extra() : {};
 
       // Build the payload. The back-rent intake has file uploads -> multipart;
       // license/tax are field-only -> JSON. Both carry form_type + the honeypot
@@ -265,6 +277,7 @@
         var fd = new FormData(form);          // includes file inputs + the hp_x7f2 honeypot
         fd.set('form_type', formType);
         Object.keys(utm).forEach(function(k){ fd.set(k, utm[k]); });
+        Object.keys(extra).forEach(function(k){ fd.set(k, extra[k]); });
         body = fd;                             // browser sets multipart boundary header
       } else {
         var obj = {form_type: formType};
@@ -274,6 +287,7 @@
           obj[el.name] = el.value;
         });
         Object.keys(utm).forEach(function(k){ obj[k] = utm[k]; });
+        Object.keys(extra).forEach(function(k){ obj[k] = extra[k]; });
         body = JSON.stringify(obj);
         headers = {'Content-Type': 'application/json'};
       }
@@ -310,6 +324,7 @@
         })
         .catch(function(err){
           if(btn){ btn.disabled = false; }
+          if(opts.failed){ opts.failed(); }
           // The applicant gets a human sentence and a phone number; the technical detail
           // goes to the console. A Philadelphia landlord was being shown raw strings like
           // "Failed to fetch" and a 200-character ByteString conversion error.
@@ -528,7 +543,7 @@
    * It is sent by the landlord application's own code (initIntakeForm, section 6): the same
    * endpoint, multipart with its two optional files, the same honeypot, click ids and utm_*
    * fields, and the same error message when the endpoint refuses it or cannot be reached.
-   * Three things differ, all passed in below:
+   * Four things differ, all passed in below:
    * - It sends only while the switch in /tenant-application.js (TENANT_APPLICATION, published as
    *   window.rasTenantApplication) is on. The switch is read at submit time: this file is a plain
    *   script at the end of the body and runs BEFORE the deferred /tenant-application.js. No
@@ -539,6 +554,10 @@
    * - It is NEVER a conversion: its confirmation replaces the landlord one, so rasTrackLead is
    *   never called and no lead_submit is pushed (rasTrackLead would refuse its visitor_role of
    *   tenant anyway).
+   * - It is not sent without a Cloudflare Turnstile token (Rio requires one): no token, an
+   *   expired one, or Cloudflare's script failing to load shows TURNSTILE_MSG instead. The token
+   *   goes in the body as turnstile_token, and the widget is reset after any failed submit,
+   *   because a token can only be used once (window.rasTurnstile, /tenant-application.js).
    * The confirmation's promises (an email to the landlord, the application number emailed to the
    * tenant) are Rio's to keep, not this page's.
    */
@@ -552,9 +571,14 @@
     form.style.display = 'none';             // the popup watches for this, as for the landlord form
     panel.scrollIntoView({behavior:'smooth', block:'center'});
   }
+  var TURNSTILE_MSG = 'Please complete the security check above, or call (215) 402-6882.';
+  function turnstileToken(){ return window.rasTurnstile ? window.rasTurnstile.token() : ''; }
   initIntakeForm('tenant-form', 'tenant-form-status', 'tenant_application', {
     allowed: function(){ return window.rasTenantApplication === true; },
     requireContactId: true,
+    check: function(){ return turnstileToken() ? '' : TURNSTILE_MSG; },
+    extra: function(){ return { turnstile_token: turnstileToken() }; },
+    failed: function(){ if(window.rasTurnstile){ window.rasTurnstile.reset(); } },
     done: showTenantConfirmation
   });
 })();

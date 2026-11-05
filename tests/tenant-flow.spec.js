@@ -50,7 +50,51 @@ const HELP_MAIN = 'Weâ€™re a private service hired by property owners, so thereâ
 /** Every field the tenant application sends, by the name Rio reads it under. */
 const FIELDS = ['agree_contact', 'authorize_forward', 'back_rent_owed', 'doc_ledger', 'doc_lease', 'form_type', 'hp_x7f2',
   'landlord_email', 'landlord_name', 'landlord_phone', 'monthly_rent', 'months_behind', 'property_address', 'property_street',
-  'property_unit', 'property_zip', 'tenant_email', 'tenant_movein', 'tenant_name', 'tenant_phone', 'visitor_role'];
+  'property_unit', 'property_zip', 'tenant_email', 'tenant_movein', 'tenant_name', 'tenant_phone', 'turnstile_token',
+  'visitor_role'];
+
+/* Cloudflare Turnstile, the tenant application's spam check, is never reached for real: every test
+ * answers challenges.cloudflare.com with this stand-in for its api.js. It draws a visible box,
+ * hands out a fake token (or none, or an expired one: window.__tsConfig, set before the page
+ * loads), puts it in the hidden field Turnstile would, and counts render / reset / remove. */
+const CF_HOST = 'challenges.cloudflare.com';
+const TS_TOKEN = 'FAKE-TURNSTILE-TOKEN';
+// The public site key, as /tenant-application.js has it (Cloudflare's always-pass TEST key until RK's).
+const TS_KEY = read('tenant-application.js').match(/var TURNSTILE_SITE_KEY = '([^']+)';/)[1];
+const TS_MSG = 'Please complete the security check above, or call (215) 402-6882.';
+const TURNSTILE_STUB = `(() => {
+  const cfg = window.__tsConfig || {};
+  const ts = window.__ts = { renders: [], resets: 0, removes: 0, expired: !!cfg.expired,
+    token: 'token' in cfg ? cfg.token : '${TS_TOKEN}' };
+  const boxes = {};
+  let n = 0;
+  window.turnstile = {
+    render(el, o) {
+      const id = 'w' + (++n);
+      ts.renders.push(o);
+      const box = document.createElement('div');
+      box.className = 'fake-turnstile';
+      box.textContent = 'Security check (a test stand-in for Cloudflare Turnstile)';
+      box.style.cssText = 'width:300px;max-width:100%;box-sizing:border-box;padding:18px 16px;border:1px solid #d0d7e2;'
+        + 'border-radius:6px;background:#fafafa;font:15px sans-serif;color:#333;';
+      const field = document.createElement('input');
+      field.type = 'hidden'; field.name = o['response-field-name']; field.value = ts.token;
+      box.appendChild(field);
+      el.appendChild(box);
+      boxes[id] = box;
+      return id;
+    },
+    getResponse() { return ts.token || undefined; },
+    isExpired() { return ts.expired; },
+    reset() { ts.resets += 1; if (ts.token) ts.token = '${TS_TOKEN}-' + ts.resets; },
+    remove(id) { ts.removes += 1; if (boxes[id]) boxes[id].remove(); delete boxes[id]; },
+  };
+  const m = /[?&]onload=([^&]+)/.exec(document.currentScript ? document.currentScript.src : '');
+  if (m && typeof window[m[1]] === 'function') window[m[1]]();
+})();`;
+const cfHits = (urls) => urls.filter((u) => /^https?:/.test(u) && new URL(u).host === CF_HOST);
+const tsState = (page) => page.evaluate(() => window.__ts ? { renders: window.__ts.renders, resets: window.__ts.resets,
+  removes: window.__ts.removes } : null);
 
 const popup = (page) => page.locator('[data-landlord-check]');
 const next = (page) => page.locator('[data-landlord-check] [data-lc-next]');
@@ -142,6 +186,9 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://photon.komoot.io/**', (route) => route.fulfill({
     status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
     body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
+  // Never the real Cloudflare: the stand-in above, for anything on its host.
+  await page.route(`https://${CF_HOST}/**`, (route) => route.fulfill({
+    status: 200, contentType: 'application/javascript', body: TURNSTILE_STUB }));
 });
 
 /** Fill the current tenant step like a person would. */
@@ -266,6 +313,13 @@ test.describe('TENANT_APPLICATION = false: every visitor gets exactly what main 
     await page.unroute('**/tenant-application.js');
     await page.goto('/index.html');
     expect(await page.evaluate(() => window.rasTenantApplication)).toBe(true);
+    // Past the popup there is no spam check either, so that is refused too...
+    await forceSubmit();
+    await expect(status(page)).toHaveText(TS_MSG);
+    expect(hits).toHaveLength(0);
+    // ...until the check is drawn and passed, as the popup's last step does it.
+    await page.evaluate(() => window.rasTurnstile.show(document.querySelector('#tenant-form [data-turnstile]')));
+    await expect.poll(() => page.evaluate(() => window.rasTurnstile.token())).not.toBe('');
     await forceSubmit();
     await expect(sent(page)).toContainText(CONFIRM_H);
     expect(hits).toHaveLength(1);
@@ -785,7 +839,7 @@ test.describe('sending', () => {
       property_street: '1932 N 5th St', property_zip: '19122', property_unit: '', property_address: '1932 N 5th St, 19122',
       monthly_rent: '1150', back_rent_owed: '4200', months_behind: '',
       doc_lease: { file: 'my-lease.pdf' }, doc_ledger: { file: 'payment-history.pdf' },
-      authorize_forward: 'on', agree_contact: 'on', hp_x7f2: '',
+      authorize_forward: 'on', agree_contact: 'on', hp_x7f2: '', turnstile_token: TS_TOKEN,
     });
 
     await expect(sent(page).locator('h3')).toHaveText(CONFIRM_H);
@@ -906,7 +960,9 @@ test.describe('sending', () => {
     expect(googleHits(urls)).toEqual([]);
     // Everything that left the page: Photon (the street box) and the one POST.
     const hosts = [...new Set(foreign(page, urls).map((u) => new URL(u).host))].sort();
-    expect(hosts).toEqual([new URL(ENDPOINT).host, 'photon.komoot.io'].sort());
+    // ...and Cloudflare Turnstile's script, which only the tenant application loads.
+    expect(hosts).toEqual([new URL(ENDPOINT).host, 'photon.komoot.io', CF_HOST].sort());
+    expect(cfHits(urls)).toHaveLength(1);
     expect(foreign(page, urls).filter((u) => u === ENDPOINT)).toHaveLength(1);
   });
 
@@ -936,6 +992,151 @@ test.describe('sending', () => {
     await expect(page.locator('.lc-restored')).toBeVisible();
     await back(page).click();
     await expect(page.locator('#ta-landlord-name')).toHaveValue('Marcus Reed');
+  });
+});
+
+test.describe('Cloudflare Turnstile: the spam check, on the tenant application only', () => {
+  test('its script is fetched only once the tenant application opens, and drawn on the last step above the button', async ({ page }) => {
+    const urls = watchRequests(page);                                // from the very first request
+    await page.goto('/index.html');
+    await tenant(page).click();
+    await notYet(page).click();                                      // the free help: still nothing
+    await page.waitForTimeout(500);
+    expect(cfHits(urls), 'fetched before the tenant application opened').toEqual([]);
+    await startApp(page).click();
+    await expect.poll(() => cfHits(urls).length).toBe(1);
+    expect(cfHits(urls)[0]).toMatch(/^https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js\?render=explicit&onload=/);
+    // Loaded, but not drawn on a step nobody can see.
+    await expect.poll(() => page.evaluate(() => !!window.turnstile)).toBe(true);
+    expect((await tsState(page)).renders).toHaveLength(0);
+    await fillUntil(page, 'Send to my landlord');
+    const { renders } = await tsState(page);
+    expect(renders).toHaveLength(1);
+    expect(renders[0]).toEqual({ sitekey: TS_KEY, theme: 'light', appearance: 'interaction-only', size: 'flexible',
+      'response-field-name': 'turnstile_token' });
+    const widget = page.locator('#tenant-form [data-turnstile] .fake-turnstile');
+    await expect(widget).toBeVisible();
+    const [w, b] = [await widget.boundingBox(), await send(page).boundingBox()];
+    expect(w.y + w.height).toBeLessThanOrEqual(b.y);                 // above the submit button
+    expect(cfHits(urls)).toHaveLength(1);                            // fetched once
+  });
+
+  test('no page load and no part of the landlord flow ever fetches it', async ({ page }) => {
+    const urls = watchRequests(page);
+    for (const url of sitePages()) await page.goto(url, { waitUntil: 'load' });
+    await page.waitForTimeout(800);                                  // the first-visit popup opens by itself
+    expect(cfHits(urls), 'a page load fetched Cloudflare').toEqual([]);
+    // The whole landlord application, sent.
+    const hits = await stubEndpoint(page);
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/index.html');
+    await landlord(page).click();
+    await page.fill('#owner-name', 'Marcus Reed'); await page.fill('#owner-email', 'landlord@example.com');
+    await page.fill('#owner-email-confirm', 'landlord@example.com'); await page.fill('#owner-phone', '(215) 555-0123');
+    await next(page).click();
+    await page.fill('#prop-address', '1932 N 5th St'); await page.fill('#prop-zip', '19122'); await page.fill('#prop-rent', '1150');
+    await next(page).click();
+    await page.fill('#tenant-name', 'Dwayne Carter');
+    await next(page).click();
+    await page.fill('#back-rent', '4200'); await page.fill('#months-behind', '4');
+    for (let i = 0; i < 3; i++) await next(page).click();
+    await page.check('#consent'); await page.check('#agree-terms');
+    await page.click('#intake-form button[type=submit]');
+    await expect.poll(() => hits.length).toBe(1);
+    expect(hits[0].postData).not.toContain('turnstile_token');
+    expect(cfHits(urls), 'the landlord flow fetched Cloudflare').toEqual([]);
+    expect(await page.locator(`script[src*="${CF_HOST}"]`).count()).toBe(0);
+  });
+
+  test('no token: nothing is sent, the message shows, and the check is reset', async ({ page }) => {
+    await page.addInitScript(() => { window.__tsConfig = { token: '' }; });
+    const hits = await stubEndpoint(page);
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(status(page)).toHaveText(TS_MSG);
+    await expect(status(page)).toHaveClass(/bad/);
+    await expect(sent(page)).toHaveCount(0);
+    await page.waitForTimeout(500);
+    expect(hits).toHaveLength(0);
+    expect((await tsState(page)).resets).toBe(1);
+    expect(await leads(page)).toHaveLength(0);
+  });
+
+  test('an expired token: nothing is sent and the message shows', async ({ page }) => {
+    await page.addInitScript(() => { window.__tsConfig = { expired: true }; });
+    const hits = await stubEndpoint(page);
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(status(page)).toHaveText(TS_MSG);
+    await page.waitForTimeout(500);
+    expect(hits).toHaveLength(0);
+  });
+
+  test('Cloudflare\'s script failing to load: nothing is sent and the message shows', async ({ page }) => {
+    await page.route(`https://${CF_HOST}/**`, (route) => route.abort('failed'));
+    const hits = await stubEndpoint(page);
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(status(page)).toHaveText(TS_MSG);
+    await expect(sent(page)).toHaveCount(0);
+    await page.waitForTimeout(500);
+    expect(hits).toHaveLength(0);
+  });
+
+  test('a refused submit resets the check, and the next send carries the fresh token', async ({ page }) => {
+    let refuse = true;
+    const bodies = [];
+    await page.route(ENDPOINT, (route) => {
+      bodies.push(parts(route.request().postData() || ''));
+      return route.fulfill({ status: refuse ? 400 : 200, contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify(refuse ? { ok: false, error: 'missing_required' } : OK) });
+    });
+    await toFilledApplication(page);
+    await send(page).click();
+    await expect(status(page)).toHaveText(FAILED);
+    expect((await tsState(page)).resets).toBe(1);                   // the spent token is replaced
+    refuse = false;
+    await send(page).click();
+    await expect(sent(page)).toBeVisible();
+    expect(bodies.map((b) => b.turnstile_token)).toEqual([TS_TOKEN, `${TS_TOKEN}-1`]);
+  });
+
+  test('closing the popup removes the widget; opening again draws a fresh one, with no second fetch', async ({ page }) => {
+    const urls = watchRequests(page);
+    await toApplication(page);
+    await fillUntil(page, 'Send to my landlord');
+    expect((await tsState(page)).renders).toHaveLength(1);
+    await page.keyboard.press('Escape');
+    await expect(popup(page)).toHaveCount(0);
+    expect((await tsState(page)).removes).toBe(1);
+    await expect(page.locator('#tenant-form .fake-turnstile')).toHaveCount(0);
+    await page.click('[data-gate-for="intake-form"] .rg-btn[data-role="tenant"]');
+    await ready(page).click();
+    await page.waitForTimeout(400);
+    for (let i = 0; i < 6 && await currentStep(page) !== 'Send to my landlord'; i++) await next(page).click();
+    expect(await currentStep(page)).toBe('Send to my landlord');
+    expect((await tsState(page)).renders).toHaveLength(2);
+    await expect(page.locator('#tenant-form .fake-turnstile')).toHaveCount(1);
+    expect(cfHits(urls)).toHaveLength(1);
+  });
+
+  test('on a 390px phone the check fits the sheet, with no sideways scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await toApplication(page);
+    await fillUntil(page, 'Send to my landlord');
+    const slot = page.locator('#tenant-form [data-turnstile]');
+    await expect(slot.locator('.fake-turnstile')).toBeVisible();
+    const fit = await page.evaluate(() => {
+      const r = document.querySelector('[data-landlord-check]');
+      const s = document.querySelector('#tenant-form [data-turnstile]');
+      const f = document.querySelector('#tenant-form [data-turnstile] .fake-turnstile');
+      return { sideways: r.scrollWidth - r.clientWidth, slot: s.getBoundingClientRect(), box: f.getBoundingClientRect(),
+        form: document.querySelector('#tenant-form').getBoundingClientRect() };
+    });
+    expect(fit.sideways).toBeLessThanOrEqual(0);
+    expect(fit.box.right).toBeLessThanOrEqual(fit.form.right + 0.5);
+    expect(fit.box.width).toBe(300);                                 // Turnstile's normal width fits whole
   });
 });
 
@@ -1032,6 +1233,8 @@ test.describe('the rest of the popup is as before', () => {
       await page.route(/googletagmanager\.com|google-analytics\.com/, (route) => route.abort());
       await page.route('https://photon.komoot.io/**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
         headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ type: 'FeatureCollection', features: [] }) }));
+      const cf = [];                                                 // the landlord flow never loads Turnstile
+      await page.route(`https://${CF_HOST}/**`, (route) => { cf.push(route.request().url()); return route.abort(); });
       if (off) await switchOff(page);
       const seen = await stubEndpoint(page);
       await page.goto('/index.html');
@@ -1051,7 +1254,7 @@ test.describe('the rest of the popup is as before', () => {
       await page.click('#intake-form button[type=submit]');
       await expect(page.locator('[role=status]').filter({ hasText: 'Application received' })).toBeVisible();
       const result = { seen: seen.length, body: parts(seen[0].postData), leads: await leads(page),
-        contentType: seen[0].contentType.split(';')[0], submits: await lcSubmits(page) };
+        contentType: seen[0].contentType.split(';')[0], submits: await lcSubmits(page), cf };
       await ctx.close();
       return result;
     };
@@ -1061,6 +1264,9 @@ test.describe('the rest of the popup is as before', () => {
     expect(on.seen).toBe(1);
     expect(on.contentType).toBe('multipart/form-data');
     expect(on.body).toEqual(off.body);
+    expect(on.body.turnstile_token, 'a spam-check token leaked into the landlord payload').toBeUndefined();
+    expect(on.cf).toEqual([]);
+    expect(off.cf).toEqual([]);
     expect(on.body).toMatchObject({ form_type: 'intake', visitor_role: 'landlord', owner_name: 'Marcus Reed',
       property_street: '1932 N 5th St', property_zip: '19122', property_address: '1932 N 5th St, 19122' });
     for (const name of ['landlord_name', 'landlord_email', 'authorize_forward', 'agree_contact']) {

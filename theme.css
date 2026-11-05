@@ -156,6 +156,12 @@ body{animation:page-in var(--dur) var(--ease) both;}
    /tenant-application.js when the application is switched off. Its own display (the page's grid
    note) would otherwise win over the hidden attribute. */
 [data-tenant-apply-block][hidden]{display:none !important;}
+/* The tenant application's spam check (Cloudflare Turnstile), above its submit button. Usually
+   invisible ('interaction-only'); when it does show it fills the width it has, never more, so it
+   fits a 390px phone. */
+.turnstile-slot{max-width:100%;overflow:hidden;}
+.turnstile-slot:not(:empty){margin:0 0 14px;}
+.turnstile-slot iframe{max-width:100%;}
 
 /* Task 3: section labels promoted from <p class="eyebrow"> to <h2 class="eyebrow">.
    On the licensing band, ".band.hub-clear h2{color:#fff}" would otherwise beat the label colour. */

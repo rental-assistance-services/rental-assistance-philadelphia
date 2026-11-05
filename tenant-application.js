@@ -13,6 +13,9 @@
      sends a visitor to the homepage's, a landlord ('apply') or a tenant ('tenant').
    - The page copy that offers the application: a link marked data-tenant-apply and a block marked
      data-tenant-apply-block (the /faq/ answer, /tenants/).
+   - Cloudflare Turnstile, the spam check on the tenant application only (window.rasTurnstile):
+     its site key, loading its script, the widget and its token. landlord-check.js loads it when
+     the tenant application opens and shows it on the last step; site.js sends the token.
    Loaded with defer just before /landlord-check.js on every page that has the popup, and on its
    own on /tenants/, which has none. Nothing else keeps a copy of any of it.
 
@@ -28,6 +31,14 @@
 
   var TENANT_APPLICATION = true;
   var HANDOFF = 'ras_lc_open';             // sessionStorage: open the application on arrival
+
+  // Cloudflare Turnstile's PUBLIC site key for the tenant application. The secret key is Rio's
+  // and never goes in this repo.
+  // !!! TEST KEY: replace with RK's real site key before merge. !!!
+  // 1x00000000000000000000AA is Cloudflare's documented always-pass test key: every visitor
+  // passes, so it stops no bot.
+  var TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+  var TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=rasTurnstileLoaded';
 
   /* ---------- the hand-off to the homepage ----------
      Kind 'apply' for a landlord, 'tenant' for the tenant application.
@@ -56,6 +67,67 @@
     try { kind = sessionStorage.getItem(HANDOFF); sessionStorage.removeItem(HANDOFF); } catch (e) {}
     return kind;
   }
+
+  /* ---------- Cloudflare Turnstile: the tenant application's spam check ----------
+     Kean approved this one third-party script for the tenant application and nothing else.
+     - load(): fetches Cloudflare's script, once, explicit render. landlord-check.js calls it when
+       a form with a [data-turnstile] slot (only the tenant application has one) opens in the
+       popup: never on page load, never in the landlord flow, never on any other page.
+     - show(slot): renders the widget in that slot, on the last step, where it can be seen. A step
+       the popup is not showing is display:none, and a widget drawn there may never finish.
+       Light theme, and 'interaction-only', so most people never see a puzzle. Its hidden field is
+       named turnstile_token, the name Rio reads.
+     - token(): the token to send, or '' when there is none: the script failed or has not loaded,
+       the check is not finished, or the token expired. site.js refuses to send without one.
+     - reset(): a fresh check after a failed submit. A token is single-use, so one that was sent
+       and refused is spent.
+     - remove(): when the popup closes. The form goes back to the page, and an iframe that is
+       moved reloads, so the next opening draws a fresh widget instead. */
+  var ts = { state: 'idle', slot: null, widget: null };       // state: idle | loading | ready | failed
+  function tsDraw() {
+    if (ts.state !== 'ready' || !ts.slot || ts.widget !== null || !ts.slot.isConnected) return;
+    try {
+      ts.widget = window.turnstile.render(ts.slot, {
+        sitekey: TURNSTILE_SITE_KEY, theme: 'light', appearance: 'interaction-only', size: 'flexible',
+        'response-field-name': 'turnstile_token'
+      });
+    } catch (e) { ts.widget = null; }
+  }
+  window.rasTurnstileLoaded = function () {
+    ts.state = window.turnstile ? 'ready' : 'failed';
+    tsDraw();
+  };
+  window.rasTurnstile = {
+    load: function () {
+      if (ts.state !== 'idle') return;
+      ts.state = 'loading';
+      var s = document.createElement('script');
+      s.src = TURNSTILE_SRC;
+      s.async = true;
+      s.onerror = function () { ts.state = 'failed'; };
+      document.head.appendChild(s);
+    },
+    show: function (slot) {
+      if (ts.slot !== slot) { this.remove(); ts.slot = slot; }
+      this.load();
+      tsDraw();
+    },
+    token: function () {
+      if (ts.state !== 'ready' || ts.widget === null) return '';
+      try {
+        if (window.turnstile.isExpired(ts.widget)) return '';
+        return window.turnstile.getResponse(ts.widget) || '';
+      } catch (e) { return ''; }
+    },
+    reset: function () {
+      if (ts.state === 'ready' && ts.widget !== null) { try { window.turnstile.reset(ts.widget); } catch (e) {} }
+    },
+    remove: function () {
+      if (ts.state === 'ready' && ts.widget !== null) { try { window.turnstile.remove(ts.widget); } catch (e) {} }
+      ts.widget = null;
+      ts.slot = null;
+    }
+  };
 
   window.rasTenantApplication = TENANT_APPLICATION;
   window.rasHandOff = handOff;

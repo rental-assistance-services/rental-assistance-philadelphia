@@ -450,6 +450,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="field" style="position:absolute;left:-9999px;" aria-hidden="true"><label for="tenant-hp-x7f2">Leave this field empty</label><input id="tenant-hp-x7f2" name="hp_x7f2" type="text" tabindex="-1" autocomplete="off"></div>
           <input type="hidden" name="visitor_role" value="tenant">
           <input type="hidden" name="form_type" value="tenant_application">
+          <!-- Cloudflare Turnstile, the spam check (tenant application only): drawn here by
+               /tenant-application.js when the popup shows this step. -->
+          <div class="turnstile-slot" data-turnstile></div>
           <button class="btn btn-blue block" type="submit">Send to my landlord <span class="arw" aria-hidden="true">&rarr;</span></button>
           <div id="tenant-form-status" class="form-status" role="status" aria-live="polite"></div>
         </fieldset>

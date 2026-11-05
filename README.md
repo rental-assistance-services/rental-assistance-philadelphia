@@ -184,9 +184,22 @@ approved it going live for every visitor.
   can send again. It is **never a conversion**: no `rasTrackLead` call, no `lead_submit`, and
   no popup `submit` event.
   `tests/tenant-flow.spec.js` checks all of this with the endpoint stubbed.
+- **Spam check (Cloudflare Turnstile), tenant application only.** Kean approved this one
+  third-party script for this one form. `/tenant-application.js` loads Cloudflare's script
+  (explicit render) only when the tenant application opens in the popup, never on page load, in
+  the landlord flow or on any other page, and draws the widget on the last step above the button
+  (light theme, `interaction-only`, so most people never see a puzzle). Its token goes in the
+  body as `turnstile_token`. With no token, an expired one, or Cloudflare's script failing to
+  load, nothing is sent and the form says "Please complete the security check above, or call
+  (215) 402-6882." The widget is reset after any failed submit (a token is single-use).
+  **The site key** is one constant, `TURNSTILE_SITE_KEY`, near the top of
+  `/tenant-application.js`. It is the public key only; the secret key is Rio's and never goes in
+  this repo. **It is Cloudflare's always-pass TEST key (`1x00000000000000000000AA`) until RK
+  sends the real one, and it must be replaced with RK's real site key before merge.** The tests
+  never reach Cloudflare: they answer `challenges.cloudflare.com` with a stand-in.
 - **Rio's part:** accepting `form_type=tenant_application`, the email to the landlord so they
-  can finish it, and the email to the tenant with their application number. The confirmation
-  promises both emails.
+  can finish it, the email to the tenant with their application number, and checking the
+  `turnstile_token` with the secret key. The confirmation promises both emails.
 
 ## Design and motion — global, in two files
 

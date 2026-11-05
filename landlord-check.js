@@ -1186,6 +1186,9 @@
       form.querySelectorAll('input[name="property_street"], input[name="property_address"]:not([type="hidden"])').forEach(addressAssist);
       form.querySelectorAll('.file-field input[type="file"]').forEach(fileAssist);
       form.querySelectorAll('input[type="date"]').forEach(dateAssist);
+      // A form with a spam-check slot (only the tenant application): fetch Cloudflare Turnstile's
+      // script now, when it opens, so the check is ready by its last step (/tenant-application.js).
+      if (window.rasTurnstile && form.querySelector('[data-turnstile]')) window.rasTurnstile.load();
     }
     // Show the form in hand: its confirmation if it was sent, else the step they reached.
     function enter() {
@@ -1343,6 +1346,9 @@
       root.scrollTop = 0;
       focusFirst(sections.length ? sections[i] : form);
       track('step', { lc_step: i + 2, form_id: form.id });
+      // The step that holds the spam-check slot draws the widget, now that it can be seen.
+      var tsSlot = sections[i] && sections[i].querySelector('[data-turnstile]');
+      if (tsSlot && window.rasTurnstile) window.rasTurnstile.show(tsSlot);
       scheduleSave();                                     // remember which step they reached
     }
 
@@ -1728,6 +1734,8 @@
       if (draftTimer !== null) { clearTimeout(draftTimer); draftTimer = null; saveDraft(); }
       if (observer) { observer.disconnect(); observer = null; }
       if (form) form.removeEventListener('submit', guardSubmit, true);
+      // The form goes back to the page, so its spam-check widget goes: the next opening draws a fresh one.
+      if (window.rasTurnstile && form && form.querySelector('[data-turnstile]')) window.rasTurnstile.remove();
       if (!placeholder) return;
       sections.forEach(function (fs) { fs.removeAttribute('data-lc-off'); fs.classList.remove('lc-enter'); });
       while (host.firstChild) placeholder.parentNode.insertBefore(host.firstChild, placeholder);
