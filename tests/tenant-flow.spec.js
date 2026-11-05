@@ -519,7 +519,7 @@ test.describe('TENANT_APPLICATION = true (as shipped): what the tenant sees', ()
 });
 
 test.describe('/tenants/: "Have your landlord\'s details? Start your application"', () => {
-  test('the page says it, and both of its links open the homepage application', async ({ page }) => {
+  test('the page says it, and each of its three links opens the homepage application', async ({ page }) => {
     await page.goto('/tenants/index.html');
     await expect(page.locator('.hero .lead')).toContainText('we don\'t represent tenants. If you have your landlord\'s details, '
       + 'you can start an application that we send to your landlord to finish.');
@@ -531,13 +531,18 @@ test.describe('/tenants/: "Have your landlord\'s details? Start your application
       + 'filings, and we don\'t represent tenants. The Eviction Diversion Program application is filed by the landlord, so we '
       + 'can\'t file it for you. If you have your landlord\'s details, you can start an application that we send to your '
       + 'landlord to finish.');
-    await expect(page.locator('a[data-tenant-apply]')).toHaveCount(2);
+    // Kean, round 2: "Can you talk to my landlord for me?" points at the application, then the hotline.
+    await expect(page.locator('#tq-a2')).toHaveText('Not directly, but if you start an application, we send it to your landlord '
+      + 'to finish. For help talking to your landlord, call the City\'s Eviction Diversion Program tenant hotline on 215-523-9501.');
+    await expect(page.locator('#tq-a2 a')).toHaveText('start an application');
+    await expect(page.locator('a[data-tenant-apply]')).toHaveCount(3);
+    for (const a of await page.locator('a[data-tenant-apply]').all()) await expect(a).toHaveAttribute('href', '/tenants/');
     // the page itself still has no form and loads no popup
     await expect(page.locator('form')).toHaveCount(0);
     await expect(page.locator('script[src*="landlord-check"]')).toHaveCount(0);
     await expect(page.locator('[data-tenant-apply-block]')).toBeVisible();   // switched on
 
-    for (const link of ['.note a[data-tenant-apply]', '#tq-a1 a[data-tenant-apply]']) {
+    for (const link of ['.note a[data-tenant-apply]', '#tq-a1 a[data-tenant-apply]', '#tq-a2 a[data-tenant-apply]']) {
       await page.goto('/tenants/index.html');
       await page.locator(link).click();
       await page.waitForURL((u) => u.pathname === '/');
