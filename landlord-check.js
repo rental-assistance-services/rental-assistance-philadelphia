@@ -15,10 +15,13 @@
      /services/…, /portal/ and /faq/ have), so it works without this script too.
    - Either answer on the landlord/tenant question in front of each form (initRoleGate() on
      the homepage and /back-rent/) — instead of revealing the form on the page.
+   - A tenant's "start an application" link in the copy (data-tenant-apply): /tenant-application.js
+     handles the click and opens the tenant application here (window.rasOpenTenantApplication).
 
    WHAT IT SHOWS
-   - Tenant: the free tenant help lines and a link to /tenants/. NO network request, so no
-     CRM row and no Google Ads conversion — the same rule as the inline gates.
+   - Tenant: the free tenant help lines and a link to /tenants/. The help itself makes NO
+     network request, so no CRM row and no Google Ads conversion — the same rule as the inline
+     gates. A tenant who has their landlord's details can start the tenant application (below).
    - Landlord: the page's own form, MOVED into the popup (never copied), so its validation,
      uploads, submit handler, confirmation and conversion tracking are exactly the code the
      page already runs and tests. A form with sections (the homepage application: seven
@@ -26,47 +29,36 @@
      the gate's own landlord button, so visitor_role is set by the page's initRoleGate().
      When the popup closes the form goes back where it came from, still hidden.
    - A page with no application (the blog, /services/…, /portal/, /faq/) hands a landlord to
-     the homepage application, which opens straight into the popup (HANDOFF).
+     the homepage application, which opens straight into the popup (the hand-off, in
+     /tenant-application.js).
 
-   THE TENANT APPLICATION (PREVIEW, OFF for every real visitor)
-   Behind TENANT_PREVIEW, which only a tab opened with ?tenant-preview=1 turns on. With it on,
+   THE TENANT APPLICATION (TENANT_APPLICATION in /tenant-application.js, on for every visitor)
    "I am the tenant" first asks "Do you have your landlord's details?": "Not yet" shows the free
-   help above plus a "Start my application" prompt; "Yes" opens the homepage's #tenant-form, moved
-   in and run one section per step by exactly the machinery the landlord application uses. On a
-   page without that form the tenant is handed to the homepage (HANDOFF = 'tenant'). The form
-   SENDS NOTHING: site.js shows a preview confirmation instead of a request, never calls
-   rasTrackLead and never pushes lead_submit. With the switch off none of this exists: the tenant
-   screen, the markup and every request are exactly as before.
+   help above plus a "Start my application" prompt; "Yes" opens the homepage's tenant application
+   (the form marked data-lc-visitor="tenant"), moved in and run one section per step by exactly
+   the machinery the landlord application uses. On a page without that form the tenant is handed
+   to the homepage (the hand-off, kind 'tenant'), as /tenants/ does too. site.js sends it to the
+   CRM the way it sends the landlord application, but it is never a conversion: no rasTrackLead,
+   no lead_submit, and this popup reports no 'submit' for it. Set TENANT_APPLICATION to false
+   and none of this exists: the tenant screen, the markup and every request are exactly as before.
 
    Loaded with <script src="/landlord-check.js" defer> on every landing page EXCEPT
-   /tenants/ and /terms.html. Tested by tests/landlord-check.spec.js.
+   /tenants/ and /terms.html, right after <script src="/tenant-application.js" defer>, which it
+   reads. Tested by tests/landlord-check.spec.js and tests/tenant-flow.spec.js.
    ============================================================ */
 (function () {
   'use strict';
 
   var STORE = 'ras_role_check';            // {v: 'landlord'|'tenant'|'dismissed', t: ms}
-  var HANDOFF = 'ras_lc_open';             // sessionStorage: open the application on arrival
   var TTL_DAYS = { landlord: 90, tenant: 90, dismissed: 30 };
 
-  // The tenant application is a PREVIEW (Adam asked for it 2026-10-14; Abe sees it before it goes
-  // live). ON only for a tab opened with ?tenant-preview=1 on a page that loads this script (not
-  // /tenants/ or /terms.html), remembered in sessionStorage for the rest of that tab, and OFF again
-  // with ?tenant-preview=0. Never on by hostname. Off, every page behaves exactly as it did before
-  // the preview existed. This is the ONE place the switch is worked out: site.js reads the result
-  // from window.rasTenantPreview and refuses to submit the tenant form unless it is true.
-  var PREVIEW_KEY = 'ras_tenant_preview';
-  var TENANT_PREVIEW = (function () {
-    var q = null;
-    try { q = new URLSearchParams(location.search).get('tenant-preview'); } catch (e) {}
-    try {
-      if (q === '1') sessionStorage.setItem(PREVIEW_KEY, '1');
-      else if (q === '0') sessionStorage.removeItem(PREVIEW_KEY);
-    } catch (e) {}
-    if (q === '1' || q === '0') return q === '1';
-    try { return sessionStorage.getItem(PREVIEW_KEY) === '1'; } catch (e) { return false; }
-  })();
-  window.rasTenantPreview = TENANT_PREVIEW;
-  var TENANT_FORM = 'tenant-form';          // the homepage's tenant application (PREVIEW only)
+  // The tenant application's ONE switch is in /tenant-application.js, loaded just before this
+  // file. If that file did not load, it reads as off: every page behaves as it did before the
+  // tenant application existed (the free-help screen, no tenant form, no request).
+  var TENANT_APPLICATION = window.rasTenantApplication === true;
+  // The tenant application is the form marked data-lc-visitor="tenant" (the homepage's
+  // #tenant-form). The popup's tenant rules hang off that mark, never off a form id.
+  function forTenant(f) { return !!f && f.getAttribute('data-lc-visitor') === 'tenant'; }
 
   // Links that jump to a lead form, and which kind of form each one means.
   var FORM_ANCHORS = { '#apply': 'apply', '#form-card': 'apply', '#backrent-form': 'apply', '#contact': 'contact' };
@@ -235,8 +227,8 @@
     // A two-column row stacks on a phone; its row gap PLUS each field's own bottom margin
     // doubled the space between those fields. The field margin alone spaces them evenly.
     + '.lc-host .row,.lc-host .row2{row-gap:0;}'
-    // PREVIEW: a row's shared message ("an email or a phone") sits 6px under the row, like a
-    // field's own message, rather than after the fields' bottom margin.
+    // The tenant application: a row's shared message ("an email or a phone") sits 6px under
+    // the row, like a field's own message, rather than after the fields' bottom margin.
     + '.lc-host [data-lc-one-of] > .errmsg.show{margin-top:-12px;}'
     // File uploads: the drop box is the card, so the page's own dashed wrapper steps back.
     + '.lc-host .file-field{background:none;border:none;padding:0;}'
@@ -382,7 +374,7 @@
     // The two answers are the site-wide choice cards (.lc-role in /theme.css — the same as the
     // gate's buttons on the page).
     + '.lc-roles{display:grid;gap:10px;}'
-    // PREVIEW: the tenant's "Do you have your landlord's details?" cards. Same card, own icons: a
+    // The tenant's "Do you have your landlord's details?" cards. Same card, own icons: a
     // filled-in form for "ready to apply", an i for "learn more" (the house and key would mislead).
     + '.lc-role[data-lc-tenant="apply"]::before{background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%231B3FA0\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\'/%3E%3Cpath d=\'M14 3v5h5\'/%3E%3Cpath d=\'m9 14 2 2 4-4\'/%3E%3C/svg%3E");}'
     + '.lc-role[data-lc-tenant="learn"]::before{background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%231B3FA0\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Ccircle cx=\'12\' cy=\'12\' r=\'9\'/%3E%3Cpath d=\'M12 11v5\'/%3E%3Cpath d=\'M12 7.5h.01\'/%3E%3C/svg%3E");}'
@@ -471,7 +463,11 @@
     // tenant — no request of any kind is made on this path
     + '<div class="lc-panel" data-lc-panel="tenant" hidden>'
     + '<h2 class="lc-q" id="lc-title-tenant">We work for landlords, but there&rsquo;s free help for you.</h2>'
-    + '<p class="lc-sub">We&rsquo;re a private service hired by property owners, so there&rsquo;s nothing we can file for you. '
+    // With the tenant application on, this screen sits above "Start my application", so it can't
+    // say there is nothing for a tenant here. Off, it is word for word what it always was.
+    + (TENANT_APPLICATION
+      ? '<p class="lc-sub">We&rsquo;re a private service hired by property owners, and we don&rsquo;t represent tenants. '
+      : '<p class="lc-sub">We&rsquo;re a private service hired by property owners, so there&rsquo;s nothing we can file for you. ')
     + 'The City&rsquo;s Eviction Diversion Program can pay a tenant&rsquo;s back rent, but <strong>the landlord has to apply</strong>. '
     + 'These free lines can explain it so you can raise it with them:</p>'
     + '<ul class="lc-lines" data-lc-tenant-lines>'
@@ -480,16 +476,18 @@
       }).join('')
     + '</ul>'
     + '<div class="lc-stack"><a class="lc-btn lc-btn-main" href="/tenants/">See all free help for tenants &rarr;</a>'
-    // PREVIEW: Close moves under a "Ready to apply?" prompt. Off, these are the same two buttons as ever.
-    + (TENANT_PREVIEW ? '</div>'
+    // The tenant application: Close moves under a "Ready to apply?" prompt. Off, these are the
+    // same two buttons as ever.
+    + (TENANT_APPLICATION ? '</div>'
       + '<div class="lc-ready" data-lc-ready><h3>Ready to apply?</h3>'
-      + '<p>If you have your landlord&rsquo;s details, you can start now.</p>'
+      + '<p>If you have your landlord&rsquo;s details, you can start an application here. We send it to your landlord to finish.</p>'
       + '<div class="lc-stack"><button type="button" class="lc-btn lc-btn-main" data-lc-tenant="start">Start my application</button>'
       + '<button type="button" class="lc-btn lc-btn-back" data-lc-close>Close</button></div></div>'
       : '<button type="button" class="lc-btn lc-btn-back" data-lc-close>Close</button></div>')
     + '</div>'
-    // PREVIEW only: after "I am the tenant", before anything else. Nothing on it makes a request.
-    + (!TENANT_PREVIEW ? '' : '<div class="lc-panel" data-lc-panel="tenant-ask" hidden>'
+    // The tenant application only: after "I am the tenant", before anything else. Nothing on it
+    // makes a request.
+    + (!TENANT_APPLICATION ? '' : '<div class="lc-panel" data-lc-panel="tenant-ask" hidden>'
       + '<h2 class="lc-q" id="lc-title-tenant-ask">Do you have your landlord&rsquo;s details?</h2>'
       + '<p class="lc-sub">To apply, we need your landlord&rsquo;s name and an email or phone number for them. '
       + 'The City&rsquo;s program is applied for by the landlord, so they will need to finish what you start.</p>'
@@ -1060,23 +1058,12 @@
 
   /* ---------- the hand-off to the homepage ----------
      A page with no application (the blog, /services/…, /portal/, /faq/) sends the visitor to
-     the homepage's: kind 'apply' for a landlord, 'tenant' for the tenant application (PREVIEW).
-     Whether the flag was actually stored decides where they go, because a browser can refuse
-     to store it: Safari private mode and partitioned third-party embeds both throw on setItem.
-     Assuming it worked sent those visitors to the top of the homepage with no popup and no
-     form, a dead end out of a button marked Apply.
-     Stored: the homepage's TOP, not /#apply, because the flag opens the popup there by itself.
-     With the #apply the browser jumped the page down to the form section, so the popup opened
-     over the bottom of the page and closing it left the visitor down there.
-     Not stored: /#apply, so the browser's own jump puts them on the form section; the popup can
-     no longer carry them, so the anchor has to. A tenant also takes ?tenant-preview=1 along,
-     because the switch may not have been remembered either, and without it the homepage would
-     show the old tenant screen behind a button that said "Start my application". */
+     the homepage's: kind 'apply' for a landlord, 'tenant' for the tenant application. The
+     hand-off, and why it goes where it goes, is in /tenant-application.js, shared with /tenants/.
+     If that file did not load, a visitor still lands on the form section, never a dead end. */
   function handOff(kind) {
-    var ok = false;
-    try { sessionStorage.setItem(HANDOFF, kind); ok = true; } catch (e) {}
-    track('handoff', kind === 'tenant' ? { page: location.pathname, lc_path: 'tenant' } : { page: location.pathname });
-    location.href = ok ? '/' : (kind === 'tenant' ? '/?tenant-preview=1#apply' : '/#apply');
+    if (window.rasHandOff) window.rasHandOff(kind);
+    else location.href = '/#apply';
   }
 
   /* ---------- the popup ---------- */
@@ -1111,7 +1098,7 @@
     var sections = [], idx = -1, placeholder = null, observer = null, screen = 'role';
 
     // The progress bar for the form in hand: "Who you are", then one step per section. Drawn
-    // again when the tenant application (PREVIEW) takes over from the page's form.
+    // again when the tenant application takes over from the page's form.
     function steps() {
       labels = ['Who you are'].concat(stepLabels(form));
       list.innerHTML = labels.map(function (s, i) {
@@ -1152,10 +1139,10 @@
       // pre-selected, which nudges the answer.
       dialog.focus({ preventScroll: true });
     }
-    // "I am the tenant". With the preview on they are first asked whether they have their
-    // landlord's details; otherwise (and after "Not yet") the free help, exactly as before.
+    // "I am the tenant". With the tenant application on they are first asked whether they have
+    // their landlord's details; otherwise (and after "Not yet") the free help, exactly as before.
     function showTenant() {
-      if (TENANT_PREVIEW) { showTenantAsk(); return; }
+      if (TENANT_APPLICATION) { showTenantAsk(); return; }
       showTenantHelp();
     }
     function showTenantHelp() {
@@ -1163,7 +1150,7 @@
       var a = root.querySelector('[data-lc-panel="tenant"] .lc-btn-main');
       if (a) a.focus({ preventScroll: true });
     }
-    function showTenantAsk() {                         // PREVIEW only
+    function showTenantAsk() {                         // the tenant application only
       panel('tenant-ask'); progress(0);
       dialog.focus({ preventScroll: true });           // as on the role question: no answer looks pre-selected
     }
@@ -1178,8 +1165,8 @@
       }
       enter();
     }
-    // Move the page's form into the popup and wire it up. Used for the landlord's form and,
-    // in the preview, for the tenant application alike.
+    // Move the page's form into the popup and wire it up. Used for the landlord's form and the
+    // tenant application alike.
     function attach() {
       // Already submitted on an earlier open: bring the confirmation in with the form.
       var nodes = [form], prev = form.previousElementSibling;
@@ -1199,6 +1186,9 @@
       form.querySelectorAll('input[name="property_street"], input[name="property_address"]:not([type="hidden"])').forEach(addressAssist);
       form.querySelectorAll('.file-field input[type="file"]').forEach(fileAssist);
       form.querySelectorAll('input[type="date"]').forEach(dateAssist);
+      // A form with a spam-check slot (only the tenant application): fetch Cloudflare Turnstile's
+      // script now, when it opens, so the check is ready by its last step (/tenant-application.js).
+      if (window.rasTurnstile && form.querySelector('[data-turnstile]')) window.rasTurnstile.load();
     }
     // Show the form in hand: its confirmation if it was sent, else the step they reached.
     function enter() {
@@ -1214,12 +1204,12 @@
       }
       showStep(start);
     }
-    // PREVIEW: "Yes, I'm ready to apply" / "Start my application". On the homepage the tenant
+    // "Yes, I'm ready to apply" / "Start my application". On the homepage the tenant
     // application is moved in like the landlord's (never stamped landlord: its visitor_role says
     // tenant in the markup). Anywhere else the tenant is handed to the homepage, which opens
     // straight into it, the way a landlord on the blog is handed to the application.
     function mountTenant() {
-      var tf = document.getElementById(TENANT_FORM);
+      var tf = document.querySelector('form[data-lc-visitor="tenant"]');
       if (!tf) { handOff('tenant'); return; }
       if (form !== tf) { detach(); form = tf; steps(); }
       if (!placeholder) { form.hidden = false; attach(); }
@@ -1236,7 +1226,7 @@
        over" deletes it on demand — it is personal data on what may be a shared computer. */
     var DRAFT_TTL = 60 * 60 * 1000;
     var NOT_KEPT = { hp_x7f2: true, visitor_role: true, consent: true, agree_terms: true,
-      authorize_forward: true, agree_contact: true };      // the tenant form's two (PREVIEW)
+      authorize_forward: true, agree_contact: true };      // the tenant application's two
     var draftTimer = null, restoring = false;
     var restoredNote = root.querySelector('.lc-restored');
     function draftKey() { return 'ras_lc_draft:' + form.id; }
@@ -1356,6 +1346,9 @@
       root.scrollTop = 0;
       focusFirst(sections.length ? sections[i] : form);
       track('step', { lc_step: i + 2, form_id: form.id });
+      // The step that holds the spam-check slot draws the widget, now that it can be seen.
+      var tsSlot = sections[i] && sections[i].querySelector('[data-turnstile]');
+      if (tsSlot && window.rasTurnstile) window.rasTurnstile.show(tsSlot);
       scheduleSave();                                     // remember which step they reached
     }
 
@@ -1365,9 +1358,10 @@
       sections.forEach(function (fs) { fs.removeAttribute('data-lc-off'); });
       nextBtn.hidden = true; backBtn.hidden = true;
       progress(labels.length + 1);
-      // PREVIEW: the tenant form sends nothing, so it is never reported as a submit (GTM's
-      // drop-off reporting would count it as a real one).
-      if (form.id !== TENANT_FORM) track('submit', { form_id: form.id });
+      // A tenant application is never reported as a submit, so GTM's drop-off reporting never
+      // counts a tenant as a landlord finishing the form. A tenant is never a lead (no
+      // rasTrackLead, no lead_submit).
+      if (!forTenant(form)) track('submit', { form_id: form.id });
       clearDraft();                                       // sent: nothing left to keep
       restoredNote.hidden = true;
     }
@@ -1693,7 +1687,7 @@
       return first;
     }
     function guardSubmit(e) {
-      if (form.id === TENANT_FORM) e.preventDefault();   // PREVIEW: never a native submit, it sends nothing
+      if (forTenant(form)) e.preventDefault();   // never a native submit: site.js sends it
       var first = popupBlocks(form);
       if (first) { e.preventDefault(); e.stopImmediatePropagation(); first.focus(); }
     }
@@ -1711,8 +1705,9 @@
         var bad = hasErr(el) || (el.required && (el.type === 'checkbox' ? !el.checked : !val(el)));
         if (bad) { ok = false; if (!first) first = el; }
       });
-      // A row that needs at least one of its fields (PREVIEW: the landlord's email or phone):
-      // checked as a whole, with its one message under the row, until one is filled in and right.
+      // A row that needs at least one of its fields (the tenant application: the landlord's
+      // email or phone): checked as a whole, with its one message under the row, until one is
+      // filled in and right.
       scope.querySelectorAll('[data-lc-one-of]').forEach(function (grp) {
         if (oneOf(grp, true)) return;
         ok = false;
@@ -1734,11 +1729,13 @@
     }
 
     // Put the form (and a confirmation, if one was added) back where it came from, and unhook
-    // it: on closing, and when the tenant application (PREVIEW) takes over from the page's form.
+    // it: on closing, and when the tenant application takes over from the page's form.
     function detach() {
       if (draftTimer !== null) { clearTimeout(draftTimer); draftTimer = null; saveDraft(); }
       if (observer) { observer.disconnect(); observer = null; }
       if (form) form.removeEventListener('submit', guardSubmit, true);
+      // The form goes back to the page, so its spam-check widget goes: the next opening draws a fresh one.
+      if (window.rasTurnstile && form && form.querySelector('[data-turnstile]')) window.rasTurnstile.remove();
       if (!placeholder) return;
       sections.forEach(function (fs) { fs.removeAttribute('data-lc-off'); fs.classList.remove('lc-enter'); });
       while (host.firstChild) placeholder.parentNode.insertBefore(host.firstChild, placeholder);
@@ -1802,7 +1799,7 @@
         if (role === 'landlord') mount(); else showTenant();
         return;
       }
-      if (t.hasAttribute('data-lc-tenant')) {          // PREVIEW: apply / learn / start
+      if (t.hasAttribute('data-lc-tenant')) {          // the tenant application: apply / learn / start
         var pick = t.getAttribute('data-lc-tenant');
         track('tenant_choice', { lc_choice: pick });
         if (pick === 'learn') showTenantHelp(); else mountTenant();
@@ -1811,7 +1808,7 @@
       if (t.hasAttribute('data-lc-startover')) { startOver(); return; }
       if (t.hasAttribute('data-lc-back')) {
         if (idx > 0) showStep(idx - 1);
-        else if (form && form.id === TENANT_FORM) showTenantAsk();   // PREVIEW
+        else if (forTenant(form)) showTenantAsk();       // its first step goes back to the tenant question
         else showRole();
         return;
       }
@@ -1822,7 +1819,7 @@
     var role = opts.role || (trigger === 'cta' && readChoice() === 'landlord' ? 'landlord' : null);
     if (opts.role) saveChoice(opts.role);
     if (role === 'landlord') mount();
-    else if (role === 'tenant' && opts.tenantApply && TENANT_PREVIEW) mountTenant();
+    else if (role === 'tenant' && opts.tenantApply && TENANT_APPLICATION) mountTenant();
     else if (role === 'tenant') showTenant();
     else showRole();
   }
@@ -1869,11 +1866,13 @@
 
   function init() {
     document.addEventListener('click', onClick, true);
-    var handoff = null;
-    try { handoff = sessionStorage.getItem(HANDOFF); sessionStorage.removeItem(HANDOFF); } catch (e) {}
-    // PREVIEW: a tenant handed over from a page without the tenant application opens straight into it.
+    // A data-tenant-apply link (handled in /tenant-application.js) opens the tenant application
+    // here: in this popup, or handed to the homepage's when this page has none.
+    window.rasOpenTenantApplication = function () { open('cta', { role: 'tenant', tenantApply: true }); };
+    var handoff = window.rasTakeHandOff ? window.rasTakeHandOff() : null;
+    // A tenant handed over from a page without the tenant application opens straight into it.
     if (handoff === 'tenant') {
-      if (TENANT_PREVIEW) { open('handoff', { role: 'tenant', tenantApply: true }); return; }
+      if (TENANT_APPLICATION) { open('handoff', { role: 'tenant', tenantApply: true }); return; }
       handoff = null;
     }
     if (handoff) { open('handoff', { target: handoff, role: 'landlord' }); return; }

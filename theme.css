@@ -146,13 +146,23 @@ body{animation:page-in var(--dur) var(--ease) both;}
 .tenant-panel a{color:var(--blue-2);}
 .tenant-panel .tp-tel{color:var(--navy);}
 
-/* ---------- the tenant application's confirmation (PREVIEW, ?tenant-preview=1 only) ----------
-   Shown in place of the tenant form: in the popup, and on the homepage once the popup closes. The
-   navy banner says plainly that nothing was sent, because the preview has no endpoint. */
+/* ---------- the tenant application's confirmation ----------
+   Shown in place of the tenant form once the endpoint has saved it: in the popup, and on the
+   homepage once the popup closes. */
 .tenant-sent{margin-top:8px;}
 .tenant-sent h3{font-family:var(--serif);font-size:1.3rem;font-weight:480;color:var(--navy);margin:0 0 8px;}
 .tenant-sent p{margin:0;}
-.tenant-sent .preview-banner{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--navy);color:#fff;font-weight:650;font-size:.92rem;line-height:1.45;}
+.tenant-sent p + p{margin-top:8px;}
+/* A block offering the tenant application (data-tenant-apply-block, on /tenants/) is hidden by
+   /tenant-application.js when the application is switched off. Its own display (the page's grid
+   note) would otherwise win over the hidden attribute. */
+[data-tenant-apply-block][hidden]{display:none !important;}
+/* The tenant application's spam check (Cloudflare Turnstile), above its submit button. Usually
+   invisible ('interaction-only'); when it does show it fills the width it has, never more, so it
+   fits a 390px phone. */
+.turnstile-slot{max-width:100%;overflow:hidden;}
+.turnstile-slot:not(:empty){margin:0 0 14px;}
+.turnstile-slot iframe{max-width:100%;}
 
 /* Task 3: section labels promoted from <p class="eyebrow"> to <h2 class="eyebrow">.
    On the licensing band, ".band.hub-clear h2{color:#fff}" would otherwise beat the label colour. */

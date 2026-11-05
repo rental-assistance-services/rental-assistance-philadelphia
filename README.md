@@ -137,45 +137,72 @@ page.** It is deliberately *not* on `/tenants/` or `/terms.html`. On phones it i
 sheet rather than a full-screen takeover, because Google penalises interstitials that hide
 the page a searcher just landed on.
 
-### The tenant application (preview)
+### The tenant application
 
 Adam asked on 2026-10-14 for a way for a tenant to start an application that their landlord
-then finishes. Abe sees it before it goes live, so it is built behind a switch and changes
-nothing for a real visitor.
+then finishes. It was built as a preview behind `?tenant-preview=1` (PR #26); Kean and RK
+approved it going live for every visitor.
 
-- **The switch.** `TENANT_PREVIEW`, near the top of `landlord-check.js`, which publishes it as
-  `window.rasTenantPreview` for `site.js`. Add `?tenant-preview=1` to the address of a page that
-  loads `landlord-check.js` (the homepage is simplest; any page with the popup works), and
-  `sessionStorage` (`ras_tenant_preview`) keeps it on for the rest of that tab; `?tenant-preview=0`
-  turns it off again. `/tenants/` and `/terms.html` do not load that script, so
-  `?tenant-preview=1` on either of them does nothing. Never on by hostname. Off, the popup, the
-  page and every request are exactly as before. `site.js` still binds its usual field checks to
-  the hidden `#tenant-form`, but refuses to submit it unless the switch is on.
-- **The two-box question.** With it on, "I am the tenant" first asks "Do you have your
-  landlord's details?". "Yes, I'm ready to apply" opens the application. "Not yet, I want to
-  learn more" shows the usual free-help screen, with a "Ready to apply?" block at the bottom
-  (Start my application, or Close).
+- **The switch.** `TENANT_APPLICATION`, a plain `true` near the top of `/tenant-application.js`,
+  a small first-party file that also holds the hand-off to the homepage application. Every page
+  with the popup loads it just before `landlord-check.js`, and `/tenants/` loads it on its own;
+  nothing else keeps a copy of the switch or the hand-off. It is the one place to turn the
+  feature off: set it to `false` and the popup, the page and every request are exactly as they
+  were before the tenant application existed, the "Have your landlord's details?" block on
+  `/tenants/` is hidden, and every `data-tenant-apply` link goes to `/tenants/` (its href),
+  never to the landlord Apply. `site.js` refuses to send the tenant form unless the switch
+  (`window.rasTenantApplication`) is `true`. The wording that tells a tenant they can start an
+  application (the `/faq/` and `/services/back-rent/` answers, the `/tenants/` opening and
+  answer, and the terms) is plain text the switch does not change: turning the feature off also
+  means changing those words back by hand.
+- **The two-box question.** "I am the tenant" first asks "Do you have your landlord's
+  details?". "Yes, I'm ready to apply" opens the application. "Not yet, I want to learn more"
+  shows the usual free-help screen, with a "Ready to apply?" block at the bottom (Start my
+  application, or Close).
 - **The steps.** `#tenant-form` sits on the homepage after `#intake-form`, inside `#apply`, and
   is run by the same popup code as the landlord application: progress bar, Back and Next, live
   checks, green checks, the email typed twice, Photon on the street box and the one-hour draft.
-  Six steps, written in the first person: About me; My landlord (a name, plus an email or a
-  phone for them, at least one); The home I rent; What I owe; My documents (all optional);
+  The popup finds it by `data-lc-visitor="tenant"`, never by its id, and that mark is what
+  sends Back from its first step to the tenant question and keeps it out of the popup's `submit`
+  event. Six steps, written in the first person: About me; My landlord (a name, plus an email or
+  a phone for them, at least one); The home I rent; What I owe; My documents (all optional);
   Send to my landlord (two required boxes). It carries `visitor_role=tenant`,
   `form_type=tenant_application` and the usual honeypot, and uses the landlord form's field
   names where they mean the same thing (`tenant_*`, `property_street`, `property_zip`,
-  `property_unit`, `property_address`, `monthly_rent`, `back_rent_owed`, `months_behind`). On
-  a page without the form (the blog, `/faq/`, `/back-rent/`) the tenant is taken to the
-  homepage, which opens straight into it.
-- **Nothing is sent.** "Send to my landlord" checks the form, then shows "Sent to your
-  landlord" under a navy banner that says "Preview: nothing was sent." There is no fetch, no
-  CRM row, no `rasTrackLead` call, no `lead_submit` and no popup `submit` event, and the saved
-  draft is deleted. The only request on the tenant path is Photon's address suggestions while
-  the street is typed, the same as on the landlord application. `tests/tenant-flow.spec.js`
-  checks all of this.
-- **Not built yet:** the email to the landlord, the application number, the landlord's page to
-  finish or decline, the portal lookup, and Rio accepting the new fields (`landlord_name`,
-  `landlord_email`, `landlord_phone`, `authorize_forward`, `agree_contact`, and
-  `form_type=tenant_application`).
+  `property_unit`, `property_address`, `monthly_rent`, `back_rent_owed`, `months_behind`), plus
+  `landlord_name`, `landlord_email`, `landlord_phone`, `authorize_forward` and `agree_contact`.
+  Rio is built against these names: do not rename any. On a page without the form (the blog,
+  `/faq/`, `/back-rent/`) the tenant is taken to the homepage, which opens straight into it.
+  `/tenants/` has no popup, so `/tenant-application.js` hands its "Start my application"
+  link to the homepage. A link marked `data-tenant-apply` in a page's copy opens it directly.
+- **Sending.** `site.js` sends it with the landlord application's own code (`initIntakeForm`):
+  one multipart POST to the same endpoint, with its two optional files, the honeypot, the
+  stored click ids and any `utm_*` fields. The confirmation ("Application received") shows only
+  on a 200 that says `{"ok": true}` and carries a `contact_id` (a bare `{"ok": true}` is what
+  the endpoint answers a tripped honeypot with, saving nothing). Anything else, an error answer
+  or a network failure shows the same message the landlord application does, and the tenant
+  can send again. When the answer also carries a non-empty `application_number`, the
+  confirmation shows it ("Your application number is X. We've also emailed it to you."), set as
+  text, never HTML. It is **never a conversion**: no `rasTrackLead` call, no `lead_submit`, and
+  no popup `submit` event.
+  `tests/tenant-flow.spec.js` checks all of this with the endpoint stubbed.
+- **Spam check (Cloudflare Turnstile), tenant application only.** Kean approved this one
+  third-party script for this one form. `/tenant-application.js` loads Cloudflare's script
+  (explicit render) only when the tenant application opens in the popup, never on page load, in
+  the landlord flow or on any other page, and draws the widget on the last step above the button
+  (light theme, `interaction-only`, so most people never see a puzzle). Its token goes in the
+  body as `turnstile_token`. With no token, an expired one, or Cloudflare's script failing to
+  load, nothing is sent and the form says "Please complete the security check above, or call
+  (215) 402-6882." The widget is reset after any failed submit (a token is single-use).
+  **The site key** is one constant, `TURNSTILE_SITE_KEY`, near the top of
+  `/tenant-application.js`. It is the public key only; the secret key is Rio's and never goes in
+  this repo. **It is Cloudflare's always-pass TEST key (`1x00000000000000000000AA`) until RK
+  sends the real one, and it must be replaced with RK's real site key before merge.** The tests
+  never reach Cloudflare: they answer `challenges.cloudflare.com` with a stand-in.
+- **Rio's part:** accepting `form_type=tenant_application`, the email to the landlord so they
+  can finish it, the email to the tenant with their application number, returning that number
+  as `application_number` with `ok` and `contact_id`, and checking the `turnstile_token` with the
+  secret key. The confirmation promises both emails.
 
 ## Design and motion — global, in two files
 
@@ -254,8 +281,9 @@ two worktrees can test at once.
   two form pages), so one copy cannot go stale while another is updated.
 - `tests/landlord-check.spec.js`: the popup: which pages carry it, both paths, the progress
   bar, validation, the conversion rules, the hand-off to the long form, and the phone layout.
-- `tests/tenant-flow.spec.js`: the tenant application preview: nothing new with the switch off,
-  the two-box question, each step's checks, and that sending makes no request and books nothing.
+- `tests/tenant-flow.spec.js`: the tenant application: the switch off gives the old tenant
+  screen, the two-box question, each step's checks, the one request it sends, its confirmation
+  and errors, and that it never books a conversion.
 - `tests/pages.spec.js` and `tests/seo.spec.js`: every page's layout rules, motion and
   reduced motion, and what its search result says.
 - `tests/accessibility.spec.js`: every page against WCAG 2.1 A and AA with axe (contrast,

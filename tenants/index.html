@@ -39,6 +39,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Public+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <script src="/motion.js" defer></script>
+<!-- The tenant application's switch and hand-off (shared with the pages that have the popup). -->
+<script src="/tenant-application.js" defer></script>
 <style>
 :root{--maxw:1000px;}   /* narrower than the main site's 1140px */
 *{box-sizing:border-box;}
@@ -283,7 +285,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div>
       <p class="eyebrow">Information for tenants</p>
       <h1>We work for landlords, but you're not out of options.</h1>
-      <p class="lead">Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>. We can't file for you, and we don't want you to spend time on a form that won't help. Below are the free Philadelphia services that <em>do</em> help renters directly. Please use them. They cost nothing, and they are the right people.</p>
+      <p class="lead">Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>, and we don't represent tenants. If you have your landlord's details, you can start an application that we send to your landlord to finish. Below are the free Philadelphia services that <em>do</em> help renters directly. Please use them. They cost nothing, and they are the right people.</p>
     </div>
     <!-- A house with an "i" on it: this page is information, not a form. Decoration only. -->
     <svg class="hero-art" viewBox="0 0 340 270" aria-hidden="true" focusable="false">
@@ -327,6 +329,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <span class="note-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-doc"/></svg></span>
       <span class="note-rule" aria-hidden="true"></span>
       <p><strong>But the landlord files it, not you.</strong> The City's Eviction Diversion Program application is submitted by the property owner. That is why we can't do it for you, and it is why the most useful thing you can do is get your landlord to apply. The tenant hotline below can explain the program to you and help you raise it with them.</p>
+    </div>
+    <!-- The tenant application lives on the homepage, in the popup this page does not load.
+         /tenant-application.js hands the tenant over from the link, and hides this block when the
+         application is switched off. The href is where the link goes without it: this page. -->
+    <div class="note reveal" data-d="2" data-tenant-apply-block>
+      <span class="note-icon"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-file-user"/></svg></span>
+      <span class="note-rule" aria-hidden="true"></span>
+      <p><strong>Have your landlord's details? Start your application.</strong> If you have your landlord's name and an email or phone number for them, you can start an application here. We send it to your landlord to finish. <a href="/tenants/" data-tenant-apply>Start my application &rarr;</a></p>
     </div>
   </div>
 </section>
@@ -416,14 +426,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-file-user"/></svg></span>
         <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Can you apply for rental assistance for me?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
         <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a1"><span class="tq-text">Can you apply for rental assistance for me?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
-        <div class="tq-a" id="tq-a1"><p>No. We are hired by property owners to prepare and manage their filings. The Eviction Diversion Program application is filed by the landlord, so there is nothing we can file on your behalf.</p></div>
+        <div class="tq-a" id="tq-a1"><p>Not directly. We are hired by property owners to prepare and manage their filings, and we don't represent tenants. The Eviction Diversion Program application is filed by the landlord, so we can't file it for you. If you have your landlord's details, you can <a href="/tenants/" data-tenant-apply>start an application</a> that we send to your landlord to finish.</p></div>
       </div>
 
       <div class="tq-item amber reveal" data-d="1">
         <span class="tq-icon" aria-hidden="true"><svg class="ico" focusable="false"><use href="#i-phone"/></svg></span>
         <div class="tq-ghost" aria-hidden="true"><span class="tq-text">Can you talk to my landlord for me?</span><svg class="ico tq-chev" focusable="false"><use href="#i-chev"/></svg></div>
         <h3 class="tq-q"><button type="button" class="tq-btn" aria-expanded="true" aria-controls="tq-a2"><span class="tq-text">Can you talk to my landlord for me?</span><svg class="ico tq-chev" aria-hidden="true" focusable="false"><use href="#i-chev"/></svg></button></h3>
-        <div class="tq-a" id="tq-a2"><p>No. We only act for owners who have engaged us. The Eviction Diversion Program tenant hotline (215-523-9501) can explain the program to you so you can raise it with your landlord yourself.</p></div>
+        <div class="tq-a" id="tq-a2"><p>Not directly, but if you <a href="/tenants/" data-tenant-apply>start an application</a>, we send it to your landlord to finish. For help talking to your landlord, call the City's Eviction Diversion Program tenant hotline on 215-523-9501.</p></div>
       </div>
 
       <div class="tq-item green reveal">

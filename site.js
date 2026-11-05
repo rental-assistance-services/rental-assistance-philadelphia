@@ -12,7 +12,7 @@
    6) Intake-form validation (client-side convenience only)
    7) Contact lead-form handler
    8) Landlord / tenant gate
-   9) The tenant application (PREVIEW, ?tenant-preview=1; sends nothing)
+   9) The tenant application (sent like the landlord application; never a conversion)
    ============================================================ */
 (function(){
   'use strict';
@@ -104,6 +104,35 @@
     setErr(field, !ok);
     return ok;
   }
+  // A row marked data-lc-one-of (the tenant application's landlord email or phone) needs at
+  // least one of its fields filled in and valid. Its one message shows under the row until then.
+  function oneOfOk(group){
+    var ok = Array.prototype.some.call(group.querySelectorAll('input[name]'), function(el){
+      var v = (el.value || '').trim();
+      return !!v && (el.type === 'email' ? emailOk(v) : el.type === 'tel' ? phoneOk(v) : true);
+    });
+    var m = group.querySelector('[data-lc-one-of-msg]');
+    if(m){ m.classList.toggle('show', !ok); }
+    return ok;
+  }
+  // Check a whole form on submit: every field (each radio group once; the honeypot and hidden
+  // fields skipped), then every data-lc-one-of row. Each wrong field is marked. Returns the
+  // first one, or null when the form is fine.
+  function firstInvalid(form){
+    var firstBad = null, seenRadioGroups = {};
+    form.querySelectorAll('input,select,textarea').forEach(function(el){
+      if(el.name === 'hp_x7f2' || el.type === 'hidden') return; // honeypot; hidden fields
+      if(el.type === 'radio'){
+        if(seenRadioGroups[el.name]) return;
+        seenRadioGroups[el.name] = true;
+      }
+      if(!validateField(el) && !firstBad){ firstBad = el; }
+    });
+    form.querySelectorAll('[data-lc-one-of]').forEach(function(group){
+      if(!oneOfOk(group) && !firstBad){ firstBad = group.querySelector('input[name]'); }
+    });
+    return firstBad;
+  }
   function wireReveal(form, radioName, block, matchValue){
     if(!form || !block) return;
     function sync(){
@@ -188,8 +217,8 @@
   }
   // The application asks for the street and the ZIP in two boxes, but the CRM stores
   // property_address as sent and shows it on the lead, so it still gets the whole thing:
-  // "1932 N 5th St, 19122", or just the street when there is no ZIP. Shared with the tenant
-  // application (PREVIEW, section 9), which composes it the same way and sends nothing.
+  // "1932 N 5th St, 19122", or just the street when there is no ZIP. The tenant application
+  // (section 9) is sent by the same code, so it composes it the same way.
   function joinAddress(form){
     var street = form.querySelector('[name="property_street"]');
     var fullAddr = form.querySelector('input[type="hidden"][name="property_address"]');
@@ -198,7 +227,19 @@
       fullAddr.value = [street.value.trim(), zipBox ? zipBox.value.trim() : ''].filter(Boolean).join(', ');
     }
   }
-  function initIntakeForm(formId, statusId, formType){
+  // opts, for the tenant application (section 9); the landlord forms pass none:
+  //   allowed()         sends only while this says true (the switch in /tenant-application.js)
+  //   requireContactId  the confirmation needs {"ok": true} AND a contact_id: the endpoint
+  //                     answers a tripped honeypot with a bare {"ok": true} and saves nothing
+  //   check()           a last check once the fields are right: a message to show instead of
+  //                     sending, or '' to send (the tenant application's spam-check token)
+  //   extra()           fields to add to the payload, { name: value } (the token itself)
+  //   failed()          runs after any submit that did not end in a confirmation, refused by
+  //                     check(), by the endpoint or by the network (a fresh spam check)
+  //   done(form, data)  shows its own confirmation in place of the landlord one. rasTrackLead
+  //                     is then never called: a tenant application is never a conversion.
+  function initIntakeForm(formId, statusId, formType, opts){
+    opts = opts || {};
     var form = document.getElementById(formId);
     if(!form) return;
     var status = document.getElementById(statusId);
@@ -208,23 +249,21 @@
     });
     form.addEventListener('submit', function(e){
       e.preventDefault(); // wired to the live CRM endpoint below.
-      var firstBad = null, allOk = true, seenRadioGroups = {};
-      form.querySelectorAll('input,select,textarea').forEach(function(el){
-        if(el.name === 'hp_x7f2') return; // honeypot
-        if(el.type === 'radio'){
-          if(seenRadioGroups[el.name]) return;
-          seenRadioGroups[el.name] = true;
-        }
-        var fieldOk = validateField(el);
-        if(!fieldOk && !firstBad){ firstBad = el; }
-        if(!fieldOk) allOk = false;
-      });
+      if(opts.allowed && !opts.allowed()){ return; }
+      var firstBad = firstInvalid(form);
       if(status) status.className = 'form-status';
-      if(!allOk){
+      if(firstBad){
         if(status){ status.textContent = 'Please fix the highlighted fields above.'; status.classList.add('bad','show'); }
-        if(firstBad){ firstBad.focus(); firstBad.scrollIntoView({behavior:'smooth', block:'center'}); }
+        firstBad.focus(); firstBad.scrollIntoView({behavior:'smooth', block:'center'});
         return;
       }
+      var refusal = opts.check ? opts.check() : '';
+      if(refusal){
+        if(status){ status.textContent = refusal; status.classList.add('bad','show'); }
+        if(opts.failed){ opts.failed(); }
+        return;
+      }
+      var extra = opts.extra ? opts.extra() : {};
 
       // Build the payload. The back-rent intake has file uploads -> multipart;
       // license/tax are field-only -> JSON. Both carry form_type + the honeypot
@@ -238,6 +277,7 @@
         var fd = new FormData(form);          // includes file inputs + the hp_x7f2 honeypot
         fd.set('form_type', formType);
         Object.keys(utm).forEach(function(k){ fd.set(k, utm[k]); });
+        Object.keys(extra).forEach(function(k){ fd.set(k, extra[k]); });
         body = fd;                             // browser sets multipart boundary header
       } else {
         var obj = {form_type: formType};
@@ -247,6 +287,7 @@
           obj[el.name] = el.value;
         });
         Object.keys(utm).forEach(function(k){ obj[k] = utm[k]; });
+        Object.keys(extra).forEach(function(k){ obj[k] = extra[k]; });
         body = JSON.stringify(obj);
         headers = {'Content-Type': 'application/json'};
       }
@@ -265,12 +306,15 @@
       fetch(INTAKE_ENDPOINT, init)
         .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok: r.ok, data: d}; }); })
         .then(function(res){
-          if(!res.ok || !res.data || res.data.ok === false){
+          var saved = res.ok && res.data && (opts.requireContactId
+            ? res.data.ok === true && !!res.data.contact_id : res.data.ok !== false);
+          if(!saved){
             var e = new Error((res.data && res.data.reply) || 'submit_failed');
             // Only a `reply` the SERVER wrote is meant for a human to read.
             e.userMessage = (res.data && res.data.reply) || '';
             throw e;
           }
+          if(opts.done){ opts.done(form, res.data); return; }   // the tenant application: no conversion
           showConfirmation(form, status, res.data);   // only on a real 200 from the endpoint
           // Conversion tracking fires HERE — on a confirmed server success — and nowhere
           // else. It used to run from a document-level capture-phase listener, ahead of
@@ -280,6 +324,7 @@
         })
         .catch(function(err){
           if(btn){ btn.disabled = false; }
+          if(opts.failed){ opts.failed(); }
           // The applicant gets a human sentence and a phone number; the technical detail
           // goes to the console. A Philadelphia landlord was being shown raw strings like
           // "Failed to fetch" and a 200-character ByteString conversion error.
@@ -431,7 +476,7 @@
     }).join('');
     return '<h3>We work for landlords, but you’re not out of options.</h3>'
       + '<p>Rental Assistance Philadelphia is a private filing service hired by <strong>property owners</strong>, '
-      + 'so there is nothing we can file for you. We would rather tell you that now than take your details.</p>'
+      + 'and we don’t represent tenants.</p>'
       + '<p><strong>The part worth knowing:</strong> the City’s Eviction Diversion Program can pay your past-due '
       + 'rent (up to $3,500 plus two months of future rent), but <strong>the landlord files it, not you</strong>. '
       + 'The first hotline below can explain it to you so you can raise it with them.</p>'
@@ -491,67 +536,57 @@
 
   document.querySelectorAll('[data-role-gate]').forEach(initRoleGate);
 
-  /* ---- 9) The tenant application (PREVIEW, only with ?tenant-preview=1) ----
+  /* ---- 9) The tenant application ----
    *
    * Adam (2026-10-14) asked for a tenant path: a tenant who has their landlord's details starts
-   * an application that is forwarded to the landlord to finish. Abe sees it before it goes live,
-   * so it sits behind the switch in landlord-check.js (TENANT_PREVIEW), which publishes it as
-   * window.rasTenantPreview. It SENDS NOTHING: no fetch, no CRM row, no rasTrackLead, no
-   * lead_submit, and the form has no action. Submitting validates, then shows the confirmation
-   * with a banner saying nothing was sent. With the switch off the form is unreachable, and the
-   * submit is refused anyway (the field checks below are still bound, as on any form).
-   * The switch is read at submit time, not here: this file is a plain script at the end of the
-   * body and runs BEFORE the deferred landlord-check.js, which sets window.rasTenantPreview
-   * before any submit can happen. No landlord-check.js means no switch, so nothing is handled.
+   * an application that we send to the landlord to finish. Kean and RK approved it going live.
+   * It is sent by the landlord application's own code (initIntakeForm, section 6): the same
+   * endpoint, multipart with its two optional files, the same honeypot, click ids and utm_*
+   * fields, and the same error message when the endpoint refuses it or cannot be reached.
+   * Four things differ, all passed in below:
+   * - It sends only while the switch in /tenant-application.js (TENANT_APPLICATION, published as
+   *   window.rasTenantApplication) is on. The switch is read at submit time: this file is a plain
+   *   script at the end of the body and runs BEFORE the deferred /tenant-application.js. No
+   *   /tenant-application.js means no switch, so nothing is sent.
+   * - Its confirmation shows only on a 200 that says {"ok": true} AND carries a contact_id, so a
+   *   row was really saved. A bare {"ok": true} is what the endpoint answers a tripped honeypot
+   *   with, saving nothing: that shows the error, never "Application received".
+   * - It is NEVER a conversion: its confirmation replaces the landlord one, so rasTrackLead is
+   *   never called and no lead_submit is pushed (rasTrackLead would refuse its visitor_role of
+   *   tenant anyway).
+   * - It is not sent without a Cloudflare Turnstile token (Rio requires one): no token, an
+   *   expired one, or Cloudflare's script failing to load shows TURNSTILE_MSG instead. The token
+   *   goes in the body as turnstile_token, and the widget is reset after any failed submit,
+   *   because a token can only be used once (window.rasTurnstile, /tenant-application.js).
+   * The confirmation's promises (an email to the landlord, the application number emailed to the
+   * tenant) are Rio's to keep, not this page's. When Rio answers with the application number
+   * (application_number), the confirmation shows it too. It is set as text, never as HTML: it
+   * comes from the server, not from this page.
    */
-  (function(){
-    var form = document.getElementById('tenant-form');
-    if(!form) return;
-    var status = document.getElementById('tenant-form-status');
-    var group = form.querySelector('[data-lc-one-of]');
-    // The landlord must be reachable: a valid email or a valid phone, at least one.
-    function landlordReachable(){
-      if(!group) return true;
-      var ok = Array.prototype.some.call(group.querySelectorAll('input[name]'), function(el){
-        var v = (el.value || '').trim();
-        return !!v && (el.type === 'email' ? emailOk(v) : phoneOk(v));
-      });
-      var m = group.querySelector('[data-lc-one-of-msg]');
-      if(m){ m.classList.toggle('show', !ok); }
-      return ok;
-    }
-    // The same per-field checks as the landlord application (the popup runs them on each step).
-    form.querySelectorAll('input,select,textarea').forEach(function(el){
-      var evt = (el.type === 'radio' || el.type === 'checkbox') ? 'change' : 'blur';
-      el.addEventListener(evt, function(){ if(el.required || el.value) validateField(el); });
-    });
-    form.addEventListener('submit', function(e){
-      e.preventDefault();                      // never a native submit: this form sends nothing
-      if(window.rasTenantPreview !== true){ return; }   // switch off (or no popup script): refused
-      var firstBad = null;
-      form.querySelectorAll('input,select,textarea').forEach(function(el){
-        if(el.name === 'hp_x7f2' || el.type === 'hidden') return;
-        if(!validateField(el) && !firstBad){ firstBad = el; }
-      });
-      if(!landlordReachable() && !firstBad){ firstBad = group.querySelector('input[name]'); }
-      if(status){ status.className = 'form-status'; }
-      if(firstBad){
-        if(status){ status.textContent = 'Please fix the highlighted fields above.'; status.classList.add('bad','show'); }
-        firstBad.focus();
-        return;
-      }
-      joinAddress(form);                       // "street, ZIP", exactly as the landlord application
-      var panel = document.createElement('div');
-      panel.className = 'callout tenant-sent';
-      panel.setAttribute('role','status');
-      panel.innerHTML = '<p class="preview-banner">Preview: nothing was sent. The email to the landlord and the application number are not built yet.</p>'
-        + '<h3>Sent to your landlord</h3>'
-        + '<p>We will email you your application number and let you know when your landlord responds.</p>';
-      form.parentNode.insertBefore(panel, form);
-      form.style.display = 'none';             // the popup watches for this, as for the landlord form
-      panel.scrollIntoView({behavior:'smooth', block:'center'});
-    });
-  })();
+  function showTenantConfirmation(form, data){
+    var number = (data && data.application_number != null) ? String(data.application_number).trim() : '';
+    var panel = document.createElement('div');
+    panel.className = 'callout tenant-sent';
+    panel.setAttribute('role','status');
+    panel.innerHTML = '<h3>Application received</h3>' + (number
+      ? '<p>Thank you. We will email your landlord so they can finish your application.</p>'
+        + '<p>Your application number is <strong data-application-number></strong>. We&rsquo;ve also emailed it to you.</p>'
+      : '<p>Thank you. We will email your landlord so they can finish your application, and we will email you your application number.</p>');
+    if(number){ panel.querySelector('[data-application-number]').textContent = number; }
+    form.parentNode.insertBefore(panel, form);
+    form.style.display = 'none';             // the popup watches for this, as for the landlord form
+    panel.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  var TURNSTILE_MSG = 'Please complete the security check above, or call (215) 402-6882.';
+  function turnstileToken(){ return window.rasTurnstile ? window.rasTurnstile.token() : ''; }
+  initIntakeForm('tenant-form', 'tenant-form-status', 'tenant_application', {
+    allowed: function(){ return window.rasTenantApplication === true; },
+    requireContactId: true,
+    check: function(){ return turnstileToken() ? '' : TURNSTILE_MSG; },
+    extra: function(){ return { turnstile_token: turnstileToken() }; },
+    failed: function(){ if(window.rasTurnstile){ window.rasTurnstile.reset(); } },
+    done: showTenantConfirmation
+  });
 })();
 
 

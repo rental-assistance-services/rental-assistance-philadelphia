@@ -23,6 +23,7 @@ until configured. See the README's hosting section before changing those setting
 |---|---|
 | `theme.css` | The shared design tokens, motion, and form styles loaded by every page (section 4) |
 | `site.css`, `site.js`, `motion.js`, `landlord-check.js` | Shared page layout, form handling, motion, and the application popup |
+| `tenant-application.js` | The tenant application's one on/off switch and the hand-off to the homepage application, shared by the popup pages and `tenants/` |
 | `index.html` | The homepage, with the `#apply` application and the case-review form |
 | `services/`, `faq/`, `portal/` | The service pages, questions and answers, and portal preview; licensing and tax forms live under `services/licensing/` |
 | `back-rent/index.html` | The paid-search landing page and its case-review form |
